@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <th:block th:replace="~{fragments/layout :: head('Tanoshimi - ' + #{planner.title})}"></th:block>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+    <style>
+  :root{
+    --parchment:#f3e8cf;
+    --parchment-deep:#e8dab3;
+    --card:#fffcf4;
+    --forest:#4b6b4a;
+    --forest-deep:#33472f;
+    --sash:#e0793f;
+    --sash-deep:#b85c2b;
+    --gold:#d9a441;
+    --sky:#8fb9c9;
+    --ink:#3a2e22;
+    --ink-soft:#6b5c46;
+    --rope:#c9b58b;
+    --line:#d8c69a;
+
+    /* 일정 카테고리 (마치 지형 범례처럼 유니크) */
+    --cat-festival:#e0793f;
+    --cat-food:#d9a441;
+    --cat-sight:#4b6b4a;
+    --cat-move:#8fb9c9;
+    --cat-rest:#a58fb0;
+    --cat-blank:#c9b58b;
+
+    --slot-h:22px;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top left, rgba(255,255,255,.35), transparent 55%),
+      var(--parchment);
+    color:var(--ink);
+    font-family:'Gowun Dodum','Apple SD Gothic Neo',sans-serif;
+    line-height:1.55;
+  }
+  h1,h2,h3,.disp{ font-family:'Jua','Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
+  .wrap{ max-width:1280px; margin:0 auto; padding:26px 22px 80px; }
+
+  /* ---------- 상단 ---------- */
+  .page-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:6px; }
+  .page-head h1{ font-size:30px; }
+  .page-head .sub{ color:var(--ink-soft); font-size:13.5px; margin:4px 0 0; }
+  .stamp{
+    font-family:'Jua',sans-serif; font-size:12px; letter-spacing:1px; color:var(--sash-deep);
+    border:2px dashed var(--sash); border-radius:999px; padding:6px 16px;
+    transform:rotate(-2deg); background:rgba(255,255,255,.5); white-space:nowrap;
+  }
+
+  .trail{ display:flex; align-items:center; gap:8px; margin:18px 0 18px; color:var(--rope); }
+  .trail .dot{ width:7px; height:7px; border-radius:50%; background:var(--rope); flex:none; }
+  .trail .ln{ flex:1; border-top:2px dashed var(--rope); }
+
+  /* ---------- 공통 atoms ---------- */
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; }
+  .btn{
+    font-family:'Gowun Dodum',sans-serif; font-weight:700; font-size:13px; border:none; border-radius:10px;
+    padding:9px 15px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; color:var(--ink);
+  }
+  .btn:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+  .btn-primary{ background:var(--sash); color:#fff; box-shadow:0 3px 0 var(--sash-deep); }
+  .btn-primary:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--sash-deep); }
+  .btn-forest{ background:var(--forest); color:#fff; box-shadow:0 3px 0 var(--forest-deep); }
+  .btn-forest:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--forest-deep); }
+  .btn-ghost{ background:var(--card); color:var(--forest-deep); border:2px solid var(--line); }
+  .btn-ghost:hover{ border-color:var(--sash); color:var(--sash-deep); }
+  .btn-sm{ font-size:12px; padding:6px 11px; border-radius:8px; }
+  .chip{ font-size:11.5px; font-weight:700; border-radius:999px; padding:4px 11px; display:inline-block; }
+  .chip-region{ background:var(--sky); color:#1c3a44; }
+  .chip-soft{ background:var(--parchment-deep); color:var(--ink-soft); }
+
+  /* ---------- 레이아웃 ---------- */
+  .planner{ display:grid; grid-template-columns:1fr 348px; gap:20px; align-items:start; }
+
+  /* ---------- 계획표 ---------- */
+  .board{ overflow:hidden; }
+  .board-top{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    padding:14px 18px; border-bottom:1px solid var(--line); background:var(--parchment-deep);
+  }
+  .board-top .ttl{ font-family:'Jua',sans-serif; font-size:16px; color:var(--forest-deep); display:flex; align-items:center; gap:8px; }
+  .board-tools{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+  .legend{ display:flex; gap:12px; flex-wrap:wrap; padding:10px 18px; font-size:11.5px; color:var(--ink-soft); border-bottom:1px solid var(--line); }
+  .legend .sw{ width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:-1px; }
+
+  .grid-head{ display:grid; grid-template-columns:56px repeat(4,1fr); border-bottom:1px solid var(--line); background:var(--card); position:sticky; top:54px; z-index:6; }
+  .grid-head .corner{ border-right:1px solid var(--line); }
+  .day-head{ padding:9px 8px; text-align:center; border-right:1px solid var(--line); }
+  .day-head:last-child{ border-right:none; }
+  .day-head .d{ font-family:'Jua',sans-serif; font-size:15px; color:var(--forest-deep); }
+  .day-head .w{ font-size:11px; color:var(--ink-soft); }
+  .day-head .add{
+    margin-top:4px; font-size:11px; color:var(--ink-soft); background:var(--parchment);
+    border:1px dashed var(--rope); border-radius:7px; padding:2px 8px; cursor:pointer; font-family:inherit;
+  }
+  .day-head .add:hover{ border-color:var(--sash); color:var(--sash-deep); }
+
+  .grid-body{ display:grid; grid-template-columns:56px repeat(4,1fr); }
+  
+  .time-col { border-right:2px solid var(--line); background:var(--parchment-deep); padding-top:1px; z-index:2; position:relative; box-shadow: 2px 0 5px rgba(0,0,0,0.03); }
+  .slot {
+    height:var(--slot-h); font-size:10px; color:var(--forest-deep); display:flex; align-items:center; justify-content:flex-end;
+    padding:0 6px 0 0; border-bottom:1px dashed rgba(216, 198, 154, 0.5); opacity:0.7;
+  }
+  .slot:nth-child(even) { border-bottom:1px solid var(--line); opacity:1; font-weight:600; font-size:11.5px; }
+  
+  .col{
+    position:relative; border-right:1px solid var(--line);
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0, transparent calc(var(--slot-h)*2 - 1px),
+        var(--line) calc(var(--slot-h)*2 - 1px), var(--line) calc(var(--slot-h)*2)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0, transparent calc(var(--slot-h) - 1px),
+        #efe3c6 calc(var(--slot-h) - 1px), #efe3c6 var(--slot-h)
+      );
+  }
+  .col:last-child{ border-right:none; }
+  .col.over{ background-color:rgba(224,121,63,.05); }
+
+  /* 일정 블록 */
+  .block{
+    position:absolute; left:4px; right:4px; border-radius:9px; padding:4px 7px;
+    color:#fff; overflow:hidden; cursor:grab; user-select:none;
+    box-shadow:0 2px 5px rgba(59,44,20,.2);
+    border:1px solid rgba(0,0,0,.08);
+    font-size:11.5px; line-height:1.35;
+  }
+  .block:active{ cursor:grabbing; }
+  .block.dragging{ opacity:.4; }
+  .block .t{ font-weight:700; font-size:12px; display:block; word-break:keep-all; }
+  .block .m{ opacity:.9; font-size:10.5px; }
+  .block .x{
+    position:absolute; top:2px; right:3px; width:17px; height:17px; border-radius:50%;
+    background:rgba(0,0,0,.18); color:#fff; border:none; cursor:pointer; font-size:11px; line-height:1;
+    display:none; align-items:center; justify-content:center; padding:0;
+  }
+  .block:hover .x{ display:flex; }
+  .block .grip{
+    position:absolute; left:0; right:0; bottom:0; height:9px; cursor:ns-resize;
+  }
+  .block .grip::after{
+    content:""; position:absolute; left:50%; bottom:3px; transform:translateX(-50%);
+    width:22px; height:2px; border-radius:2px; background:rgba(255,255,255,.65);
+  }
+  .block.blank{
+    background:repeating-linear-gradient(45deg, #f7efd9 0 7px, #f1e6c9 7px 14px);
+    color:var(--ink-soft); border:2px dashed var(--rope); box-shadow:none;
+  }
+  .block.blank .t{ color:var(--ink); }
+  .block.blank .grip::after{ background:var(--rope); }
+  
+  .block.pkg{ background:var(--forest); }
+  .block.act{ background:var(--sash); }
+  .block .t[contenteditable="true"]{ outline:2px solid var(--gold); border-radius:4px; padding:0 2px; cursor:text; }
+  .block.shake{ animation:shake .3s; }
+  @keyframes shake{ 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+
+  .drop-ghost{
+    position:absolute; left:4px; right:4px; border-radius:9px; pointer-events:none;
+    border:2px dashed var(--sash); background:rgba(224,121,63,.12); display:none; z-index:5;
+  }
+  .now-line{ position:absolute; left:0; right:0; height:2px; background:var(--sash); opacity:.5; pointer-events:none; }
+  .now-line::before{ content:""; position:absolute; left:-1px; top:-3px; width:8px; height:8px; border-radius:50%; background:var(--sash); }
+
+  .board-foot{
+    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:11px 18px; border-top:1px solid var(--line); background:var(--parchment-deep);
+    font-size:12px; color:var(--ink-soft);
+  }
+
+  /* ---------- AI 패널 ---------- */
+  .ai{ display:flex; flex-direction:column; height:calc(100vh - 220px); min-height:520px; position:sticky; top:70px; overflow:hidden; }
+  .ai-head{ padding:13px 16px; border-bottom:1px solid var(--line); background:var(--forest); color:#fff; display:flex; align-items:center; gap:9px; }
+  .ai-head .nm{ font-family:'Jua',sans-serif; font-size:15px; }
+  .ai-head .st{ font-size:11px; opacity:.85; }
+  .ai-body{ flex:1; overflow:auto; padding:14px; background:var(--parchment); display:flex; flex-direction:column; gap:10px; }
+  .msg{ max-width:88%; padding:9px 13px; border-radius:14px; font-size:13px; }
+  .msg.bot{ background:var(--card); align-self:flex-start; border-bottom-left-radius:4px; border:1px solid var(--line); }
+  .msg.me{ background:var(--forest); color:#fff; align-self:flex-end; border-bottom-right-radius:4px; }
+  .msg.sys{ align-self:center; background:none; color:var(--ink-soft); font-size:11px; text-align:center; }
+  .typing span{ display:inline-block; width:5px; height:5px; margin-right:3px; border-radius:50%; background:var(--rope); animation:blink 1s infinite; }
+  .typing span:nth-child(2){ animation-delay:.2s } .typing span:nth-child(3){ animation-delay:.4s }
+  @keyframes blink{ 0%,60%,100%{opacity:.25} 30%{opacity:1} }
+
+  .rec-list{ align-self:stretch; display:flex; flex-direction:column; gap:8px; }
+  .rec-card{
+    display:flex; gap:9px; align-items:center; background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:8px; cursor:grab;
+  }
+  .rec-card:active{ cursor:grabbing; }
+  .rec-card.dragging{ opacity:.45; }
+  .rec-card .sw{ width:6px; align-self:stretch; border-radius:3px; flex:none; }
+  .rec-card .info{ flex:1; min-width:0; }
+  .rec-card .t{ font-size:12.5px; font-weight:700; display:block; }
+  .rec-card .m{ font-size:11px; color:var(--ink-soft); }
+  .rec-card .tags{ margin-top:3px; display:flex; gap:4px; flex-wrap:wrap; }
+  .rec-card .tag{ font-size:10px; background:var(--parchment-deep); color:var(--ink-soft); border-radius:999px; padding:1px 7px; }
+  .rec-card .put{
+    flex:none; width:26px; height:26px; border-radius:8px; border:1px solid var(--line);
+    background:var(--parchment); color:var(--forest-deep); font-size:15px; cursor:pointer; line-height:1;
+  }
+  .rec-card .put:hover{ background:var(--sash); color:#fff; border-color:var(--sash); }
+  .rec-hint{ font-size:10.5px; color:var(--ink-soft); text-align:center; }
+
+  .quick{ display:flex; gap:6px; flex-wrap:wrap; padding:9px 12px 0; }
+  .quick button{
+    font-family:inherit; font-size:11.5px; color:var(--forest-deep); background:var(--card);
+    border:2px solid var(--line); border-radius:999px; padding:5px 11px; cursor:pointer;
+  }
+  .quick button:hover{ border-color:var(--sash); color:var(--sash-deep); }
+
+  .ai-input{ display:flex; gap:7px; padding:11px 12px 12px; border-top:1px solid var(--line); background:var(--card); }
+  .ai-input input{
+    flex:1; border:2px solid var(--forest); border-radius:999px; padding:9px 15px;
+    font-family:inherit; font-size:13px; background:var(--card); color:var(--ink); outline:none;
+  }
+  .ai-input input:focus{ border-color:var(--sash); }
+  .ai-send{ width:40px; height:40px; border-radius:50%; background:var(--forest); color:#fff; border:none; cursor:pointer; font-size:15px; flex:none; }
+  .ai-send:hover{ background:var(--forest-deep); }
+
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+    background:var(--forest-deep); color:#fff; font-size:13px; padding:10px 18px; border-radius:999px;
+    box-shadow:0 6px 16px rgba(59,44,20,.3); opacity:0; pointer-events:none; transition:.25s; z-index:50;
+  }
+  .toast.on{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  footer.note{ text-align:center; color:var(--ink-soft); font-size:12px; margin-top:34px; }
+
+  @media (max-width:900px){
+    .planner{ grid-template-columns:1fr; }
+    .ai{ height:520px; position:static; }
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1 th:text="#{planner.title}">여행 계획표</h1>
+      <p class="sub">AI에게 원하는 여행을 말하고 추천 카드를 계획표에 끌어다 놓으세요. 빈칸을 직접 채워도 됩니다.</p>
+    </div>
+    <span class="stamp" th:text="${tour != null ? tour.title : '예약 대기중인 계획표입니다.'}">FIELD PLAN</span>
+  </div>
+
+  <div class="trail"><span class="dot"></span><span class="ln"></span><span class="dot"></span><span class="ln"></span><span class="dot"></span></div>
+
+  <div class="planner">
+
+    <!-- ================= 계획표 ================= -->
+    <section class="board card">
+      <div class="board-top">
+        
+        <div class="ttl" style="display:flex; align-items:center;">
+          지역일정 · <span th:text="${tour != null ? (tour.durationNights + '박 ' + (tour.durationNights + 1) + '일') : '일정 미정'}">일정 미정</span>
+          <a th:if="${tour == null}" th:href="@{/packages(partyId=${schedule.party?.id})}" class="btn btn-primary" style="font-size:11px; padding:4px 10px; margin-left:12px; text-decoration:none;">투어 패키지 예약하기</a>
+          <a th:if="${tour != null}" th:href="@{/packages(partyId=${schedule.party?.id})}" class="btn" style="background:#fff; border:1px solid var(--line); font-size:11px; padding:4px 10px; margin-left:12px; text-decoration:none;">패키지 변경</a>
+        </div>
+
+        <div class="board-tools">
+          <div style="font-weight:700; font-size:16px; color:var(--sash); display:inline-flex; align-items:center; margin-right:6px;">
+            Total: <span id="total-price" style="letter-spacing:-0.5px; margin-left:4px;">0</span> ¥
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-add" th:text="#{planner.add.blank}">일정추가</button>
+          <button class="btn btn-ghost btn-sm" id="btn-clear">전체 비우기</button>
+          <button type="button" id="btn-submit" class="btn btn-primary btn-sm" th:text="#{planner.submit}" th:attr="data-schedule-id=${schedule.id}">계획표 제출하기</button>
+          <button type="button" id="btn-pay" class="btn btn-forest btn-sm" style="display:none;">투어결제하기</button>        
+        </div>
+      </div>
+
+      <div class="legend" id="legend"></div>
+
+      <div class="grid-head" id="grid-head"></div>
+      <div class="grid-body" id="grid-body"></div>
+
+      <div class="board-foot">
+        <span id="summary">아직 채워진 일정이 없습니다.</span>
+        <span>블록 아래 손잡이를 잡고 늘리면 시간이 늘어납니다 · 항목을 눌러 내용을 바꿀수있습니다</span>
+      </div>
+    </section>
+
+    <!-- ================= AI 패널 ================= -->
+    <aside class="ai card">
+      <div class="ai-head">
+        <svg width="22" height="22" viewBox="0 0 54 54" aria-hidden="true">
+          <circle cx="27" cy="27" r="20" fill="none" stroke="#fff" stroke-width="3"/>
+          <polygon points="27,12 31,27 27,42 23,27" fill="var(--gold)"/>
+        </svg>
+        <div>
+          <div class="nm">여행안내자</div>
+          <div class="st">원하시는 여행을 말씀해 주세요!</div>
+        </div>
+      </div>
+
+      <div class="ai-body" id="chat">
+        <div class="msg bot">안녕하세요! 어떤 여행을 하고 싶으신가요? 지역 분위기·같이 가는 사람을 알려주시면 일정 정보를 찾아 드립니다.</div>
+        <div class="msg sys">추천 카드를 왼쪽 계획표로 끌어다 일정을 만듭니다!</div>
+      </div>
+
+      <div class="quick" id="quick"></div>
+
+      <div class="ai-input">
+        <label for="ai-text" class="visually-hidden" style="position:absolute;left:-9999px;">AI에게 보낼 내용</label>
+        <input id="ai-text" type="text" placeholder="우리 인생사진 건지기 좋은 곳 원해!" autocomplete="off">
+        <button class="ai-send" id="ai-send" aria-label="보내기">></button>
+      </div>
+    </aside>
+
+  </div>
+
+  <footer class="note">화면 목업 · 백엔드 미연결상태 (추천 데이터는 임시)</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+const SCHEDULE_ID = /*[[${schedule.id}]]*/ 1;
+const TOUR_REGION = /*[[${tour != null ? tour.region : schedule.party?.region}]]*/ '';
+const DURATION_NIGHTS = /*[[${tour != null ? tour.durationNights : 2}]]*/ 2;
+const SCHEDULE_STATUS = /*[[${schedule.status}]]*/ 'draft';
+/*]]>*/
+</script>
+
+<script th:src="@{/js/planner.js?v=4}" defer></script>
+</body>
+</html>

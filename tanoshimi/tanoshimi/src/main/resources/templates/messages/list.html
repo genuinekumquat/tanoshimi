@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('쪽지함 | 타노시미')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="wrap" style="max-width:600px;">
+  <h1 style="font-size:22px;">쪽지함</h1>
+
+  <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+    <a th:each="r : ${rooms}" class="card" th:href="@{'/messages/' + ${r.roomId}}"
+       style="display:flex; gap:12px; padding:13px; align-items:center; text-decoration:none; color:inherit;">
+      <div style="width:42px; height:42px; border-radius:50%; background:var(--forest); color:#fff; flex:none;
+                  display:flex; align-items:center; justify-content:center; font-weight:700;"
+           th:text="${#strings.substring(r.otherUserName,0,1)}">유</div>
+      <div style="flex:1; min-width:0;">
+        <p style="font-weight:700; font-size:13.5px; margin:0 0 3px;" th:text="${r.otherUserName}">상대방</p>
+        <p style="font-size:12px; color:var(--ink-soft); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+           th:text="${r.lastMessagePreview}">최근 메시지</p>
+      </div>
+      <span style="font-size:11px; color:var(--ink-soft); flex:none;" th:text="${r.lastMessageTime}"></span>
+    </a>
+
+    <div th:if="${#lists.isEmpty(rooms)}" class="card" style="padding:40px; text-align:center; color:var(--ink-soft);">
+      아직 대화가 없습니다. 다른 사용자의 프로필에서 메시지를 보내보세요.
+    </div>
+  </div>
+</main>
+</body>
+</html>

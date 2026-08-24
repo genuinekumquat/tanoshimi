@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('게시글 보기 | 고객센터 | 타노시미')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="wrap">
+  <div style="max-width:800px; margin: 0 auto; background: var(--card); padding: 30px; border-radius: 10px; border: 1px solid var(--line);">
+    <div style="border-bottom: 2px solid var(--sash); padding-bottom: 20px; margin-bottom: 20px;">
+      <h2 style="margin-top:0; margin-bottom: 10px;" th:text="${post.title}">제목</h2>
+      <div style="display: flex; gap: 15px; font-size: 13px; color: var(--ink-soft);">
+        <span th:text="'작성자: ' + ${post.guestId}">작성자: id</span>
+        <span th:text="'작성일: ' + ${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}">작성일: </span>
+      </div>
+    </div>
+    
+    <div style="min-height: 300px; line-height: 1.6; white-space: pre-wrap;" th:text="${post.content}">
+      내용
+    </div>
+
+    <div style="border-top: 1px solid var(--line); padding-top: 20px; margin-top: 30px;">
+      <h3 style="margin-bottom: 20px;">댓글</h3>
+      
+      <div th:each="comment : ${comments}" style="margin-bottom: 15px; border-bottom: 1px solid var(--line); padding-bottom: 15px;">
+        <!-- Root comment -->
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+          <strong th:text="${comment.writerName}">작성자</strong>
+          <span style="font-size: 12px; color: var(--ink-soft);" th:text="${#temporals.format(comment.createdAt, 'yyyy-MM-dd HH:mm')}">시간</span>
+        </div>
+        <div th:text="${comment.content}" style="margin-bottom: 10px; white-space: pre-wrap;">내용</div>
+        
+        <button class="btn" style="font-size: 12px; padding: 2px 8px; border: 1px solid var(--line); background: white; cursor: pointer;" th:attr="onclick=|showReplyForm(${comment.id})|">답글 달기</button>
+        
+        <!-- Reply form for this root comment -->
+        <div th:id="'reply-form-' + ${comment.id}" style="display: none; margin-top: 10px; padding-left: 20px; border-left: 2px solid var(--sash);">
+          <form th:action="@{/support/{id}/comment(id=${post.id})}" method="post">
+            <input type="hidden" name="parentId" th:value="${comment.id}">
+            <textarea name="content" rows="2" style="width: 100%; border: 1px solid var(--line); border-radius: 5px; padding: 10px; margin-bottom: 5px; box-sizing: border-box;" required placeholder="답글을 입력하세요..."></textarea>
+            <div style="text-align: right;">
+              <button type="submit" class="btn" style="cursor: pointer;">답글 등록</button>
+            </div>
+          </form>
+        </div>
+        
+        <!-- Nested replies -->
+        <div th:if="${not #lists.isEmpty(comment.replies)}" style="margin-top: 15px;">
+          <div th:each="reply : ${comment.replies}" style="margin-top: 10px; padding-left: 20px; border-left: 2px solid var(--sash);">
+             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+              <span style="font-weight: bold; font-size: 14px;">
+                ↳ <span th:text="${reply.writerName}">작성자</span>
+              </span>
+              <span style="font-size: 12px; color: var(--ink-soft);" th:text="${#temporals.format(reply.createdAt, 'yyyy-MM-dd HH:mm')}">시간</span>
+            </div>
+            <div th:text="${reply.content}" style="white-space: pre-wrap; font-size: 14px;">내용</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- General comment form -->
+      <div style="margin-top: 30px; background: var(--paper); padding: 15px; border-radius: 5px; border: 1px solid var(--line);">
+        <form th:action="@{/support/{id}/comment(id=${post.id})}" method="post">
+          <textarea name="content" rows="3" style="width: 100%; border: 1px solid var(--line); border-radius: 5px; padding: 10px; margin-bottom: 10px; box-sizing: border-box;" required placeholder="댓글을 남겨주세요..."></textarea>
+          <div style="text-align: right;">
+            <button type="submit" class="btn" style="cursor: pointer;">댓글 등록</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div style="border-top: 1px solid var(--line); padding-top: 20px; margin-top: 30px; display: flex; justify-content: space-between;">
+      <a th:href="@{/support}" class="btn" style="border: 1px solid var(--line); background: white;">목록으로</a>
+    </div>
+  </div>
+</main>
+<script>
+  function showReplyForm(id) {
+    const form = document.getElementById('reply-form-' + id);
+    if (form.style.display === 'none' || form.style.display === '') {
+      form.style.display = 'block';
+    } else {
+      form.style.display = 'none';
+    }
+  }
+</script>
+</body>
+</html>

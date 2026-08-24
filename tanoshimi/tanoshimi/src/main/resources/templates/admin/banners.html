@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('배너 관리 | 관리자')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="wrap">
+  
+  <div style="margin-bottom: 20px; display:flex; gap: 10px;">
+    <a href="/admin" class="btn" style="background:#fff; border:1px solid #ccc;">회원 관리</a>
+    <a href="/admin/parties" class="btn" style="background:#fff; border:1px solid #ccc;">파티 게시글 관리</a>
+    <a href="/admin/tours/create" class="btn" style="background:#fff; border:1px solid #ccc;">패키지 상품 추가</a>
+    <a href="/admin/banners" class="btn btn-primary">광고 배너 관리</a>
+    <a href="/admin/reports" class="btn" style="background:#fff; border:1px solid #ccc;">신고 처리</a>
+  </div>
+
+  <section style="margin-bottom: 40px; padding-bottom: 20px;">
+    <h2>메인페이지 광고 배너 관리 (최대 5개)</h2>
+    <!-- th:action을 사용하여 CSRF 토큰 자동 포함 -->
+    <form th:action="@{/admin/banners}" method="post" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; margin-bottom: 16px;">
+        <input type="file" name="file" accept="image/*" required style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+        <input type="text" name="targetUrl" placeholder="배너 클릭 시 이동할 URL (선택사항)" style="flex:1; padding:6px; border:1px solid #ccc; border-radius:4px;">
+        <button type="submit" class="btn btn-primary">배너 등록</button>
+    </form>
+    
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <div th:each="b, stat : ${banners}" style="width:200px; border:1px solid var(--line); border-radius:8px; overflow:hidden; position:relative; background:#fff;">
+            <img th:src="${b.imageUrl}" style="width:100%; height:120px; object-fit:cover; display:block;">
+            <div style="padding:8px; font-size:12px; word-break:break-all;" th:text="${b.targetUrl != null and b.targetUrl != '' ? 'URL: ' + b.targetUrl : '연결 링크 없음'}"></div>
+            <!-- th:action을 사용하여 CSRF 토큰 자동 포함 -->
+            <form th:action="@{'/admin/banners/' + ${b.id} + '/delete'}" method="post" style="padding:8px; border-top:1px solid var(--line); background:#fafafa; text-align:center;">
+                <button type="submit" class="btn" style="background:var(--danger); color:#fff; border:none; padding:4px 12px; font-size:11px; cursor:pointer; border-radius:4px;">삭제</button>
+            </form>
+        </div>
+        <div th:if="${#lists.isEmpty(banners)}" style="color:#999; font-size:14px; padding:10px;">등록된 배너가 없습니다.</div>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>

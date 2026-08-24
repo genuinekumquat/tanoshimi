@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('여행 게시판 | 타노시미')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<style>
+  /* ---------- 페이지 헤더 ---------- */
+  .page-head{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--sash); }
+  .page-head h1{ font-size:24px; margin:0 0 6px 0; }
+  .page-head .sub{ font-size:13px; color:var(--ink-soft); margin:0; }
+
+  /* ---------- 툴바 (뷰 토글, 필터) ---------- */
+  .toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .view-toggle{ display:flex; gap:4px; background:var(--sash); padding:4px; border-radius:999px; }
+  .view-toggle button{
+    font-family:inherit; font-size:12.5px; font-weight:700; color:var(--ink-soft); background:none; border:none;
+    border-radius:999px; padding:7px 16px; cursor:pointer; display:flex; align-items:center; gap:5px;
+  }
+  .view-toggle button.on{ background:var(--forest); color:#fff; }
+  .filter-select{ border:1px solid var(--line); border-radius:9px; padding:8px 12px; font-family:inherit; font-size:12.5px; background:var(--card); }
+
+  /* ---------- 그리드(썸네일) 모드 ---------- */
+  .feed-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .feed-item{ position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; cursor:pointer; border:1px solid var(--line); display:block; }
+  .feed-item .ph{ position:absolute; inset:0; }
+  .ph1{ background:linear-gradient(135deg,var(--sky),#c7dfe6); }
+  .ph2{ background:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
+  .ph3{ background:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
+  .ph4{ background:linear-gradient(135deg,#e3b7a0,#d99a86); }
+  .feed-item .region-tag{ position:absolute; top:7px; left:7px; font-size:10px; font-weight:700; color:#fff; background:rgba(30,22,14,.55); border-radius:999px; padding:2px 8px; }
+  .feed-item .cap{ position:absolute; left:0; right:0; bottom:0; padding:8px 9px 7px; font-size:11px; color:#fff; background:linear-gradient(to top, rgba(30,22,14,.8), transparent); }
+  .feed-item .likes{ position:absolute; top:7px; right:7px; font-size:10.5px; color:#fff; background:rgba(30,22,14,.55); border-radius:999px; padding:2px 8px; }
+  .feed-item:hover .ph{ filter:brightness(.85); }
+
+  /* ---------- 리스트(제목) 모드 ---------- */
+  .feed-list{ display:flex; flex-direction:column; gap:10px; }
+  .list-item{ display:flex; gap:12px; padding:12px; cursor:pointer; align-items:center; }
+  .list-item:hover{ border-color:var(--sash); }
+  .list-item .thumb{ width:64px; height:64px; border-radius:9px; flex:none; }
+  .list-item .info{ flex:1; min-width:0; }
+  .list-item .t{ font-size:14px; font-weight:700; margin:0 0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .list-item .oneliner{ font-size:12.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0 0 5px; }
+  .list-item .meta{ display:flex; gap:10px; font-size:11px; color:var(--ink-soft); }
+
+  .hidden{ display:none !important; }
+  footer.note{ text-align:center; color:var(--ink-soft); font-size:12px; margin-top:36px; }
+  @media (max-width:560px){ .feed-grid{ grid-template-columns:repeat(2,1fr); } }
+</style>
+
+<main class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>여행 게시판</h1>
+      <p class="sub">다른 여행자들의 후기와 스냅을 둘러보세요.</p>
+    </div>
+    <button type="button" id="btn-write" class="btn btn-primary" sec:authorize="isAuthenticated()">✏️ 글쓰기</button>
+  </div>
+
+  <div class="toolbar">
+    <div class="view-toggle">
+      <button class="on" id="btn-grid">▦ 썸네일</button>
+      <button id="btn-list">☰ 제목</button>
+    </div>
+    <select class="filter-select" id="f-region">
+      <option value="">전체 지역</option>
+      <option>오사카</option><option>도쿄</option><option>교토</option>
+      <option>후쿠오카</option><option>홋카이도</option><option>오키나와</option>
+    </select>
+  </div>
+
+  <div class="feed-grid" id="feed-grid">
+    <a th:each="post : ${posts.content}" class="feed-item" th:href="@{'/board/' + ${post.id}}" th:aria-label="${post.title}">
+      <span th:if="${post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')}" 
+            class="ph" th:style="'background: url(' + @{${post.thumbnailUrl}} + ') center/cover no-repeat;'"></span>
+      <span th:unless="${post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')}" 
+            th:classappend="${post.thumbnailUrl} ?: 'ph1'" class="ph"></span>
+      <span class="region-tag" th:text="'📍 ' + (${post.region} ?: '지역미정')">📍 지역미정</span>
+      <span class="likes" th:text="'❤️ ' + ${post.likeCount}">❤️ 0</span>
+      <span class="report-btn" style="position:absolute; bottom:10px; right:10px; z-index:10;" sec:authorize="isAuthenticated()">
+         <span th:attr="data-report-type='post',data-report-id=${post.id},data-report-label=${post.title}" style="font-size:11px; padding:3px 6px; background:rgba(255,255,255,0.9); border:1px solid #ffcccc; color:red; border-radius:4px; font-weight:bold; cursor:pointer;">🚨 신고</span>
+      </span>
+      <span class="cap" th:text="${post.content}">내용</span>
+    </a>
+  </div>
+
+  <div class="feed-list hidden" id="feed-list">
+    <a th:each="post : ${posts.content}" class="list-item card" th:href="@{'/board/' + ${post.id}}">
+      <span th:if="${post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')}" 
+            class="thumb ph" th:style="'display:block; background: url(' + @{${post.thumbnailUrl}} + ') center/cover no-repeat;'"></span>
+      <span th:unless="${post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')}" 
+            th:classappend="${post.thumbnailUrl} ?: 'ph1'" class="thumb ph" style="display:block;"></span>
+      <span class="info">
+        <p class="t" th:text="${post.title}">제목</p>
+        <p class="oneliner" th:text="${post.content}">내용</p>
+        <span class="meta">
+          <span th:text="'📍 ' + (${post.region} ?: '지역미정')">📍 지역미정</span>
+          <span th:text="'❤️ ' + ${post.likeCount}">❤️ 0</span>
+          <span th:text="'@' + ${post.user.name}">@작성자</span>
+          <span class="report-btn" style="margin-left:auto;" sec:authorize="isAuthenticated()">
+              <span th:attr="data-report-type='post',data-report-id=${post.id},data-report-label=${post.title}" style="font-size:11px; padding:3px 6px; background:#fff; border:1px solid #ffcccc; color:red; border-radius:4px; font-weight:bold; cursor:pointer;">🚨 신고</span>
+          </span>
+        </span>
+      </span>
+    </a>
+  </div>
+
+  <div id="write-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:60; align-items:center; justify-content:center;">
+    <div class="card" style="width:420px; padding:20px;">
+      <h2 style="font-size:16px;">글쓰기</h2>
+      <input type="text" id="w-title" placeholder="제목" style="width:100%; padding:9px; margin-bottom:8px; border:1px solid var(--line); border-radius:8px;">
+      <textarea id="w-content" placeholder="내용을 입력하세요" style="width:100%; min-height:120px; padding:9px; border:1px solid var(--line); border-radius:8px;"></textarea>
+      <input type="text" id="w-region" placeholder="지역(선택)" style="width:100%; padding:9px; margin-top:8px; border:1px solid var(--line); border-radius:8px;">
+      <label style="display:block; font-size:12px; font-weight:700; margin-top:10px; margin-bottom:4px;">사진 (선택, 없으면 기본 이미지)</label>
+      <input type="file" id="w-thumbnail" accept="image/png,image/jpeg,image/gif,image/webp" style="width:100%; font-size:12.5px;">
+      <img id="w-thumbnail-preview" style="display:none; width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-top:8px;">
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button type="button" id="btn-write-cancel" class="btn" style="flex:1; background:#fff; border:1px solid var(--line);">취소</button>
+        <button type="button" id="btn-write-submit" class="btn btn-primary" style="flex:1;">등록</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script th:src="@{/js/post-write.js}" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 뷰 토글
+    const btnGrid = document.getElementById('btn-grid');
+    const btnList = document.getElementById('btn-list');
+    const feedGrid = document.getElementById('feed-grid');
+    const feedList = document.getElementById('feed-list');
+
+    if (btnGrid && btnList) {
+        btnGrid.addEventListener('click', () => {
+            btnGrid.classList.add('on');
+            btnList.classList.remove('on');
+            feedGrid.classList.remove('hidden');
+            feedList.classList.add('hidden');
+        });
+        
+        btnList.addEventListener('click', () => {
+            btnList.classList.add('on');
+            btnGrid.classList.remove('on');
+            feedList.classList.remove('hidden');
+            feedGrid.classList.add('hidden');
+        });
+    }
+
+    // 지역 필터 - URL 파라미터 적용 및 변경 시 이동
+    const regionSelect = document.getElementById('f-region');
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentRegion = urlParams.get('region');
+    
+    if (currentRegion && regionSelect) {
+        regionSelect.value = currentRegion;
+    }
+
+    if (regionSelect) {
+        regionSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                window.location.href = '?region=' + encodeURIComponent(e.target.value);
+            } else {
+                window.location.href = window.location.pathname;
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>

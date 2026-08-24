@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(#{nav.myparties} + ' | 타노시미')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<style>
+  .page-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+  .page-head h1{ font-size:26px; margin:0; }
+  .page-head .sub{ color:var(--ink-soft); font-size:13.5px; margin:4px 0 0; }
+  
+  .filter-row{ display:flex; gap:8px; margin-bottom:20px; border-bottom:1px solid var(--line); padding-bottom:16px; }
+  .filter-row button{
+    font-family:inherit; font-size:13px; font-weight:700; color:var(--ink-soft); background:transparent;
+    border:none; padding:8px 12px; cursor:pointer; position:relative;
+  }
+  .filter-row button.on{ color:var(--forest); }
+  .filter-row button.on::after{
+    content:''; position:absolute; bottom:-17px; left:0; right:0; height:3px; background:var(--forest); border-radius:3px 3px 0 0;
+  }
+
+  .my-party-list{ display:flex; flex-direction:column; gap:16px; }
+  .my-party-card{
+    display:flex; gap:16px; background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px; text-decoration:none; color:var(--ink); transition:transform .12s, box-shadow .12s;
+    align-items:center;
+  }
+  .my-party-card:hover{ transform:translateY(-2px); box-shadow:0 8px 16px rgba(0,0,0,.05); border-color:var(--forest); }
+
+  .thumb{
+    width:80px; height:80px; flex:none; border-radius:10px; background-size:cover; background-position:center; position:relative;
+  }
+  .thumb .ph1{ background:linear-gradient(135deg,var(--sky),#c7dfe6); }
+  .thumb .ph2{ background:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
+  .thumb .ph3{ background:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
+  .thumb .ph4{ background:linear-gradient(135deg,#e3b7a0,#d99a86); }
+  
+  .info{ flex:1; min-width:0; }
+  .info h3{ font-size:16px; margin:0 0 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px; }
+  .role-tag{ font-size:10px; background:var(--sun); color:#fff; padding:2px 6px; border-radius:4px; font-weight:700; }
+  .oneliner{ font-size:12px; color:var(--ink-soft); margin:0 0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  
+  .specs{ display:flex; gap:12px; font-size:12px; color:var(--ink-soft); }
+  
+  .status-chip{
+    font-size:12px; font-weight:700; padding:6px 14px; border-radius:999px; flex:none;
+  }
+  .status-upcoming{ background:var(--sky); color:#1c3a44; }
+  .status-progress{ background:var(--forest); color:#fff; }
+  .status-done{ background:#eee0cf; color:var(--ink-soft); }
+
+  .empty{ text-align:center; padding:60px 0; color:var(--ink-soft); font-size:14px; }
+  .empty .ic{ display:block; font-size:32px; margin-bottom:12px; filter:grayscale(1); opacity:.5; }
+</style>
+
+<main class="wrap" style="max-width:800px;">
+  <div class="page-head">
+    <div>
+      <h1 th:text="#{nav.myparties}">내 파티</h1>
+      <p class="sub">가입한 파티 목록입니다. 클릭하여 파티방으로 이동하세요.</p>
+    </div>
+    <a th:href="@{/party-board/create}" class="btn btn-primary" style="padding:10px 18px;">➕ 새 파티 만들기</a>
+  </div>
+
+  <div class="filter-row" id="filter-row" th:if="${!#lists.isEmpty(memberships)}">
+    <button class="on" data-f="all">전체</button>
+    <button data-f="upcoming">예정</button>
+    <button data-f="progress">진행중</button>
+    <button data-f="done">종료</button>
+  </div>
+
+  <div class="my-party-list" id="my-party-list">
+    <!-- list members object mapped to html -->
+    <a th:each="m : ${memberships}" th:href="@{'/party-board/' + ${m.party.id} + '/room'}" class="my-party-card"
+       th:data-status="${m.party.status.name() == 'recruiting' ? 'upcoming' : (m.party.status.name() == 'full' ? 'progress' : 'done')}">
+      
+      <div class="thumb" th:classappend="${(m.party.thumbnailUrl == null or !#strings.startsWith(m.party.thumbnailUrl,'/uploads/')) ? (m.party.thumbnailUrl != null ? m.party.thumbnailUrl : 'ph1') : 'ph1'}"
+           th:styleappend="${(m.party.thumbnailUrl != null and #strings.startsWith(m.party.thumbnailUrl,'/uploads/')) ? 'background-image:url(' + m.party.thumbnailUrl + ');' : ''}"></div>
+      
+      <div class="info">
+        <h3>
+          <span th:text="${m.party.title}">제목</span>
+          <span th:if="${m.role.name() == 'owner'}" class="role-tag">파티장</span>
+        </h3>
+        <p class="oneliner" th:text="${m.party.description != null ? #strings.abbreviate(m.party.description, 50) : ''}"></p>
+        <div class="specs">
+          <span th:text="'📍 ' + ${m.party.region}"></span>
+          <span th:text="'일정: ' + ${m.party.departureDate}"></span>
+        </div>
+      </div>
+      
+      <span th:class="'status-chip ' + (${m.party.status.name() == 'recruiting'} ? 'status-upcoming' : (${m.party.status.name() == 'full'} ? 'status-progress' : 'status-done'))"
+            th:text="${m.party.status.name() == 'recruiting'} ? '예정' : (${m.party.status.name() == 'full'} ? '진행중' : '종료')">
+      </span>
+    </a>
+  </div>
+
+  <div class="empty" id="empty" th:style="${#lists.isEmpty(memberships)} ? 'display:block;' : 'display:none;'">
+    <span class="ic">💬</span>
+    아직 가입한 파티가 없습니다.<br>
+    <a th:href="@{/party-board}" class="btn btn-primary" style="display:inline-block; margin-top:10px; padding:8px 16px;">파티 둘러보기</a>
+  </div>
+</main>
+
+<script>
+  const btns = document.querySelectorAll('#filter-row button');
+  const cards = document.querySelectorAll('.my-party-card');
+  const empty = document.getElementById('empty');
+  
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      btns.forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      const f = btn.dataset.f;
+      let count = 0;
+      cards.forEach(c => {
+        if (f === 'all' || c.dataset.status === f) {
+          c.style.display = 'flex';
+          count++;
+        } else {
+          c.style.display = 'none';
+        }
+      });
+      if(empty) {
+          empty.style.display = count === 0 ? 'block' : 'none';
+      }
+    });
+  });
+</script>
+</body>
+</html>
