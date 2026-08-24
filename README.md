@@ -1,2 +1,2 @@
-# tanoshimi_tour
-일본 투어 예약 사이트
+# tanoshimi
+한일교류 여행 커뮤니티 서비스
