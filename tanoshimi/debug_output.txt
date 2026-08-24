@@ -1,0 +1,23 @@
+Title: 스미요시타이샤 하츠모데, Region: 오사카, Tag: 축제
+Title: 도톤보리 야경 산책, Region: 오사카, Tag: 이동
+Title: 우메다 공중정원 전망대, Region: 오사카, Tag: 명소
+Title: 쿠로몬 시장 먹거리 투어, Region: 오사카, Tag: 먹거리
+Title: 유니버설 스튜디오 재팬, Region: 오사카, Tag: 명소
+Title: 기요미즈데라, Region: 교토, Tag: 명소
+Title: 후시미이나리 신사, Region: 교토, Tag: 명소
+Title: 아라시야마 대나무숲, Region: 교토, Tag: 힐링
+Title: 기온 마치야 카페, Region: 교토, Tag: 먹거리
+Title: 니세코 스키 체험, Region: 홋카이도, Tag: 액티비티
+Title: 노보리베츠 온천, Region: 홋카이도, Tag: 휴식
+Title: 오타루 운하 야경, Region: 홋카이도, Tag: 명소
+Title: 하카타 라멘 스트리트, Region: 후쿠오카, Tag: 먹거리
+Title: 다자이후 텐만구, Region: 후쿠오카, Tag: 명소
+Title: 야나가와 뱃놀이, Region: 후쿠오카, Tag: 힐링
+Title: 시부야 스크램블 교차로, Region: 도쿄, Tag: 명소
+Title: 도쿄 디즈니씨 야간 불꽃쇼, Region: 도쿄, Tag: 액티비티
+Title: 하라주쿠 편집숍 투어, Region: 도쿄, Tag: 명소
+Title: 오다이바 야경, Region: 도쿄, Tag: 명소
+Title: 츄라우미 수족관, Region: 오키나와, Tag: 명소
+Title: 체험 다이빙, Region: 오키나와, Tag: 액티비티
+Title: 미이바루 비치 스노클링, Region: 오키나와, Tag: 액티비티
+Title: 국제거리 쇼핑, Region: 오키나와, Tag: 먹거리

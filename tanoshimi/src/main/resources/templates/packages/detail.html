@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: head(${tour.title} + ' | 타노시미')}"></th:block>
+    <style>
+        .hero{ position:relative; height:220px; border-radius:14px; overflow:hidden; }
+        .hero .ph{ position:absolute; inset:0; }
+        .hero .badges{ position:absolute; top:14px; left:14px; display:flex; gap:6px; }
+        .hero .nights{
+            position:absolute; top:14px; right:14px; font-family:'Jua',sans-serif; font-size:12.5px; color:#fff;
+            background:rgba(58,46,34,.6); border-radius:7px; padding:5px 11px;
+        }
+
+        .title-block{ padding:20px 4px 4px; }
+        .title-block h1{ font-size:22px; }
+        .meta-row{ display:flex; flex-wrap:wrap; gap:8px 16px; font-size:12.5px; color:var(--ink-soft); margin-top:10px; }
+
+        .detail-grid{ display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start; margin-top:18px; }
+        .detail-main{ padding:24px 26px; }
+        .sec{ margin-bottom:24px; }
+        .sec:last-child{ margin-bottom:0; }
+        .sec h2{ font-size:16px; margin-bottom:10px; }
+        .desc{ font-size:13.5px; white-space:pre-line; }
+
+        .info-list{ display:flex; flex-direction:column; gap:9px; }
+        .info-list .row{ display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft); border-bottom:1px dashed var(--line); padding-bottom:8px; }
+        .info-list .row b{ color:var(--ink); font-weight:700; }
+
+        .ext-links{ display:flex; flex-direction:column; gap:8px; }
+        .ext-links a{
+            display:flex; align-items:center; justify-content:space-between; background:var(--parchment);
+            border:1px solid var(--line); border-radius:10px; padding:11px 14px; font-size:12.5px; color:var(--ink);
+        }
+        .ext-links a:hover{ border-color:var(--sash); color:var(--sash-deep); }
+        .ext-note{ font-size:11px; color:var(--ink-soft); margin-top:8px; }
+
+        .detail-side{ display:flex; flex-direction:column; gap:14px; position:sticky; top:76px; }
+        .side-card{ padding:18px; text-align:center; }
+        .side-card .price{ font-family:'Jua',sans-serif; font-size:24px; color:var(--sash-deep); }
+        .side-card .price small{ font-family:'Gowun Dodum',sans-serif; font-size:11px; color:var(--ink-soft); font-weight:400; display:block; margin-top:2px; }
+        .side-card .hint{ font-size:11.5px; color:var(--ink-soft); margin:8px 0 14px; }
+
+        footer.note{ text-align:center; color:var(--ink-soft); font-size:12px; margin-top:36px; }
+        @media (max-width:820px){ .detail-grid{ grid-template-columns:1fr; } .detail-side{ position:static; } }
+    </style>
+</head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<div class="wrap" style="max-width:1080px;">
+
+    <a class="back" th:href="@{/packages}">← 패키지 목록으로</a>
+
+    <div class="hero">
+        <div class="ph" th:classappend="${tour.thumbnailUrl}"></div>
+        <div class="badges">
+            <span class="chip chip-region" th:text="'📍 ' + ${tour.region}">📍 오사카</span>
+        </div>
+        <span class="nights" th:text="|${tour.durationNights}박${tour.durationNights + 1}일|">3박4일</span>
+    </div>
+
+    <div class="title-block">
+        <h1 th:text="${tour.title}">패키지 제목</h1>
+        <div class="meta-row">
+            <span>🛫 출발 <b th:text="${tour.depTime}">-</b></span>
+            <span>🛬 도착 <b th:text="${tour.arrTime}">-</b></span>
+            <span>🏨 체크인 <b th:text="${tour.checkinTime}">-</b></span>
+        </div>
+    </div>
+
+    <div class="detail-grid">
+        <main class="detail-main card">
+            <section class="sec">
+                <h2>📝 패키지 소개</h2>
+                <p class="desc" th:text="${tour.description}">설명</p>
+            </section>
+
+            <section class="sec">
+                <h2>📋 포함 내역</h2>
+                <div class="info-list">
+                    <p class="desc" th:text="${tour.includesSummary}" style="margin: 0;">포함 내역</p>
+                </div>
+            </section>
+
+            <section class="sec">
+                <h2>🔗 항공/숙박 개별 확인 (외부 사이트)</h2>
+                <p class="ext-note" style="margin-top:0;">항공편·객실은 저희가 직접 재고를 관리하지 않아요. 시간대나 좌석을 직접 고르고 싶다면 아래 외부 사이트에서 확인해 주세요.</p>
+                <div class="ext-links">
+                    <a th:if="${tour.externalFlightUrl}" th:href="${tour.externalFlightUrl}" target="_blank" rel="noopener">
+                        ✈️ 항공편 비교 보기 (Skyscanner) <span>↗</span>
+                    </a>
+                    <a th:if="${tour.externalHotelUrl}" th:href="${tour.externalHotelUrl}" target="_blank" rel="noopener">
+                        🏨 호텔 객실 보기 (Agoda) <span>↗</span>
+                    </a>
+                </div>
+            </section>
+        </main>
+
+        <aside class="detail-side">
+            <div class="side-card card">
+                <div class="price">
+                    ₩<span th:text="${#numbers.formatInteger(tour.priceKrw,0,'COMMA')}">0</span>
+                    <small>¥<span th:text="${#numbers.formatInteger(tour.priceJpy,0,'COMMA')}">0</span> · 1인 기준</small>
+                </div>
+                <p class="hint">패키지 예약 후, 계획표에서 세부 일정을 자유롭게 짤 수 있어요.</p>
+
+                <div style="margin-top:14px; text-align:left;">
+                    <label style="font-size:12.5px; font-weight:700;">출발일</label>
+                    <input type="date" id="departureDate" style="width:100%; padding:9px; border:1px solid var(--line); border-radius:8px; margin-top:5px; font-family: inherit;">
+                </div>
+                <div style="margin-top:10px; text-align:left;">
+                    <label style="font-size:12.5px; font-weight:700;">인원수</label>
+                    <input type="number" id="peopleCount" value="1" min="1" th:max="${tour.maxParticipants}"
+                           style="width:100%; padding:9px; border:1px solid var(--line); border-radius:8px; margin-top:5px; font-family: inherit;">
+                </div>
+
+                <div id="weather-advice" style="display:none; margin-top:14px; font-size:12.5px; padding:14px; border-radius:10px; text-align:left;"></div>
+
+                <button type="button" id="btn-check-weather" class="btn btn-primary btn-block" style="margin-top:14px;"
+                        th:attr="data-tour-id=${tour.id}">
+                    📦 이 패키지로 예약하기
+                </button>
+                <button type="button" id="btn-plan" class="btn btn-ghost btn-block" style="margin-top:8px;">
+                    🗓️ 계획표에서 미리 보기
+                </button>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+const TOUR_ID = /*[[${tour.id}]]*/ 1;
+/*]]>*/
+</script>
+<script th:src="@{/js/package-reserve.js}" defer></script>
+</body>
+</html>

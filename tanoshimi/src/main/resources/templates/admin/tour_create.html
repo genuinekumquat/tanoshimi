@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('패키지 추가 | 관리자')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+<main class="wrap">
+  <div style="margin-bottom: 20px; display:flex; gap: 10px;">
+    <a href="/admin" class="btn" style="background:#fff; border:1px solid #ccc;">회원 관리</a>
+    <a href="/admin/parties" class="btn" style="background:#fff; border:1px solid #ccc;">파티 게시글 관리</a>
+    <a href="/admin/tours/create" class="btn btn-primary">패키지 상품 추가</a>
+    <a href="/admin/banners" class="btn" style="background:#fff; border:1px solid #ccc;">광고 배너 관리</a>
+    <a href="/admin/reports" class="btn" style="background:#fff; border:1px solid #ccc;">신고 처리</a>
+  </div>
+  <h1 style="font-size:22px;">패키지 상품 추가</h1>
+  <form th:action="@{/admin/tours}" method="post" class="card" style="padding:20px; display:flex; flex-direction:column; gap:12px; margin-top:16px;">
+    <div><label style="font-size:13px; font-weight:bold;">제목</label>
+      <input type="text" name="title" required style="width:100%; padding:8px;" placeholder="도쿄 3박 4일 패키지"></div>
+    <div><label style="font-size:13px; font-weight:bold;">지역</label>
+      <input type="text" name="region" required style="width:100%; padding:8px;" placeholder="도쿄"></div>
+    <div><label style="font-size:13px; font-weight:bold;">가격 (원화)</label>
+      <input type="number" name="priceKrw" required style="width:100%; padding:8px;"></div>
+    <div><label style="font-size:13px; font-weight:bold;">가격 (엔화)</label>
+      <input type="number" name="priceJpy" required style="width:100%; padding:8px;"></div>
+    <div><label style="font-size:13px; font-weight:bold;">숙박 일수 (박)</label>
+      <input type="number" name="durationNights" required style="width:100%; padding:8px;"></div>
+    <div><label style="font-size:13px; font-weight:bold;">설명</label>
+      <textarea name="description" required style="width:100%; padding:8px; min-height:80px;"></textarea></div>
+    <div style="display:flex; gap:10px;">
+      <div style="flex:1"><label style="font-size:13px; font-weight:bold;">최소 인원</label>
+        <input type="number" name="minParticipants" required style="width:100%; padding:8px;" value="2"></div>
+      <div style="flex:1"><label style="font-size:13px; font-weight:bold;">최대 인원</label>
+        <input type="number" name="maxParticipants" required style="width:100%; padding:8px;" value="20"></div>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <div style="flex:1"><label style="font-size:13px; font-weight:bold;">체크인 시간</label>
+        <input type="time" name="checkinTime" required style="width:100%; padding:8px;" value="15:00"></div>
+      <div style="flex:1"><label style="font-size:13px; font-weight:bold;">체크아웃 시간</label>
+        <input type="time" name="checkoutTime" required style="width:100%; padding:8px;" value="11:00"></div>
+    </div>
+    <div>
+        <label style="font-size:13px; font-weight:bold;">장소 유형 (venueType)</label>
+        <select name="venueType" required style="width:100%; padding:8px;">
+            <option value="hotel">호텔</option>
+            <option value="spot">명소</option>
+            <option value="restaurant">식당</option>
+            <option value="flight">비행기</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary" style="padding:12px;">상품 추가하기</button>
+  </form>
+</main>
+</body>
+</html>

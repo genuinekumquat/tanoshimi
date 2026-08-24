@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('고객센터 | 타노시미')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<style>
+  .page-head{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--sash); }
+  .page-head h1{ font-size:24px; margin:0 0 6px 0; }
+  .page-head .sub{ font-size:13px; color:var(--ink-soft); margin:0; }
+
+  .feed-list{ display:flex; flex-direction:column; gap:10px; }
+  .list-item{ display:flex; gap:12px; padding:16px; cursor:pointer; align-items:center; background: var(--card); border: 1px solid var(--line); border-radius: 10px;}
+  .list-item:hover{ border-color:var(--sash); }
+  .list-item .info{ flex:1; min-width:0; }
+  .list-item .t{ font-size:16px; font-weight:700; margin:0 0 4px; }
+  .list-item .meta{ display:flex; gap:10px; font-size:12px; color:var(--ink-soft); }
+</style>
+
+<main class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>고객센터</h1>
+      <p class="sub">궁금한 점을 문의해주세요. 관리자만 내용을 확인할 수 있습니다.</p>
+    </div>
+    <a th:href="@{/support/write}" class="btn btn-primary">✏️ 문의하기</a>
+  </div>
+
+  <div class="feed-list" id="feed-list">
+    <a th:each="post : ${posts}" class="list-item" th:href="@{'/support/' + ${post.id}}">
+      <span class="info">
+        <p class="t" th:text="${isAdmin ? post.title : '비밀글입니다.'}">제목</p>
+        <span class="meta">
+          <span th:text="${post.guestId}">작성자</span>
+          <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}">날짜</span>
+        </span>
+      </span>
+    </a>
+    <div th:if="${#lists.isEmpty(posts)}" style="text-align: center; padding: 40px; color: var(--ink-soft);">
+      등록된 문의가 없습니다.
+    </div>
+  </div>
+</main>
+</body>
+</html>

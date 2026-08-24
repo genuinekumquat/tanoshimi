@@ -1,0 +1,74 @@
+/* =====================================================================
+   전역 스타일 — 이 파일 하나만 바꾸면 사이트 전체 톤을 바꿀 수 있습니다.
+   색상은 전부 :root 커스텀 프로퍼티로 뽑아뒀으니, 나중에 테마를 통째로
+   교체하고 싶으면 아래 :root 블록의 값만 바꾸면 됩니다("전체적인 CSS도
+   나중에 변경할 수 있게 여지를 둬" 요구사항 반영).
+   ===================================================================== */
+:root{
+  --parchment:#f3e8cf; --parchment-deep:#e8dab3; --card:#fffcf4;
+  --forest:#4b6b4a; --forest-deep:#33472f; --sash:#e0793f; --sash-deep:#b85c2b;
+  --gold:#d9a441; --sky:#8fb9c9; --ink:#3a2e22; --ink-soft:#6b5c46; --rope:#c9b58b; --line:#d8c69a;
+  --danger:#b8503b;
+  --tier-0:#8fb9c9; --tier-1:#3d6fd8; --tier-2:#d9a441; --tier-3:#e0793f; --tier-4:#b8503b;
+}
+*{ box-sizing:border-box; }
+body{
+  margin:0; background:var(--parchment); color:var(--ink);
+  font-family:'Gowun Dodum','Apple SD Gothic Neo','Noto Sans JP',sans-serif; line-height:1.6;
+}
+a{ color:var(--forest-deep); text-decoration:none; }
+.wrap{ max-width:1180px; margin:0 auto; padding:24px 22px 90px; }
+.card{ background:var(--card); border:1px solid var(--line); border-radius:14px; }
+
+.btn{ font-weight:700; font-size:13px; border:none; border-radius:9px; padding:9px 15px; cursor:pointer; }
+.btn-primary{ background:var(--sash); color:#fff; }
+.btn-ghost{ background:none; color:inherit; border:1px solid rgba(255,255,255,.4); }
+.inline-form{ display:inline; margin:0; }
+
+/* ---------- 상단 내비 ---------- */
+.gnb{ background:var(--forest); color:#fff; position:sticky; top:0; z-index:50; }
+.gnb-inner{ max-width:1180px; margin:0 auto; padding:11px 20px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.gnb-logo{ color:#fff; font-weight:700; font-size:16px; }
+.gnb-nav{ display:flex; align-items:center; gap:14px; font-size:13px; }
+.gnb-nav > span{ display:inline-flex; align-items:center; gap:4px; }
+.gnb-nav a{
+  color:var(--parchment-deep); padding:7px 12px; border-radius:8px;
+  transition:background .15s, color .15s;
+}
+.gnb-nav a:hover{ color:#fff; background:rgba(255,255,255,.12); }
+.gnb-nav a.gnb-admin{ color:var(--gold); font-weight:700; }
+.gnb-nav a.gnb-admin:hover{ color:#fff; background:rgba(217,164,65,.25); }
+.gnb-right{ display:flex; align-items:center; gap:12px; font-size:12.5px; }
+
+.lang-toggle{ display:flex; align-items:center; gap:4px; background:rgba(255,255,255,.12); border-radius:999px; padding:3px 8px; }
+.lang-toggle a{ color:var(--parchment-deep); font-weight:700; padding:2px 4px; }
+.lang-toggle a.on{ color:#fff; text-decoration:underline; }
+.lang-sep{ color:rgba(255,255,255,.4); }
+
+.notif-wrap{ position:relative; }
+.notif-bell{ position:relative; cursor:pointer; font-size:16px; }
+.notif-badge{
+  position:absolute; top:-6px; right:-8px; background:var(--sash); color:#fff; border-radius:999px;
+  font-size:10px; padding:1px 5px; font-weight:700;
+}
+.notif-dropdown{
+  position:absolute; top:calc(100% + 10px); right:-10px; width:300px; max-height:360px; overflow-y:auto;
+  background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:12px;
+  box-shadow:0 8px 20px rgba(0,0,0,.18); z-index:100;
+}
+.notif-dropdown-title{ font-weight:700; font-size:13px; padding:12px 14px; border-bottom:1px solid var(--line); }
+.notif-list{ display:flex; flex-direction:column; }
+.notif-item{ display:block; padding:10px 14px; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; }
+.notif-item:hover{ background:var(--parchment); }
+.notif-item.unread{ background:rgba(224,121,63,.07); }
+.notif-item-title{ font-size:12.5px; font-weight:700; margin-bottom:2px; }
+.notif-item-message{ font-size:11.5px; color:var(--ink-soft); }
+.notif-empty{ padding:20px; text-align:center; font-size:12.5px; color:var(--ink-soft); }
+
+/* ---------- 공통 카드/썸네일 팔레트 (예시 데이터 썸네일용) ---------- */
+.ph1{ background:linear-gradient(135deg,var(--sky),#c7dfe6); }
+.ph2{ background:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
+.ph3{ background:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
+.ph4{ background:linear-gradient(135deg,#e3b7a0,#d99a86); }
+
+footer.note{ text-align:center; color:var(--ink-soft); font-size:12px; margin-top:36px; }

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head(#{nav.party} + ' | Tanoshimi')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<style>
+    .layout { display: flex; gap: 24px; align-items: flex-start; margin-top: 20px; }
+    .main-col { flex: 1; min-width: 0; }
+    aside { width: 300px; flex-shrink: 0; }
+    .party-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+    @media(max-width: 900px) {
+        .party-grid { grid-template-columns: repeat(3, 1fr); }
+        .layout { flex-direction: column; }
+        aside { width: 100%; position: static !important; }
+    }
+    @media(max-width: 600px) {
+        .party-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .party-card { display: block; text-decoration: none; color: inherit; transition: transform 0.2s; }
+    .party-card:hover { transform: translateY(-4px); }
+    .board-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .board-count { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .sort { display: flex; gap: 8px; }
+    .sort button {
+        background: none; border: none; font-size: 13px; color: var(--ink-soft); cursor: pointer; padding: 4px 8px; font-weight: 700; border-radius: 6px;
+    }
+    .sort button.on { color: var(--forest); background: #f4f5f7; }
+
+    /* ===== 상단 타이틀 영역 ===== */
+    .page-head{
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 20px; padding-bottom: 18px; margin-bottom: 4px;
+        border-bottom: 1px dashed var(--line);
+    }
+    .page-head h1{ font-size: 26px; margin: 0 0 6px; color: var(--ink); }
+    .page-head .sub{ font-size: 13.5px; color: var(--ink-soft); margin: 0; }
+    .page-head .stamp{
+        flex: none; font-family: 'Jua', sans-serif; font-size: 13px; color: var(--forest);
+        border: 2px solid var(--forest); border-radius: 10px; padding: 8px 16px;
+        transform: rotate(-6deg); letter-spacing: 1px; white-space: nowrap;
+        position: relative; opacity: .85;
+    }
+    .page-head .stamp::before, .page-head .stamp::after{
+        content:''; position:absolute; top:3px; bottom:3px; width:1px;
+        border-left: 2px dotted var(--forest); opacity:.6;
+    }
+    .page-head .stamp::before{ left: 5px; }
+    .page-head .stamp::after{ right: 5px; }
+    @media(max-width: 600px){
+        .page-head{ flex-direction: column; align-items: flex-start; gap: 12px; }
+        .page-head .stamp{ align-self: flex-end; }
+    }
+</style>
+
+<main class="wrap">
+  <div class="page-head">
+    <div>
+      <h1 th:text="#{nav.party}">파티 찾기</h1>
+      <p class="sub" th:text="#{party.subtitle}">함께하면 더욱 즐거운 여행</p>
+    </div>
+    <div class="stamp" th:text="#{party.stamp}">모집광장</div>
+  </div>
+
+  <div class="trail">
+    <div class="dot"></div><div class="ln"></div><div class="dot"></div>
+  </div>
+
+  <div class="layout">
+    <section class="main-col">
+      <div class="board-top">
+        <div class="board-count" th:utext="${#messages.msg('party.count', parties.size())}"></div>
+        <div class="sort">
+          <button type="button" class="on" data-sort="latest" th:text="#{sort.latest}">최신순</button>
+          <button type="button" data-sort="deadline" th:text="#{sort.deadline}">마감임박순</button>
+        </div>
+      </div>
+
+      <div th:if="${#lists.isEmpty(parties)}" style="padding: 100px 0; text-align: center; color: var(--ink-soft); font-size: 15px;">
+        [[#{party.empty}]]
+      </div>
+
+      <div class="party-grid" id="party-grid">
+        <a class="party-card card" th:each="party, iter : ${parties}" th:href="@{'/party-board/' + ${party.id}}">
+          <div class="thumb" style="position:relative; height:168px; background:var(--parchment-deep);">
+            <div th:class="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'ph1 ph' : (party.thumbnailUrl ?: 'ph1') + ' ph'}"
+                 style="position:absolute; inset:0;"
+                 th:styleappend="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'background-image:url(' + party.thumbnailUrl + '); background-size:cover; background-position:center;' : ''}"></div>
+                 
+            <div style="position:absolute; top:10px; left:10px; display:flex; gap:6px; flex-wrap:wrap;">
+              <span class="chip chip-region" style="background:var(--sky); color:#1c3a44;" th:text="'📍 ' + ${party.region}">지역</span>
+              <span class="chip" th:text="${party.status.name() == 'recruiting'} ? #{party.status.recruiting} : #{party.status.closed}"
+                    th:style="${party.status.name() == 'recruiting'} ? 'background:var(--forest);color:#fff;' : 'background:#8a7a63;color:#fff;'">상태</span>
+            </div>
+
+            <!-- 디데이 -->
+            <span style="position:absolute; top:10px; right:10px; font-family:'Jua',sans-serif; font-size:12px; color:#fff; background:var(--sash); border-radius:6px; padding:3px 9px; box-shadow:0 2px 4px rgba(0,0,0,.15);"
+                  th:with="today=${T(java.time.LocalDate).now()}"
+                  th:text="${party.departureDate.isEqual(today) ? 'D-DAY' : (party.departureDate.isAfter(today) ? 'D-' + T(java.time.temporal.ChronoUnit).DAYS.between(today, party.departureDate) : '종료')}">D-7</span>
+          </div>
+
+          <div style="padding:14px;">
+            <p style="font-size:15px; font-weight:700; margin:0 0 6px; line-height:1.4;" class="party-list-title" th:text="${party.title}">제목</p>
+            
+            <div style="font-size:12px; color:var(--ink-soft); display:flex; flex-direction:column; gap:4px; margin-bottom:12px;">
+              <span>[[#{party.meta.schedule}]]: [[${party.departureDate}]]</span>
+              <span>[[#{party.meta.capacity}]]: [[${party.capacity}]]명</span>
+            </div>
+
+            <div style="border-top:1px dashed var(--line); padding-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:11.5px;">
+              <span th:if="${party.genderRestriction.name() != 'all'}" style="background:var(--parchment-deep); color:var(--ink-soft); padding:3px 8px; border-radius:4px;">
+                <span th:text="${party.genderRestriction.name() == 'male_only'} ? #{party.gender.male_only} : #{party.gender.female_only}">성별</span>
+              </span>
+              <span th:if="${party.nationalityRestriction.name() != 'all'}" style="background:var(--parchment-deep); color:var(--ink-soft); padding:3px 8px; border-radius:4px;">
+                <span th:text="${party.nationalityRestriction.name() == 'kr_only'} ? #{party.nationality.kr_only} : #{party.nationality.jp_only}">국적</span>
+              </span>
+              <span th:if="${party.ageMin != null or party.ageMax != null}" style="background:var(--parchment-deep); color:var(--ink-soft); padding:3px 8px; border-radius:4px;">
+                <span th:text="(${party.ageMin} ?: '') + '~' + (${party.ageMax} ?: '') + #{party.meta.age_range}">연령</span>
+              </span>
+            </div>
+
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- 오른쪽 검색 패널 -->
+    <aside style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; position:sticky; top:20px;">
+      <h2 style="font-size:16px; margin:0 0 16px;">[[#{party.search.title}]]</h2>
+      
+      <form action="/party-board" method="get">
+        <label style="display:block; font-size:12px; font-weight:700; color:var(--ink-soft); margin-bottom:6px;">[[#{party.search.keyword}]]</label>
+        <div style="display:flex; gap:6px; margin-bottom:20px;">
+          <input type="text" name="q" th:value="${keyword}" th:placeholder="#{party.search.placeholder}" style="flex:1; padding:10px; border:1px solid var(--line); border-radius:8px;">
+          <button type="submit" class="btn btn-primary" style="padding:10px;">검색</button>
+        </div>
+      </form>
+
+      <div style="border-top:1px dashed var(--line); padding-top:20px;">
+        <p style="font-size:13px; color:var(--ink-soft); margin:0 0 14px; line-height:1.5;">[[#{party.create.desc}]]</p>
+        <a th:href="@{/party-board/create}" class="btn btn-forest" style="width:100%; justify-content:center;">✏️[[#{party.create}]]</a>
+      </div>
+    </aside>
+  </div>
+</main>
+<script>
+  // 번역 로직 추가
+  (async function() {
+      let docLang = document.documentElement.lang;
+      if(docLang === 'ja') {
+          const titles = document.querySelectorAll('.party-list-title');
+          for(let el of titles) {
+              const text = el.textContent;
+              try {
+                  const r = await fetch('/api/chat/translate', {
+                      method: 'POST',
+                      headers: {'Content-Type': 'application/json'},
+                      body: JSON.stringify({text: text, targetLang: 'ja'})
+                  });
+                  const json = await r.json();
+                  if (json.success) el.textContent = json.data;
+              } catch(e) {}
+          }
+      }
+  })();
+</script>
+</body>
+</html>

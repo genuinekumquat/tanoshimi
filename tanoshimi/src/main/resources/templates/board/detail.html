@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta th:replace="~{fragments/layout :: head(${post.title} + ' | 여행게시판')}">
+    <style>
+        .wrap{ max-width:680px; margin:0 auto; padding:22px 20px 90px; }
+        .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; }
+        .back{ display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); margin-bottom:14px; }
+        .back:hover{ color:var(--sash-deep); }
+      
+        .post-head{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+        .post-head .ava{ position:relative; width:38px; height:38px; border-radius:50%; background:var(--forest); flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Jua',sans-serif; overflow:hidden; }
+        .post-head .nm{ font-size:13.5px; font-weight:700; color:var(--ink); text-decoration:none; }
+        .post-head .rg{ font-size:11.5px; color:var(--ink-soft); }
+      
+        .hero{ border-radius:14px; overflow:hidden; position:relative; margin-bottom:16px; background:var(--parchment-deep); display:flex; justify-content:center; align-items:center; min-height: 200px;}
+        .hero .ph{ position:absolute; inset:0; }
+      
+        .post-title{ font-size:20px; margin-bottom:10px; }
+        .post-content{ font-size:13.8px; color:var(--ink); white-space:pre-line; margin-bottom:16px; }
+      
+        .action-row{ display:flex; align-items:center; gap:14px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin-bottom:18px; }
+        .like-btn{
+          display:flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer;
+          font-family:inherit; font-size:13.5px; color:var(--ink-soft); padding:6px 10px; border-radius:999px;
+        }
+        .like-btn.on{ color:var(--sash-deep); background:var(--parchment-deep); font-weight:700; }
+        .like-btn .heart{ font-size:16px; }
+      
+        .comment-count{ font-size:12.5px; color:var(--ink-soft); font-weight:400; }
+        .comment-form{ display:flex; gap:8px; margin-bottom:16px; }
+        .comment-form input{
+          flex:1; border:1px solid var(--line); border-radius:999px; padding:10px 15px;
+          font-family:inherit; font-size:13px; background:var(--parchment); color:var(--ink); outline:none;
+        }
+        .comment-form input:focus{ border-color:var(--sash); background:var(--card); }
+        .comment-form button{
+          font-family:'Gowun Dodum',sans-serif; font-weight:700; font-size:12.5px; background:var(--forest); color:#fff;
+          border:none; border-radius:999px; padding:0 16px; cursor:pointer;
+        }
+      
+        .comment-list{ display:flex; flex-direction:column; gap:12px; }
+        .comment{ display:flex; gap:9px; }
+        .comment .ava{ width:30px; height:30px; border-radius:50%; background:var(--forest); flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-family:'Jua',sans-serif; overflow:hidden; }
+        .comment .body{ flex:1; }
+        .comment .name{ font-size:12.5px; font-weight:700; margin-right:6px; }
+        .comment .txt{ font-size:12.8px; color:var(--ink); }
+        .comment .time{ font-size:10.5px; color:var(--ink-soft); margin-top:2px; }
+    </style>
+</head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="wrap">
+  <a class="back" th:href="@{/board}">← 게시판으로</a>
+
+  <div class="post-head">
+    <div class="ava" id="ava">
+      <span th:text="${#strings.substring(post.user.name,0,1)}">U</span>
+      <img th:if="${post.user.profileImageUrl}" th:src="@{${post.user.profileImageUrl}}"
+           onerror="this.style.display='none';"
+           style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+    </div>
+    <div>
+      <a class="nm" id="p-author" th:href="@{'/users/' + ${post.user.id}}" th:text="${post.user.name}">작성자</a>
+      <div class="rg" id="p-region" th:text="'📍 ' + ${post.region}">지역</div>
+    </div>
+  </div>
+
+  <div th:if="${post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')}" class="hero">
+    <div class="ph ph1" style="position:absolute; inset:0;"></div>
+    <img th:src="@{${post.thumbnailUrl}}" onerror="this.style.display='none';"
+         style="max-width:100%; height:auto; display:block; z-index: 1;" alt="게시글 사진">
+  </div>
+  <div th:unless="${post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')}" class="hero">
+    <div class="ph" th:classappend="${post.thumbnailUrl} ?: 'ph1'"></div>
+  </div>
+
+  <h1 class="post-title" id="p-title" th:text="${post.title}">제목</h1>
+  <p class="post-content" id="p-content" th:text="${post.content}">내용</p>
+
+  <div class="action-row">
+    <button type="button" class="like-btn" id="btn-like" th:attr="data-post-id=${post.id}">
+      <span class="heart">♥</span><span id="like-count" th:text="${post.likeCount}">0</span>
+    </button>
+    <button type="button" id="btn-share" style="font-size:12px; color:var(--ink-soft); background:none; border:none; cursor:pointer;">공유하기</button>
+    <button type="button" th:unless="${isOwner}" sec:authorize="isAuthenticated()"
+            th:attr="data-report-type='post',data-report-id=${post.id},data-report-label=${post.title}"
+            style="font-size:12px; color:var(--ink-soft); background:none; border:none; cursor:pointer;">🚨 신고</button>
+    <button type="button" id="btn-delete-post" th:if="${isOwner}" th:attr="data-post-id=${post.id}"
+            style="margin-left:auto; font-size:12px; color:var(--danger); background:none; border:none; cursor:pointer;">삭제하기</button>
+  </div>
+
+  <h2 style="font-size:15px;margin-bottom:12px;">댓글 <span class="comment-count" id="comment-count" th:text="'(' + ${#lists.size(comments)} + ')'">(0)</span></h2>
+
+  <div class="comment-form" sec:authorize="isAuthenticated()">
+    <input type="text" id="comment-input" maxlength="300" placeholder="댓글을 남겨보세요">
+    <button type="button" id="btn-comment-submit" th:attr="data-post-id=${post.id}">등록</button>
+  </div>
+
+  <div class="comment-list" id="comment-list">
+    <div class="comment" th:each="c : ${comments}">
+      <div class="ava" th:text="${#strings.substring(c.user.name,0,1)}">U</div>
+      <div class="body">
+        <span class="name" th:text="${c.user.name}"></span><span class="txt" th:text="${c.content}"></span>
+        <button type="button" sec:authorize="isAuthenticated()"
+                th:if="${#authentication.principal.id == c.user.id}"
+                th:onclick="'deleteComment(' + ${c.id} + ')'"
+                style="margin-left:8px; font-size:11px; color:var(--danger); background:none; border:none; cursor:pointer;">삭제</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script th:src="@{/js/post-detail.js}" defer></script>
+<script>
+async function deleteComment(id) {
+    if (!confirm('정말 삭제하시겠습니까?')) return;
+    let csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
+    let csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+    const res = await fetch('/api/posts/comments/' + id, {
+        method: 'DELETE',
+        headers: { [csrfHeader]: csrfToken }
+    });
+    if (res.ok) window.location.reload();
+    else alert('삭제에 실패했습니다.');
+}
+</script>
+</body>
+</html>
