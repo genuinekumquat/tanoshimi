@@ -130,6 +130,9 @@
   .snap-overlay .m { font-size:13px; font-weight:600; opacity:0.9; text-shadow:0 1px 2px rgba(0,0,0,0.5); }
 
 </style>
+<!-- Include scripts safely directly here instead of using the raw DOM append trick which breaks on modern browsers -->
+<script th:src="@{/assets/map-data.js(v=${#dates.createNow().getTime()})}" defer></script>
+<script th:src="@{/js/main-explore.js(v=${#dates.createNow().getTime()})}" defer></script>
 </head>
 <body>
 <header th:replace="~{fragments/layout :: header}"></header>
@@ -188,7 +191,7 @@
     <!-- 어드민 전용 배너 추가 폼 -->
     <div class="banner-admin-panel" sec:authorize="hasRole('ADMIN')">
         <span style="font-size:12px; font-weight:bold; color:var(--ink-soft)">📸 관리자 배너설정 <br>(최대 5개, 현재 <span th:text="${banners != null ? banners.size() : 0}"></span>개)</span>
-                <form th:action="@{/admin/banners}" method="post" enctype="multipart/form-data" id="banner-form" style="display:inline-flex; align-items:center; gap:8px;">
+        <form th:action="@{/admin/banners}" method="post" enctype="multipart/form-data" id="banner-form" style="display:inline-flex; align-items:center; gap:8px;">
             <input type="text" name="targetUrl" placeholder="URL" style="padding:4px; font-size:12px; width:130px; border-radius:4px; border:1px solid #ccc;">
             <input type="file" name="file" accept="image/*" required style="font-size:12px; width:150px;">
             <button type="submit" style="background:var(--forest); color:#fff; border:none; padding:6px 10px; border-radius:6px; font-weight:700; cursor:pointer;">+</button>
@@ -200,7 +203,7 @@
   <!-- 2. 검색창 -->
   <div class="search-wrap">
     <form class="search-form" id="search-form" onsubmit="event.preventDefault(); window.location.href='/party-board?q=' + encodeURIComponent(document.getElementById('search-input').value);">
-      <input type="text" id="search-input" placeholder="관심있는 파티나 키워드를 검색해보세요 (예: 오사카 먹방, 훗카이도 힐링)">
+      <input type="text" id="search-input" placeholder="관심있는 파티나 키워드를 검색해보세요 (예: 오사카 먹방, 홋카이도 힐링)">
       <button type="submit">파티 찾기</button>
     </form>
   </div>
@@ -217,6 +220,31 @@
   </div>
 </div>
 
+<!-- 명소 상세 모달 (추억 사진첩 스타일) -->
+<div id="spot-detail-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:999999; justify-content:center; align-items:center; padding:20px;">
+    <div style="background:#fff; width:100%; max-width:500px; border-radius:24px; overflow:hidden; position:relative; display:flex; flex-direction:column; max-height:90vh;">
+        <button onclick="closeSpotDetailModal()" style="position:absolute; top:16px; right:16px; background:rgba(0,0,0,0.5); color:#fff; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:18px; z-index:10;">✕</button>
+        
+        <div style="width:100%; aspect-ratio:4/3; background:#eee; position:relative;">
+            <img id="modal-spot-img" src="" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='https://loremflickr.com/600/400/trip'">
+        </div>
+        
+        <div style="padding:30px; overflow-y:auto;">
+            <h2 id="modal-spot-title" style="margin:0 0 12px; font-size:26px; font-weight:900; color:var(--forest);">장소 이름</h2>
+            <p id="modal-spot-desc" style="margin:0 0 24px; font-size:15px; color:var(--ink-soft); line-height:1.6;">상세 설명</p>
+            
+            <div style="display:flex; justify-content:center; gap:16px; border-top:1px dashed #ddd; padding-top:24px;">
+                <button id="btn-spot-like" onclick="alert('좋아요 피드백이 반영되었습니다!'); this.style.background='var(--sash)'; this.style.color='#fff'; this.style.borderColor='var(--sash)';" style="padding:12px 24px; border-radius:999px; border:1px solid #ddd; background:#fff; font-size:15px; font-weight:700; color:var(--ink); cursor:pointer; transition:0.2s;">
+                    👍 좋아요
+                </button>
+                <button id="btn-spot-dislike" onclick="alert('싫어요 피드백이 반영되었습니다.'); this.style.background='#333'; this.style.color='#fff'; this.style.borderColor='#333';" style="padding:12px 24px; border-radius:999px; border:1px solid #ddd; background:#fff; font-size:15px; font-weight:700; color:var(--ink); cursor:pointer; transition:0.2s;">
+                    👎 별로예요
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script th:inline="javascript">
 /*<![CDATA[*/
 const SERVER_PARTIES = /*[[${urgentParties != null ? urgentParties : null}]]*/ null; 
@@ -225,7 +253,7 @@ const SERVER_PARTIES = /*[[${urgentParties != null ? urgentParties : null}]]*/ n
 // 슬라이드 배너 스크립트 실행
 document.addEventListener('DOMContentLoaded', () => {
     const slides = document.querySelectorAll('.banner-slide');
-    if(slides.length <= 1) return; // 1개 이하면 슬라이드 안함
+    if(slides.length <= 1) return; // 1개 이하명 슬라이드 안함
     
     let currentIdx = 0;
     setInterval(() => {
@@ -234,8 +262,33 @@ document.addEventListener('DOMContentLoaded', () => {
         slides[currentIdx].classList.add('active');
     }, 5000); // 5초마다 넘어감
 });
+
+// 모달 오픈 스크립트 (최종 수정본)
+window.openSpotDetailModal = function(name, desc, imgUrl) {
+    const modal = document.getElementById('spot-detail-modal');
+    document.getElementById('modal-spot-title').innerText = name;
+    document.getElementById('modal-spot-desc').innerText = desc;
+    
+    // JS 캐싱 오류로 imgUrl이 제대로 안 넘어왔을 경우 확실하게 고정 시드 이미지 부여
+    let finalImg = imgUrl;
+    if (!finalImg || finalImg === 'undefined') {
+        finalImg = 'https://loremflickr.com/600/400/travel?lock=' + (name.charCodeAt(0) + name.length * 10);
+    }
+    
+    document.getElementById('modal-spot-img').src = finalImg;
+    
+    // 버튼 초기화
+    const lBtn = document.getElementById('btn-spot-like');
+    lBtn.style.background='#fff'; lBtn.style.color='var(--ink)'; lBtn.style.borderColor='#ddd';
+    const dBtn = document.getElementById('btn-spot-dislike');
+    dBtn.style.background='#fff'; dBtn.style.color='var(--ink)'; dBtn.style.borderColor='#ddd';
+    
+    modal.style.display = 'flex';
+}
+function closeSpotDetailModal() {
+    document.getElementById('spot-detail-modal').style.display = 'none';
+}
 </script>
-<script th:src="@{/assets/map-data.js}"></script>
-<script th:src="@{/js/main-explore.js}" defer></script>
 </body>
 </html>
+

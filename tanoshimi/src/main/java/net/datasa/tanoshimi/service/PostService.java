@@ -24,8 +24,8 @@ public class PostService {
     @Transactional(readOnly = true)
     public Page<PostEntity> boardList(String region, Pageable pageable) {
         return (region == null || region.isBlank())
-                ? postRepository.findAllByOrderByCreatedAtDesc(pageable)
-                : postRepository.findByRegionOrderByCreatedAtDesc(region, pageable);
+                ? postRepository.findByBlindedFalseOrderByCreatedAtDesc(pageable)
+                : postRepository.findByBlindedFalseAndRegionOrderByCreatedAtDesc(region, pageable);
     }
     
     @Transactional(readOnly = true)

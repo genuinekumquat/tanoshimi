@@ -13,4 +13,5 @@ public interface ReportRepository extends JpaRepository<ReportEntity, Long> {
     Page<ReportEntity> findByStatusOrderByCreatedAtDesc(ReportStatus status, Pageable pageable);
 
     long countByStatus(ReportStatus status);
+    long countByTargetTypeAndTargetId(net.datasa.tanoshimi.domain.entity.ReportTargetType type, Long id);
 }

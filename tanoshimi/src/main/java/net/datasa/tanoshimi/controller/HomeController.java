@@ -27,7 +27,7 @@ public class HomeController {
 
     @GetMapping("/")
     public String home(Model model) {
-        List<PartyEntity> recruiting = partyRepository.findByStatusOrderByDepartureDateAsc(PartyStatus.recruiting);
+        List<PartyEntity> recruiting = partyRepository.findByStatusAndBlindedFalseOrderByDepartureDateAsc(PartyStatus.recruiting);
 
         List<PartyCardView> cards = recruiting.stream()
                 .map(p -> new PartyCardView(

@@ -52,8 +52,8 @@ public class PartyController {
             parties = partyRepository.searchRecruiting(PartyStatus.recruiting, q.trim());
         } else {
             parties = (region == null || region.isBlank())
-                ? partyRepository.findByStatusOrderByDepartureDateAsc(PartyStatus.recruiting)
-                : partyRepository.findByRegionAndStatus(region, PartyStatus.recruiting);
+                ? partyRepository.findByStatusAndBlindedFalseOrderByDepartureDateAsc(PartyStatus.recruiting)
+                : partyRepository.findByRegionAndStatusAndBlindedFalse(region, PartyStatus.recruiting);
         }
         model.addAttribute("parties", parties);
         model.addAttribute("keyword", q);
@@ -63,6 +63,7 @@ public class PartyController {
     @GetMapping("/party-board/{id}")
     public String detail(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
         PartyEntity party = partyRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
+        if (party.isBlinded()) throw new BusinessException(ErrorCode.PARTY_NOT_FOUND, "블라인드 처리된 파티입니다.");
 
         model.addAttribute("party", party);
 
@@ -162,6 +163,7 @@ public class PartyController {
     public ApiResponse<Long> apply(@PathVariable Long id, @Valid @RequestBody PartyApplyRequest request,
                                    @AuthenticationPrincipal CustomUserDetails principal) {
         PartyEntity party = partyRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
+        if (party.isBlinded()) throw new BusinessException(ErrorCode.PARTY_NOT_FOUND, "블라인드 처리된 파티입니다.");
         UserEntity applicant = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         Long applicationId = partyApplicationService.apply(party, applicant, request.message());
@@ -172,6 +174,7 @@ public class PartyController {
     @ResponseBody
     public ApiResponse<Void> cancelApply(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal) {
         PartyEntity party = partyRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
+        if (party.isBlinded()) throw new BusinessException(ErrorCode.PARTY_NOT_FOUND, "블라인드 처리된 파티입니다.");
         UserEntity applicant = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         partyApplicationService.cancel(party, applicant);

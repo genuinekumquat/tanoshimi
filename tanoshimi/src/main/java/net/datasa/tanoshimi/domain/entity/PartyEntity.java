@@ -49,6 +49,12 @@ public class PartyEntity {
     @Column(nullable = false)
     private byte capacity;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean blinded = false;
+
+    public boolean isBlinded() { return blinded; }
+    public void blind() { this.blinded = true; }
+
     @Column(name = "style_tag", length = 100)
     private String styleTag;
 

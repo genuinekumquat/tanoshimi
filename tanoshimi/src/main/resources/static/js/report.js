@@ -7,6 +7,8 @@
 document.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-report-type]');
     if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
 
     const targetType = btn.dataset.reportType;
     const targetId = btn.dataset.reportId;

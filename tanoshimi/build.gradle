@@ -1,3 +1,4 @@
+// build.gradle (수정됨)
 plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.15'
@@ -6,11 +7,16 @@ plugins {
 
 group = 'net.datasa'
 version = '0.0.1-SNAPSHOT'
-description = '타노시미 투어 - 한일 여행 파티 매칭 서비스 (통합 프로젝트)'
 
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
 	}
 }
 
@@ -19,40 +25,45 @@ repositories {
 }
 
 dependencies {
-
-	/*
-		Dependencies 등록
-		1. Spring Web / Thymeleaf
-		2. Spring Security + OAuth2 Client (구글/네이버/라인 소셜 로그인)
-		3. Spring Data JPA + MySQL
-		4. WebSocket (파티 채팅 · 계획표 실시간 동시편집)
-		5. Validation
-		6. Lombok / DevTools
-	 */
-
+	// 1. Web & Template Engine
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
-
+	
+	// 2. Security & Auth
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 
+	// 3. Database & JPA
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	runtimeOnly 'com.mysql:mysql-connector-j'
-
+	
+	// 4. WebSocket & Reactive
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
-
-	// 실시간 웹 요청(날씨 API, 번역 API 호출용)
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
+	// 5. File & Image Processing, Security
+	implementation 'org.apache.tika:tika-core:2.9.2'
+	
+	// EXIF 메타데이터 및 GPS 정보(여행지) 추출
+	implementation 'com.drewnoakes:metadata-extractor:2.18.0'
+	
+	// WebP 이미지 변환 처리
+	implementation 'org.sejda.imageio:webp-imageio:0.1.6'
+
+	// 6. AWS 인프라 (S3, Pre-signed URL, AI 이미지 분석)
+	implementation platform('software.amazon.awssdk:bom:2.25.11')
+	implementation 'software.amazon.awssdk:s3'
+	implementation 'software.amazon.awssdk:rekognition' 
+
+	// 7. Utils tools
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
-	testRuntimeOnly 'com.h2database:h2'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

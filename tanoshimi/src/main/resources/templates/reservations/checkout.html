@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/layout :: head('결제 페이지 | 타노시미')}"></th:block>
+    <style>
+        .checkout-wrap { max-width: 600px; margin: 40px auto; padding: 20px; }
+        .checkout-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .checkout-title { font-size: 24px; font-weight: 700; margin-bottom: 20px; text-align: center; color: var(--ink); }
+        
+        .order-summary { background: var(--parchment); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+        .order-summary h3 { font-size: 16px; margin-bottom: 15px; color: var(--forest-deep); border-bottom: 2px solid var(--line); padding-bottom: 8px; }
+        
+        .order-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; color: var(--ink-soft); }
+        .order-row:last-child { margin-bottom: 0; }
+        .order-row.total { font-size: 18px; font-weight: 700; color: var(--sash-deep); border-top: 1px dashed var(--line); padding-top: 12px; margin-top: 12px; }
+        
+        .val { font-weight: 600; color: var(--ink); }
+        
+        .user-points { background: #fdfaf6; border: 1px solid var(--line); border-radius: 10px; padding: 15px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .user-points .label { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+        .user-points .amt { font-size: 16px; font-weight: 700; color: var(--forest-deep); }
+        
+        .btn-pay { width: 100%; padding: 14px; font-size: 16px; font-weight: 700; background: var(--sash); color: #fff; border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 0 var(--sash-deep); transition: all 0.2s; }
+        .btn-pay:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--sash-deep); }
+        .btn-skip { display: block; width: 100%; text-align: center; margin-top: 15px; font-size: 13px; color: var(--ink-soft); text-decoration: underline; background: none; border: none; cursor: pointer; }
+        
+        .danger-msg { color: #d9534f; font-size: 13px; font-weight: 600; margin-bottom: 15px; text-align: center; display: none; }
+    </style>
+</head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<div class="checkout-wrap">
+    <div class="checkout-card">
+        <div class="checkout-title">🧾 결제 페이지</div>
+        
+        <div class="order-summary">
+            <h3>결제 요약 내역</h3>
+            <div class="order-row">
+                <span>선택 투어</span>
+                <span class="val" th:text="${tour.title}">패키지 제목</span>
+            </div>
+            <div class="order-row">
+                <span>출발일</span>
+                <span class="val" th:text="${reservation.departureDate}">2026-10-10</span>
+            </div>
+            <div class="order-row">
+                <span>신청 인원</span>
+                <span class="val" th:text="${reservation.peopleCount} + '명'">1명</span>
+            </div>
+            
+            <th:block th:if="${payment != null}">
+                <div class="order-row total">
+                    <span>최종 결제 금액</span>
+                    <span th:text="(${payment.currency.name() == 'KRW'} ? '₩ ' : '¥ ') + ${#numbers.formatInteger(payment.amount, 0, 'COMMA')}">₩0</span>
+                </div>
+            </th:block>
+        </div>
+        
+        <div class="user-points" th:if="${payment != null}">
+            <span class="label">💳 내 보유 포인트</span>
+            <span class="amt" th:text="(${payment.currency.name() == 'KRW'} ? '₩ ' : '¥ ') + ${#numbers.formatInteger(payment.currency.name() == 'KRW' ? user.pointsKrw : user.pointsJpy, 0, 'COMMA')}">0</span>
+        </div>
+        
+        <div id="error-msg" class="danger-msg">포인트 잔액이 부족합니다! 나중에 결제하시거나 포인트를 충전해주세요.</div>
+        
+        <button type="button" id="btn-pay-now" class="btn-pay">결제 확정 및 플래너 작성하기</button>
+        <button type="button" id="btn-pay-later" class="btn-skip">결제는 나중에 하고 플래너부터 짤래요</button>
+    </div>
+</div>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+const REV_ID = /*[[${reservation.id}]]*/ 1;
+const SCH_ID = /*[[${scheduleId}]]*/ 1;
+const REQ_AMT = /*[[${payment != null ? payment.amount : 0}]]*/ 0;
+const CURRENCY = /*[[${payment != null ? payment.currency.name() : 'KRW'}]]*/ 'KRW';
+const MY_POINT_KRW = /*[[${user.pointsKrw}]]*/ 0;
+const MY_POINT_JPY = /*[[${user.pointsJpy}]]*/ 0;
+/*]]>*/
+
+document.getElementById('btn-pay-now').addEventListener('click', async () => {
+    let point = CURRENCY === 'KRW' ? MY_POINT_KRW : MY_POINT_JPY;
+    if (point < REQ_AMT) {
+        document.getElementById('error-msg').style.display = 'block';
+        // API 찔러봐야 실제 에러메시지 가져오겠지만 UI로도 즉각 표출
+    }
+    
+    document.getElementById('btn-pay-now').innerText = '처리 중...';
+    document.getElementById('btn-pay-now').disabled = true;
+    
+    try {
+        const res = await window.api.post(`/api/reservations/${REV_ID}/pay`);
+        if (res.success) {
+            alert('🎉 결제가 성공적으로 처리되었습니다! 이제 세부일정을 마음껏 계획해보세요.');
+            window.location.href = `/planner/${SCH_ID}`;
+        } else {
+            alert(res.message || '결제에 실패했습니다.');
+            document.getElementById('btn-pay-now').innerText = '결제 확정 및 플래너 작성하기';
+            document.getElementById('btn-pay-now').disabled = false;
+        }
+    } catch(err) {
+        alert('서버(결제 모듈) 연동 오류가 발생했습니다.');
+        document.getElementById('btn-pay-now').innerText = '결제 확정 및 플래너 작성하기';
+        document.getElementById('btn-pay-now').disabled = false;
+    }
+});
+
+document.getElementById('btn-pay-later').addEventListener('click', () => {
+    window.location.href = `/planner/${SCH_ID}`;
+});
+</script>
+
+</body>
+</html>

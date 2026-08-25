@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
+    java.util.List<UserEntity> findByRole(net.datasa.tanoshimi.domain.entity.Role role);
     Optional<UserEntity> findByEmail(String email);
     Optional<UserEntity> findBySocialProviderAndSocialId(String socialProvider, String socialId);
     boolean existsByEmail(String email);

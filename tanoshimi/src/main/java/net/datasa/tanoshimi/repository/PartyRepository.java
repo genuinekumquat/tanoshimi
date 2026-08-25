@@ -8,14 +8,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface PartyRepository extends JpaRepository<PartyEntity, Long> {
-    List<PartyEntity> findByStatusOrderByDepartureDateAsc(PartyStatus status);
+    List<PartyEntity> findByStatusAndBlindedFalseOrderByDepartureDateAsc(PartyStatus status);
     org.springframework.data.domain.Page<PartyEntity> findByTitleContainingIgnoreCase(String title, org.springframework.data.domain.Pageable pageable);
-    List<PartyEntity> findByRegionAndStatus(String region, PartyStatus status);
+    List<PartyEntity> findByRegionAndStatusAndBlindedFalse(String region, PartyStatus status);
 
     /** 메인 페이지 검색창 - 제목/지역에 키워드가 포함된 모집중 파티. */
     @Query("""
             select p from PartyEntity p
-            where p.status = :status
+            where p.status = :status and p.blinded = false
               and (p.title like concat('%', :keyword, '%') or p.region like concat('%', :keyword, '%'))
             order by p.departureDate asc
             """)

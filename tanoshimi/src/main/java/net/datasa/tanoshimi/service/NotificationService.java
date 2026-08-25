@@ -9,6 +9,7 @@ import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.repository.NotificationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 /** 인앱 알림함(종 아이콘). 여행 하루 전 알림은 TripReminderScheduler 가 이 서비스를 통해 발행한다. */
 @Service
@@ -18,10 +19,20 @@ public class NotificationService {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MM.dd HH:mm");
 
     private final NotificationRepository notificationRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public void notify(UserEntity user, String type, String title, String message, String linkUrl) {
-        notificationRepository.save(new NotificationEntity(user, type, title, message, linkUrl));
+        NotificationEntity notif = notificationRepository.save(new NotificationEntity(user, type, title, message, linkUrl));
+        try {
+            NotificationView view = new NotificationView(
+                    notif.getId(), notif.getType(), notif.getTitle(), notif.getMessage(),
+                    notif.getLinkUrl(), notif.isRead(), notif.getCreatedAt() != null ? notif.getCreatedAt().format(TIME_FMT) : ""
+            );
+            messagingTemplate.convertAndSend("/topic/user." + user.getId() + ".notifications", view);
+        } catch(Exception e) {
+            // Ignore messaging errors
+        }
     }
 
     /**

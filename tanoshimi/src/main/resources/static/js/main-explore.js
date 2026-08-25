@@ -4,10 +4,8 @@
     let closestName = null;
     let minDist = Infinity;
     
-    // 오리지널 데이터만 사용 (임의로 추가했던 가상 터치 보정망 제거)
     let targetRegions = Object.assign({}, regionsMap);
     
-    // 홋카이도 외곽만 약간 보정 (북쪽/동쪽 끝)
     if (mapType === 'jp' && typeof JAPAN_REGIONS !== 'undefined') {
         targetRegions['hok_1'] = { name: '홋카이도', cx: 80, cy: 10, realId: 'hokkaido' };
     }
@@ -16,7 +14,6 @@
       const r = targetRegions[uid];
       const dx = clickX - r.cx;
       const dy = clickY - r.cy;
-      // 가로/세로 비율 조정을 통한 타원형 거리 계산
       const dist = (dx*dx) + (dy*dy);
       
       if (dist < minDist) {
@@ -26,7 +23,6 @@
       }
     }
     
-    // 너무 먼 바다 클릭 무시 
     if (minDist > 200) { 
         return { id: null, name: null };
     }
@@ -58,13 +54,11 @@
     if (isClick) {
         if (closest.id) openSpotOverlay(closest.id, closest.name);
     } else {
-        // Hover
         if (tooltip) {
             if (closest.name && !document.getElementById('spot-overlay').classList.contains('on')) {
                 tooltip.style.opacity = '1';
                 tooltip.textContent = closest.name;
                 
-                // 프레임 기준 마우스 좌표로 툴팁 이동
                 const innerRect = document.getElementById('map-explore-inner').getBoundingClientRect();
                 const mouseX = e.clientX - innerRect.left;
                 const mouseY = e.clientY - innerRect.top;
@@ -129,9 +123,13 @@
         const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
         const tx = Math.cos(angle) * radiusX;
         const ty = Math.sin(angle) * radiusY;
+        
+        const fallbackImg = `https://picsum.photos/seed/${encodeURIComponent(p.name)}/400/300`;
+        const imgUrl = p.img ? p.img : fallbackImg;
+        
         return `
-          <div class="spot-card" style="transition-delay:${i * 60}ms; --tx:${tx}px; --ty:${ty}px;">
-            <div class="ph ${p.ph}"></div>
+          <div class="spot-card" data-name="${escapeHtml(p.name)}" data-desc="${escapeHtml(p.desc)}" data-img="${imgUrl}" style="transition-delay:${i * 60}ms; --tx:${tx}px; --ty:${ty}px;">
+            <div class="ph" style="background-image:url('${imgUrl}')"></div>
             <div class="info">
               <p class="t">${p.name}</p>
               <p class="d">${p.desc}</p>
@@ -146,6 +144,12 @@
     requestAnimationFrame(() => {
       document.querySelectorAll('.spot-card').forEach(card => {
         card.style.transform = `translate(var(--tx), var(--ty)) scale(1)`;
+        card.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (typeof window.openSpotDetailModal === 'function') {
+                window.openSpotDetailModal(this.dataset.name, this.dataset.desc, this.dataset.img);
+            }
+        });
       });
     });
   }
@@ -182,9 +186,6 @@
 
   setupMap(); 
 
-  /* =====================================================================
-     스냅사진 4x5 바둑판 형식 렌더링 (카테고리 필터)
-     ===================================================================== */
   const TAGS = [
     { key: '전체', label: '전체' },
     { key: '먹거리',  label: '🍕 먹거리' },
@@ -245,8 +246,12 @@
     grid.innerHTML = list.map((p, i) => {
       const isUpload = p.thumbnailUrl && !p.thumbnailUrl.startsWith('ph');
       const phClass = isUpload ? PH_CYCLE[i % PH_CYCLE.length] : (p.thumbnailUrl || PH_CYCLE[i % PH_CYCLE.length]);
+      let thumbSrc = isUpload ? p.thumbnailUrl : '';
+      if (isUpload && !thumbSrc.startsWith('http') && !thumbSrc.startsWith('/')) {
+         thumbSrc = '/uploads/' + thumbSrc;
+      }
       const thumbInner = isUpload
-        ? `<img src="${p.thumbnailUrl}" onerror="this.style.display='none';">`
+        ? `<img src="${thumbSrc}" onerror="this.style.display='none';">`
         : `<div class="ph ${phClass}"></div>`;
         
       return `
@@ -259,6 +264,8 @@
       </a>`;
     }).join('');
   }
+
+  window.escapeHtml = escapeHtml;
 
   setTimeout(() => renderSnapGrid(), 0);
 
