@@ -49,6 +49,9 @@ public class UserEntity {
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
+    @Column(name = "manner_score", nullable = false, columnDefinition = "float default 36.5")
+    private float mannerScore = 36.5f;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 5)
     private Nationality nationality;

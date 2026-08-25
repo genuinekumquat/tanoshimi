@@ -77,6 +77,9 @@
             th:classappend="${post.thumbnailUrl} ?: 'ph1'" class="ph"></span>
       <span class="region-tag" th:text="'📍 ' + (${post.region} ?: '지역미정')">📍 지역미정</span>
       <span class="likes" th:text="'❤️ ' + ${post.likeCount}">❤️ 0</span>
+      <span class="report-btn" style="position:absolute; bottom:10px; right:10px; z-index:10;" sec:authorize="isAuthenticated()">
+         <span th:attr="data-report-type='post',data-report-id=${post.id},data-report-label=${post.title}" style="font-size:11px; padding:3px 6px; background:rgba(255,255,255,0.9); border:1px solid #ffcccc; color:red; border-radius:4px; font-weight:bold; cursor:pointer;">🚨 신고</span>
+      </span>
       <span class="cap" th:text="${post.content}">내용</span>
     </a>
   </div>
@@ -94,6 +97,9 @@
           <span th:text="'📍 ' + (${post.region} ?: '지역미정')">📍 지역미정</span>
           <span th:text="'❤️ ' + ${post.likeCount}">❤️ 0</span>
           <span th:text="'@' + ${post.user.name}">@작성자</span>
+          <span class="report-btn" style="margin-left:auto;" sec:authorize="isAuthenticated()">
+              <span th:attr="data-report-type='post',data-report-id=${post.id},data-report-label=${post.title}" style="font-size:11px; padding:3px 6px; background:#fff; border:1px solid #ffcccc; color:red; border-radius:4px; font-weight:bold; cursor:pointer;">🚨 신고</span>
+          </span>
         </span>
       </span>
     </a>

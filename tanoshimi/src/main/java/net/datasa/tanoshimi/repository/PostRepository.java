@@ -20,10 +20,10 @@ public interface PostRepository extends JpaRepository<PostEntity, Long> {
      * JOIN FETCH 를 직접 쓰면 페이징이 깨지므로 @EntityGraph 를 쓴다.
      */
     @EntityGraph(attributePaths = {"user"})
-    Page<PostEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    Page<PostEntity> findByBlindedFalseOrderByCreatedAtDesc(Pageable pageable);
 
     @EntityGraph(attributePaths = {"user"})
-    Page<PostEntity> findByRegionOrderByCreatedAtDesc(String region, Pageable pageable);
+    Page<PostEntity> findByBlindedFalseAndRegionOrderByCreatedAtDesc(String region, Pageable pageable);
 
     /** 마이페이지 진입 경로: 같은 테이블을 user_id 로만 필터링 */
     Page<PostEntity> findByUserOrderByCreatedAtDesc(UserEntity user, Pageable pageable);

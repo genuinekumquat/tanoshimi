@@ -46,6 +46,11 @@ public class PostEntity {
     @Column(name = "like_count", nullable = false)
     private int likeCount;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean blinded = false;
+
+    public void blind() { this.blinded = true; }
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
