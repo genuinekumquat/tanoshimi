@@ -36,6 +36,18 @@ public class TripScheduleEntity {
     @OneToOne(fetch = FetchType.LAZY) @JoinColumn(name = "reservation_id", unique = true)
     private ReservationEntity reservation;
 
+    /**
+     * 편집권을 가진 파티원. 기본적으로 파티장이 항상 가지고 있으며(생성자에서 자동 설정),
+     * 파티장이 특정 파티원에게 실시간으로 부여했다가 다시 회수할 수 있다(한 번에 한 명뿐).
+     * "회수"는 null 이 아니라 파티장에게 되돌리는 것을 의미한다 - TripPlannerLockService 참고.
+     */
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "locked_by_user_id")
+    private UserEntity lockedBy;
+
+    /** 마지막 저장(자동 10분 주기 또는 수동) 시각 - 화면 상단 표시용. */
+    @Column(name = "last_saved_at")
+    private LocalDateTime lastSavedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private ScheduleStatus status;
@@ -54,10 +66,11 @@ public class TripScheduleEntity {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    /** 파티 생성 시점 - 아직 패키지 예약 전이라도 바로 계획표를 만든다. */
+    /** 파티 생성 시점 - 아직 패키지 예약 전이라도 바로 계획표를 만든다. 편집권은 기본적으로 파티장이 가진다. */
     public TripScheduleEntity(PartyEntity party) {
         this.party = party;
         this.status = ScheduleStatus.draft;
+        this.lockedBy = party.getOwner();
     }
 
     /** 혼자(파티 없이) 예약하는 개인 이용자용. */
@@ -83,4 +96,25 @@ public class TripScheduleEntity {
         this.status = ScheduleStatus.confirmed;
         this.confirmedAt = LocalDateTime.now();
     }
+
+    /**
+     * 파티장이 특정 파티원에게 편집권을 부여한다. null 을 넘기지 않는다 - "회수"는
+     * TripPlannerLockService.revokeLock() 에서 파티장에게 되돌리는 방식으로 처리한다
+     * (기본적으로 파티장만 갖는다는 원칙을 유지하기 위해, 편집권 없는 상태는 만들지 않는다).
+     */
+    public void setLockedBy(UserEntity user) { this.lockedBy = user; }
+
+    /**
+     * 이 사용자가 지금 편집할 수 있는지. lockedBy 가 비어있는 레거시 데이터를 만나도
+     * 안전하게 "파티장 기본 권한"으로 판단하도록 party.owner 도 함께 확인한다.
+     */
+    public boolean isLockedBy(Long userId) {
+        if (lockedBy != null) {
+            return lockedBy.getId().equals(userId);
+        }
+        return party != null && party.getOwner().getId().equals(userId);
+    }
+
+    /** 자동(10분 주기)/수동 저장 시각 갱신. 저장 때마다 호출되며 스냅샷도 함께 남는다(서비스 계층 책임). */
+    public void touchSaved() { this.lastSavedAt = LocalDateTime.now(); }
 }

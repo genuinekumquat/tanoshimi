@@ -20,4 +20,15 @@ public interface PartyRepository extends JpaRepository<PartyEntity, Long> {
             order by p.departureDate asc
             """)
     List<PartyEntity> searchRecruiting(@Param("status") PartyStatus status, @Param("keyword") String keyword);
+
+    /**
+     * [v16 신규] 파티 완료 자동처리 스케줄러 전용 - 아직 completed 가 아니고
+     * 종료일(departureDate + durationDays)이 이미 지난 파티들을 찾는다.
+     */
+    @Query(value = """
+            select * from parties
+            where status <> 'completed'
+              and DATE_ADD(departure_date, INTERVAL duration_days DAY) < CURDATE()
+            """, nativeQuery = true)
+    List<PartyEntity> findEndedButNotCompleted();
 }

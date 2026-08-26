@@ -42,8 +42,7 @@ public class SecurityConfig {
                                 "/oauth2/**", "/login/oauth2/**", "/error", "/error/**").permitAll()
                         .requestMatchers("/party-board/create").authenticated()
                         .requestMatchers("/party-board/*/room").authenticated()
-                        .requestMatchers("/api/packages/*/weather").permitAll()
-                        .requestMatchers("/board", "/board/**", "/packages", "/packages/**",
+                        .requestMatchers("/board", "/board/**",
                                 "/party-board", "/party-board/**", "/support", "/support/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/ws/**").authenticated()

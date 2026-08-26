@@ -5,6 +5,8 @@ import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.entity.BannerEntity;
 import net.datasa.tanoshimi.domain.entity.ReportStatus;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
+import net.datasa.tanoshimi.exception.BusinessException;
+import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.BannerRepository;
 import net.datasa.tanoshimi.repository.ReportRepository;
 import net.datasa.tanoshimi.repository.UserRepository;
@@ -25,15 +27,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import net.datasa.tanoshimi.domain.entity.PartyEntity;
-import net.datasa.tanoshimi.domain.entity.TourEntity;
-import net.datasa.tanoshimi.domain.entity.VenueType;
 import net.datasa.tanoshimi.domain.entity.ActiveStatus;
 import net.datasa.tanoshimi.repository.PartyRepository;
-import net.datasa.tanoshimi.repository.TourRepository;
-import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.format.annotation.DateTimeFormat;
 
 @Controller
 @RequestMapping("/admin")
@@ -43,7 +40,6 @@ public class AdminController {
 
     private final UserRepository userRepository;
     private final PartyRepository partyRepository;
-    private final TourRepository tourRepository;
     private final BannerRepository bannerRepository;
     private final FileStorageService fileStorageService;
     private final ReportRepository reportRepository;
@@ -132,42 +128,6 @@ public class AdminController {
         return "redirect:/admin/parties";
     }
 
-    @GetMapping("/tours/create")
-    public String createTourForm(@AuthenticationPrincipal CustomUserDetails admin, Model model) {
-        model.addAttribute("adminName", admin.getDisplayName());
-        return "admin/tour_create";
-    }
-
-    @PostMapping("/tours")
-    @Transactional
-    public String createTour(
-            @RequestParam String title, @RequestParam String region,
-            @RequestParam int priceKrw, @RequestParam int priceJpy,
-            @RequestParam byte durationNights, @RequestParam String description,
-            @RequestParam byte minParticipants, @RequestParam byte maxParticipants,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime checkinTime,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime checkoutTime,
-            @RequestParam VenueType venueType) {
-            
-        TourEntity tour = TourEntity.builder()
-            .title(title)
-            .region(region)
-            .priceKrw(priceKrw)
-            .priceJpy(priceJpy)
-            .durationNights(durationNights)
-            .description(description)
-            .minParticipants(minParticipants)
-            .maxParticipants(maxParticipants)
-            .checkinTime(checkinTime)
-            .checkoutTime(checkoutTime)
-            .venueType(venueType)
-            .status(ActiveStatus.active)
-            .build();
-            
-        tourRepository.save(tour);
-        return "redirect:/packages";
-    }
-
     @PostMapping("/users/{id}/grant-admin")
     @Transactional
     public String grantAdmin(@PathVariable Long id) {
@@ -234,8 +194,12 @@ public class AdminController {
     }
 
     @PostMapping("/reports/{id}/resolve")
-    public String resolveReport(@PathVariable Long id) {
-        reportService.resolve(id);
+    public String resolveReport(@PathVariable Long id,
+                                @RequestParam(defaultValue = "none") String action,
+                                @AuthenticationPrincipal CustomUserDetails admin) {
+        // [v16 신규] 조치 없이 승인만(none) / 비공개(hidden) / 삭제(deleted) 중 선택해서 처리한다.
+        UserEntity actor = userRepository.findById(admin.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        reportService.resolveWithAction(id, net.datasa.tanoshimi.domain.entity.ReportActionTaken.valueOf(action), actor);
         return "redirect:/admin/reports";
     }
 

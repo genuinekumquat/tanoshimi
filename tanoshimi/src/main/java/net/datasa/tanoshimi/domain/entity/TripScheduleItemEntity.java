@@ -34,6 +34,14 @@ public class TripScheduleItemEntity {
     @Column(nullable = false, length = 20)
     private ScheduleItemSource source;
 
+    /**
+     * [v16 신규] true=고정(LOCK, 항공·숙박 등 - AI 동선최적화 대상에서 제외되는 앵커),
+     * false=이동가능(액티비티 기본값, AI 동선최적화가 재배치할 수 있음).
+     * source=package_default 이면 항상 true 로 시작한다(생성자에서 자동 설정).
+     */
+    @Column(name = "is_fixed", nullable = false, columnDefinition = "boolean default false")
+    private boolean isFixed;
+
     @Column(length = 200)
     private String title;
 
@@ -63,6 +71,8 @@ public class TripScheduleItemEntity {
         if (this.source == ScheduleItemSource.activity && activity == null) {
             throw new IllegalArgumentException("액티비티 항목은 액티비티 연결이 필수입니다.");
         }
+        // package_default(항공/체크인 등)는 항상 고정으로 시작한다 - AI 동선최적화가 건드리면 안 되는 앵커.
+        this.isFixed = this.source == ScheduleItemSource.package_default;
         if (this.source == ScheduleItemSource.custom && title == null) {
             this.title = "직접 입력"; // fallback
         } else {
@@ -91,4 +101,10 @@ public class TripScheduleItemEntity {
             this.memo = memo.trim();
         }
     }
+
+    /** [v16 신규] AI 동선최적화가 재배치 대상에서 제외할지 여부를 결정하는 값. */
+    public boolean isMovable() { return !isFixed; }
+
+    /** [v16 신규] 스냅샷 롤백 복원 전용 - 저장된 시점의 isFixed 값을 그대로 되살린다. */
+    public void restoreFixedFlag(boolean isFixed) { this.isFixed = isFixed; }
 }

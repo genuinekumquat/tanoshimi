@@ -207,9 +207,9 @@
         <span th:text="${me.name}">유자차</span>
         <span style="font-size:12px;color:var(--ink-soft);font-family:'Gowun Dodum',sans-serif;">님</span>
           <span style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-size:13px; font-family:'Gowun Dodum',sans-serif;">
-            <span style="color:#ff8a00; font-weight:bold;" th:text="${me.mannerScore + '°C'}">36.5°C</span>
+            <span style="color:#ff8a00; font-weight:bold;" th:text="${me.mannerTemp} + '°C'">36.5°C</span>
             <div style="width:60px; height:6px; background:#eee; border-radius:3px; overflow:hidden;">
-               <div th:style="'height:100%; background:#ff8a00; width:' + (${me.mannerScore}/100*100) + '%;'"></div>
+               <div th:style="'height:100%; background:#ff8a00; width:' + (${me.mannerTemp}/50*100) + '%;'"></div>
             </div>
           </span>
       </div>
@@ -235,9 +235,7 @@
           <button class="btn btn-ghost" id="btn-intro-cancel">취소</button>
         </div>
       </div>
-      <a th:href="@{/messages}" class="btn" style="background:#fff; border:1px solid var(--line); white-space:nowrap; margin-top: 14px;">💬 쪽지함</a>
-      <a th:href="@{/my-reservations}" class="btn" style="background:#fff; border:1px solid var(--line); white-space:nowrap; margin-top: 14px;">✈️ 내 예약</a>
-    </div>
+      <a th:href="@{/messages}" class="btn" style="background:#fff; border:1px solid var(--line); white-space:nowrap; margin-top: 14px;">💬 쪽지함</a>    </div>
   </section>
 
   <!-- ================= 지도 ================= -->

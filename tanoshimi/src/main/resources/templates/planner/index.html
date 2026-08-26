@@ -259,6 +259,51 @@
     <span class="stamp" th:text="${tour != null ? tour.title : '예약 대기중인 계획표입니다.'}">FIELD PLAN</span>
   </div>
 
+  <!-- 현재 편집권 안내 - 전원에게 보임 -->
+  <div id="lock-banner" style="display:flex; align-items:center; gap:8px; padding:10px 16px; margin-bottom:12px;
+       border-radius:10px; background:#fff8ea; border:1px solid var(--gold); font-size:13px;">
+    <span>🔒 지금 편집 가능한 사람: <b id="lock-holder-name" th:text="${lockedByName}">파티장</b></span>
+    <span id="lock-holder-me-badge" th:if="${isLockHolder}" style="background:var(--forest); color:#fff; font-size:11px; padding:2px 8px; border-radius:999px;">나</span>
+    <span th:unless="${isLockHolder}" style="color:var(--ink-soft); font-size:12px;">(지금은 읽기전용이에요)</span>
+  </div>
+
+  <!-- ================= 방장 전용 메뉴 ================= -->
+  <div class="card" id="owner-menu" th:if="${isPartyOwner}" style="padding:16px 18px; margin-bottom:16px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;" id="owner-menu-toggle">
+      <h3 style="margin:0; font-size:15px; color:var(--forest);">👑 방장 메뉴</h3>
+      <span id="owner-menu-arrow" style="font-size:12px; color:var(--ink-soft);">펼치기 ▾</span>
+    </div>
+
+    <div id="owner-menu-body" style="display:none; margin-top:14px;">
+      <!-- 편집권 부여/회수 -->
+      <div style="margin-bottom:16px;">
+        <h4 style="margin:0 0 8px; font-size:13px;">편집권 관리</h4>
+        <p style="font-size:12px; color:var(--ink-soft); margin:0 0 8px;">기본적으로 방장만 편집할 수 있어요. 파티원 한 명에게 실시간으로 넘겼다가 다시 가져올 수 있습니다.</p>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+          <select id="lock-target-select" style="padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:12.5px;">
+            <option value="">편집권을 줄 파티원 선택</option>
+            <option th:each="m : ${partyMembers}" th:value="${m.id}" th:text="${m.name}">멤버</option>
+          </select>
+          <button type="button" id="btn-grant-lock" class="btn btn-primary btn-sm">편집권 주기</button>
+          <button type="button" id="btn-revoke-lock" class="btn btn-ghost btn-sm">회수해서 내가 갖기</button>
+        </div>
+      </div>
+
+      <!-- 자동저장 타임라인 (10분 주기) -->
+      <div>
+        <h4 style="margin:0 0 8px; font-size:13px;">저장 시점 타임라인</h4>
+        <p style="font-size:12px; color:var(--ink-soft); margin:0 0 8px;">
+          이상한 수정이 생겼을 때를 대비해 10분마다 자동 저장돼요. 원하는 시점을 골라 그때로 되돌릴 수 있습니다.
+          <span th:if="${schedule.lastSavedAt != null}">마지막 저장: <span th:text="${#temporals.format(schedule.lastSavedAt, 'MM/dd HH:mm')}"></span></span>
+        </p>
+        <button type="button" id="btn-manual-save" class="btn btn-ghost btn-sm" style="margin-bottom:8px;">지금 바로 저장</button>
+        <div id="snapshot-list" style="max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;">
+          <div style="padding:12px; font-size:12px; color:var(--ink-soft);">불러오는 중...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="trail"><span class="dot"></span><span class="ln"></span><span class="dot"></span><span class="ln"></span><span class="dot"></span></div>
 
   <div class="planner">
@@ -269,8 +314,6 @@
         
         <div class="ttl" style="display:flex; align-items:center;">
           지역일정 · <span th:text="${tour != null ? (tour.durationNights + '박 ' + (tour.durationNights + 1) + '일') : '일정 미정'}">일정 미정</span>
-          <a th:if="${tour == null}" th:href="@{/packages(partyId=${schedule.party?.id})}" class="btn btn-primary" style="font-size:11px; padding:4px 10px; margin-left:12px; text-decoration:none;">투어 패키지 예약하기</a>
-          <a th:if="${tour != null}" th:href="@{/packages(partyId=${schedule.party?.id})}" class="btn" style="background:#fff; border:1px solid var(--line); font-size:11px; padding:4px 10px; margin-left:12px; text-decoration:none;">패키지 변경</a>
         </div>
 
         <div class="board-tools">
@@ -335,9 +378,12 @@ const SCHEDULE_ID = /*[[${schedule.id}]]*/ 1;
 const TOUR_REGION = /*[[${tour != null ? tour.region : schedule.party?.region}]]*/ '';
 const DURATION_NIGHTS = /*[[${tour != null ? tour.durationNights : 2}]]*/ 2;
 const SCHEDULE_STATUS = /*[[${schedule.status}]]*/ 'draft';
+const IS_PARTY_OWNER = /*[[${isPartyOwner}]]*/ false;
+const IS_LOCK_HOLDER = /*[[${isLockHolder}]]*/ false;
 /*]]>*/
 </script>
 
 <script th:src="@{/js/planner.js?v=4}" defer></script>
+<script th:src="@{/js/planner-owner.js}" defer></script>
 </body>
 </html>

@@ -1,8 +1,0 @@
-.gradle/
-build/
-.idea/
-*.iml
-out/
-src/main/resources/application-local.yml
-.DS_Store
-Thumbs.db

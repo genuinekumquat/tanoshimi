@@ -93,6 +93,10 @@ app:
   # 이 경로는 프로젝트와 완전히 분리돼 있어서 몇 번을 새로 받아도 사진은 그대로 남는다.
   upload-dir: ${UPLOAD_DIR:${user.home}/tanoshimi-uploads}
 
+  # [v16 신규] AI 챗봇 추천/동선 최적화 1일 크레딧 - 전 사용자 동일 지급, 자정 초기화.
+  ai-credit:
+    daily-limit: ${AI_CREDIT_DAILY_LIMIT:20}
+
   sms:
     provider: log            # log = 콘솔 출력(개발용) / aligo = 실제 발송
     aligo:

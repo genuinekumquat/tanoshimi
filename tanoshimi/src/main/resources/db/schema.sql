@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS activities (
     id             BIGINT        NOT NULL AUTO_INCREMENT,
     title          VARCHAR(200)  NOT NULL,
     region         VARCHAR(50)   NOT NULL COMMENT 'tours.region 과 동일 값 사용',
-    venue_type     ENUM('indoor','outdoor','mixed') NOT NULL DEFAULT 'mixed',
+    venue_type     ENUM('indoor','outdoor','mixed') NULL COMMENT '[v16] 판정 전 NULL 허용 - AI가 처음 조회될 때 판정 후 채움(기존엔 NOT NULL이었음)',
     style_tag      VARCHAR(100)  NULL COMMENT '축제/먹거리/명소/이동/휴식 - AI 추천 필터 겸 색상범례',
     duration_min   INT           NOT NULL DEFAULT 60 COMMENT '기본 소요시간(분) - 드래그 시 초기 칸 크기',
     price_krw      INT           NOT NULL DEFAULT 0,
@@ -132,9 +132,13 @@ CREATE TABLE IF NOT EXISTS activities (
     thumbnail_url  VARCHAR(500)  NULL,
     latitude       DECIMAL(10,7) NULL COMMENT '날씨 API 조회용',
     longitude      DECIMAL(10,7) NULL,
+    external_place_id VARCHAR(200) NULL COMMENT '[v16] 장소검색 API의 장소 고유 id(중복 저장 방지)',
+    place_provider ENUM('google','osm') NULL COMMENT '[v16] 어느 API로 조회했는지(제공사 미확정 - 값 후보만 정의)',
+    cached_at      DATETIME      NULL COMMENT '[v16] venue_type 캐싱 갱신 시각',
     status         ENUM('active','hidden') NOT NULL DEFAULT 'active',
     created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_activities_place (external_place_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
@@ -148,6 +152,7 @@ CREATE TABLE IF NOT EXISTS parties (
     description              TEXT         NULL,
     region                   VARCHAR(50)  NOT NULL,
     departure_date           DATE         NOT NULL,
+    duration_days            TINYINT      NOT NULL DEFAULT 1 COMMENT '여행 일수. departure_date + duration_days = 종료일(파티 완료 자동처리 스케줄러 판단 기준)',
     budget_krw               INT          NULL COMMENT '1인 예산(원) - 목록 표시용',
     capacity                 TINYINT      NOT NULL,
     style_tag                VARCHAR(100) NULL COMMENT '축제/먹거리/문화체험/액티비티/힐링 - 메인 태그 필터용. tour 가 있으면 보통 그 값을 따라간다',
@@ -155,7 +160,7 @@ CREATE TABLE IF NOT EXISTS parties (
     age_min                  TINYINT      NULL,
     age_max                  TINYINT      NULL,
     nationality_restriction  ENUM('all','kr_only','jp_only') NOT NULL DEFAULT 'all',
-    status                   ENUM('recruiting','full','closed') NOT NULL DEFAULT 'recruiting',
+    status                   ENUM('recruiting','full','closed','completed') NOT NULL DEFAULT 'recruiting' COMMENT 'completed = 여행 종료일 경과 후 스케줄러가 자동 전환(UI 표시는 완료)',
     thumbnail_url            VARCHAR(500) NULL,
     created_at               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -244,6 +249,8 @@ CREATE TABLE IF NOT EXISTS trip_schedules (
     party_id       BIGINT   NULL,
     reservation_id BIGINT   NULL,
     status         ENUM('draft','submitted','confirmed') NOT NULL DEFAULT 'draft',
+    locked_by_user_id BIGINT NULL COMMENT '[v16] 현재 편집권을 가진 파티원. NULL이면 전원 읽기전용(자유편집 아님 - lock 도입 취지 유지)',
+    last_saved_at  DATETIME NULL COMMENT '[v16] 마지막 저장(자동/수동) 시각 - 화면 상단 표시용',
     submitted_at   DATETIME NULL,
     confirmed_at   DATETIME NULL,
     created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -252,7 +259,8 @@ CREATE TABLE IF NOT EXISTS trip_schedules (
     UNIQUE KEY uk_schedule_party (party_id),
     UNIQUE KEY uk_schedule_reservation (reservation_id),
     CONSTRAINT fk_ts_party FOREIGN KEY (party_id) REFERENCES parties(id),
-    CONSTRAINT fk_ts_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id)
+    CONSTRAINT fk_ts_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id),
+    CONSTRAINT fk_ts_locked_by FOREIGN KEY (locked_by_user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
@@ -265,6 +273,7 @@ CREATE TABLE IF NOT EXISTS trip_schedule_items (
     start_minute    SMALLINT     NOT NULL COMMENT '0~1439, 하루 중 시작 시각(분)',
     duration_minute SMALLINT     NOT NULL COMMENT '1분 단위 조절 가능',
     source          ENUM('package_default','activity','custom') NOT NULL,
+    is_fixed        BOOLEAN      NOT NULL DEFAULT FALSE COMMENT '[v16] true=고정(LOCK, 항공·숙박 등), false=이동가능(AI 동선최적화 대상)',
     activity_id     BIGINT       NULL COMMENT 'source=activity 일 때만',
     title           VARCHAR(200) NOT NULL,
     memo            VARCHAR(300) NULL,
@@ -437,9 +446,70 @@ CREATE TABLE IF NOT EXISTS reports (
     target_label  VARCHAR(200) NOT NULL,
     reason        VARCHAR(500) NOT NULL,
     status        ENUM('pending','resolved','dismissed') NOT NULL DEFAULT 'pending',
+    action_taken  ENUM('none','hidden','deleted') NOT NULL DEFAULT 'none' COMMENT '[v16] 게시판·파티 신고 콘텐츠 최종조치 결과',
+    actioned_by   BIGINT       NULL COMMENT '[v16] 조치한 관리자(⑤)',
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     reviewed_at   DATETIME     NULL,
     PRIMARY KEY (id),
     KEY idx_report_status (status, created_at),
-    CONSTRAINT fk_report_reporter FOREIGN KEY (reporter_id) REFERENCES users(id)
+    CONSTRAINT fk_report_reporter FOREIGN KEY (reporter_id) REFERENCES users(id),
+    CONSTRAINT fk_report_actioned_by FOREIGN KEY (actioned_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 20. trip_schedule_snapshots [v16 신규] (계획표 저장 시점 스냅샷 - 롤백의 소스)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS trip_schedule_snapshots (
+    id            BIGINT   NOT NULL AUTO_INCREMENT,
+    schedule_id   BIGINT   NOT NULL,
+    snapshot_data JSON     NOT NULL COMMENT '저장 시점의 전체 trip_schedule_items 스냅샷',
+    trigger_type  ENUM('auto','manual') NOT NULL COMMENT '자동저장(20분 주기) vs 수동저장 구분',
+    created_by    BIGINT   NOT NULL,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_snapshot_schedule (schedule_id, created_at),
+    CONSTRAINT fk_tss_schedule FOREIGN KEY (schedule_id) REFERENCES trip_schedules(id),
+    CONSTRAINT fk_tss_user FOREIGN KEY (created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 21. manner_temp_logs [v16 신규] (매너온도 가산/감산 이력 - 감사 로그)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS manner_temp_logs (
+    id         BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id    BIGINT       NOT NULL,
+    delta      DECIMAL(3,1) NOT NULL COMMENT '+0.5 / +0.3 / -1.0 / -0.5 등',
+    reason     ENUM('party_complete','host_bonus','report_penalty','leave_penalty') NOT NULL,
+    related_id BIGINT       NULL COMMENT '관련 party_id 또는 report_id(다형 참조, FK 없음)',
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_mtl_user (user_id, created_at),
+    CONSTRAINT fk_mtl_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 22. ai_credit_usage [v16 신규] (사용자별 일일 AI 크레딧 사용량)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ai_credit_usage (
+    id          BIGINT NOT NULL AUTO_INCREMENT,
+    user_id     BIGINT NOT NULL,
+    usage_date  DATE   NOT NULL,
+    used_count  INT    NOT NULL DEFAULT 0,
+    daily_limit INT    NOT NULL COMMENT '전원 동일 값 지급',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_acu_user_date (user_id, usage_date),
+    CONSTRAINT fk_acu_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 23. user_profile_theme [v16 신규] (프로필 배경 꾸미기 설정)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_profile_theme (
+    id         BIGINT      NOT NULL AUTO_INCREMENT,
+    user_id    BIGINT      NOT NULL,
+    theme_key  VARCHAR(50) NOT NULL COMMENT '사전 정의된 배경/스킨 키',
+    updated_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_upt_user (user_id),
+    CONSTRAINT fk_upt_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

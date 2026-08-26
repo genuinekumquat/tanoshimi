@@ -44,6 +44,15 @@ public class ReportEntity {
     @Column(nullable = false, length = 10)
     private ReportStatus status;
 
+    /** [v16 신규] 게시판·파티 신고 콘텐츠에 대한 관리자 최종조치 결과. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "action_taken", nullable = false, length = 10)
+    private ReportActionTaken actionTaken = ReportActionTaken.none;
+
+    /** [v16 신규] 조치한 관리자. */
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "actioned_by")
+    private UserEntity actionedBy;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -58,6 +67,15 @@ public class ReportEntity {
         this.targetLabel = targetLabel;
         this.reason = reason;
         this.status = ReportStatus.pending;
+        this.actionTaken = ReportActionTaken.none;
+    }
+
+    /** [v16 신규] 관리자가 신고를 승인 처리하며 콘텐츠에 대한 최종조치(비공개/삭제)를 함께 기록한다. */
+    public void resolveWithAction(UserEntity admin, ReportActionTaken action) {
+        this.status = ReportStatus.resolved;
+        this.actionTaken = action == null ? ReportActionTaken.none : action;
+        this.actionedBy = admin;
+        this.reviewedAt = LocalDateTime.now();
     }
 
     public void resolve() {
