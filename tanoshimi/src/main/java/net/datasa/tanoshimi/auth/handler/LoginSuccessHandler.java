@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
+import net.datasa.tanoshimi.auth.LoginAttemptService;
 import net.datasa.tanoshimi.domain.entity.PreferredLang;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.repository.UserRepository;
@@ -22,6 +23,7 @@ import java.util.Arrays;
 public class LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
+    private final LoginAttemptService loginAttemptService;
 
     @Override
     @Transactional
@@ -29,6 +31,9 @@ public class LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
         // 로그인 성공한 사용자 정보 가져오기
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         UserEntity user = userRepository.findByEmail(userDetails.getUsername()).orElse(null);
+
+        // 로그인 성공 시 실패 카운트 초기화 (안 하면 이전 실패가 누적돼 정상 로그인 후에도 잠길 수 있음)
+        loginAttemptService.reset(userDetails.getUsername());
 
         if (user != null) {
             // 1. HttpServletRequest에서 TANOSHIMI_LANG 쿠키 찾기

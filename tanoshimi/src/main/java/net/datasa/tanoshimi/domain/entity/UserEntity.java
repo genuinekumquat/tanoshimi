@@ -49,8 +49,11 @@ public class UserEntity {
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
-    @Column(name = "manner_score", nullable = false, columnDefinition = "float default 36.5")
-    private float mannerScore = 36.5f;
+    // v16 제안서 기준 매너온도는 mannerTemp(BigDecimal) 하나로 통일 (아래 참고).
+    // mannerScore 는 이전 패치 스크립트가 남긴 중복 필드라 매핑 해제만 하고 컬럼/DB 기본값은 그대로 둔다.
+    // (컬럼에 NOT NULL default 36.5 가 걸려 있어 INSERT 시 이 필드를 빼도 DB가 알아서 채운다)
+    // @Column(name = "manner_score", nullable = false, columnDefinition = "float default 36.5")
+    // private float mannerScore = 36.5f;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 5)
@@ -60,6 +63,7 @@ public class UserEntity {
     @Column(name = "preferred_lang", nullable = false, length = 5)
     private PreferredLang preferredLang;
 
+    /** 매너온도(0~50 캡). 회원가입 시 초기값 대입만 ①(인증·회원가입) 담당, 가산/감산 정책과 계산은 ⑤ 전담. */
     @Column(name = "manner_temp", nullable = false)
     private java.math.BigDecimal mannerTemp;
 

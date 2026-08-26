@@ -207,9 +207,11 @@
         <span th:text="${me.name}">유자차</span>
         <span style="font-size:12px;color:var(--ink-soft);font-family:'Gowun Dodum',sans-serif;">님</span>
           <span style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-size:13px; font-family:'Gowun Dodum',sans-serif;">
-            <span style="color:#ff8a00; font-weight:bold;" th:text="${me.mannerScore + '°C'}">36.5°C</span>
+            <span style="color:#ff8a00; font-weight:bold;" th:text="${me.mannerTemp + '°C'}">36.5°C</span>
             <div style="width:60px; height:6px; background:#eee; border-radius:3px; overflow:hidden;">
-               <div th:style="'height:100%; background:#ff8a00; width:' + (${me.mannerScore}/100*100) + '%;'"></div>
+               <!-- mannerScore(중복 필드) 대신 mannerTemp 사용. v16 기준 범위가 0~50 캡이라
+                    /100*100 그대로 두면 막대가 최대 50%까지밖에 안 참 - 스케일은 ⑤(매너온도 서비스) 확정 후 조정 필요. -->
+               <div th:style="'height:100%; background:#ff8a00; width:' + (${me.mannerTemp}/100*100) + '%;'"></div>
             </div>
           </span>
       </div>
