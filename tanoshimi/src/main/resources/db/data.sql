@@ -116,20 +116,20 @@ INSERT INTO activities (title, region, venue_type, style_tag, duration_min, pric
 -- 파티 (제한 조건 테스트용: 여성전용/연령제한/국적제한 각각 하나씩)
 -- ---------------------------------------------------------------------
 INSERT INTO parties
-(owner_user_id, tour_id, title, description, region, departure_date, budget_krw, capacity, style_tag,
+(owner_user_id, tour_id, title, description, region, departure_date, duration_days, budget_krw, capacity, style_tag,
  gender_restriction, age_min, age_max, nationality_restriction, status, thumbnail_url)
 VALUES
 (2, 1, '오사카 신년 하츠모데 & 도톤보리 야경 같이 가요', '2027년 첫날, 스미요시타이샤에서 하츠모데를 하고 도톤보리로 넘어가는 일정입니다.',
- '오사카', '2027-01-01', 35, 6, '축제', 'all', NULL, NULL, 'all', 'recruiting', 'ph1'),
+ '오사카', '2027-01-01', 4, 35, 6, '축제', 'all', NULL, NULL, 'all', 'recruiting', 'ph1'),
 
 (3, 3, '남자 셋이서 홋카이도 스키+온천 여행 갈 사람', '니세코 스키장과 온천을 함께 즐길 20대 남성 한정 파티입니다.',
- '홋카이도', '2027-02-10', 60, 3, '액티비티', 'male_only', 20, 29, 'all', 'recruiting', 'ph2'),
+ '홋카이도', '2027-02-10', 4, 60, 3, '액티비티', 'male_only', 20, 29, 'all', 'recruiting', 'ph2'),
 
 (4, 2, '여자들끼리 교토 벚꽃 산책 파티 모집합니다', '벚꽃 시즌 교토를 여유롭게 걷는 여성 전용 파티입니다.',
- '교토', '2027-04-03', 42, 4, '힐링', 'female_only', NULL, NULL, 'all', 'recruiting', 'ph3'),
+ '교토', '2027-04-03', 3, 42, 4, '힐링', 'female_only', NULL, NULL, 'all', 'recruiting', 'ph3'),
 
 (6, 5, '한일 친구들과 함께하는 도쿄 디즈니 여행', '한국인·일본인 누구나 환영하는 한일 교류 파티입니다.',
- '도쿄', '2027-03-20', 50, 6, '액티비티', 'all', NULL, NULL, 'all', 'recruiting', 'ph1');
+ '도쿄', '2027-03-20', 4, 50, 6, '액티비티', 'all', NULL, NULL, 'all', 'recruiting', 'ph1');
 
 -- 파티장은 자동으로 party_members 에 owner 로 등록
 INSERT INTO party_members (party_id, user_id, role) VALUES
