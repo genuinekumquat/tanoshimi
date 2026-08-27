@@ -43,6 +43,14 @@ public class PartyEntity {
     @Column(name = "departure_date", nullable = false)
     private LocalDate departureDate;
 
+    /**
+     * [v16 신규] 여행 일수. departure_date + durationDays = 종료일이며,
+     * PartyCompletionScheduler 가 이 종료일 경과 여부로 파티를 자동 '완료' 전환한다.
+     * 리뷰에서 지적된 누락 필드 - 기본값 1(당일치기).
+     */
+    @Column(name = "duration_days", nullable = false, columnDefinition = "tinyint default 1")
+    private byte durationDays = 1;
+
     @Column(name = "budget_krw")
     private Integer budgetKrw;
 
@@ -89,7 +97,7 @@ public class PartyEntity {
 
     @Builder
     public PartyEntity(UserEntity owner, TourEntity tour, String title, String description, String region,
-                       LocalDate departureDate, Integer budgetKrw, byte capacity, String styleTag,
+                       LocalDate departureDate, byte durationDays, Integer budgetKrw, byte capacity, String styleTag,
                        GenderRestriction genderRestriction, Byte ageMin, Byte ageMax,
                        NationalityRestriction nationalityRestriction, String thumbnailUrl) {
         this.owner = owner;
@@ -98,6 +106,7 @@ public class PartyEntity {
         this.description = description;
         this.region = region;
         this.departureDate = departureDate;
+        this.durationDays = durationDays <= 0 ? 1 : durationDays;
         this.budgetKrw = budgetKrw;
         this.capacity = capacity;
         this.styleTag = styleTag;
@@ -114,12 +123,18 @@ public class PartyEntity {
     public void close() { this.status = PartyStatus.closed; }
     public void decideTour(TourEntity tour) { this.tour = tour; }
 
+    /** [v16 신규] 여행 종료일 = departureDate + durationDays. 완료 자동처리 스케줄러의 판단 기준. */
+    public LocalDate endDate() { return departureDate.plusDays(durationDays); }
+
+    /** [v16 신규] PartyCompletionScheduler 전용 - 종료일이 지난 파티를 완료 상태로 전환한다. */
+    public void markCompleted() { this.status = PartyStatus.completed; }
+
     public void changeThumbnail(String url) {
         this.thumbnailUrl = url;
     }
 
     public void updateInfo(TourEntity tour, String title, String description, String region,
-                           LocalDate departureDate, Integer budgetKrw, byte capacity, String styleTag,
+                           LocalDate departureDate, byte durationDays, Integer budgetKrw, byte capacity, String styleTag,
                            GenderRestriction genderRestriction, Byte ageMin, Byte ageMax,
                            NationalityRestriction nationalityRestriction) {
         this.tour = tour;
@@ -127,6 +142,7 @@ public class PartyEntity {
         this.description = description;
         this.region = region;
         this.departureDate = departureDate;
+        this.durationDays = durationDays <= 0 ? 1 : durationDays;
         this.budgetKrw = budgetKrw;
         this.capacity = capacity;
         this.styleTag = styleTag;

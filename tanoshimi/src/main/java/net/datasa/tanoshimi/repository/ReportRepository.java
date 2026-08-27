@@ -14,4 +14,12 @@ public interface ReportRepository extends JpaRepository<ReportEntity, Long> {
 
     long countByStatus(ReportStatus status);
     long countByTargetTypeAndTargetId(net.datasa.tanoshimi.domain.entity.ReportTargetType type, Long id);
+
+    /**
+     * [v16 신규] 신고 3회 누적 판정을 위해, 처리 완료(resolved)된 신고 전체를 훑어서
+     * "이 신고 대상의 실제 책임자(유저 직접신고면 본인, 게시글/파티 신고면 작성자/방장)"가
+     * 누구인지 ReportService 가 판정한다. target_type이 다형이라 SQL 조인이 안 되므로
+     * 애플리케이션 레벨에서 계산 - 이 프로젝트 규모(소량 데이터)에서는 충분히 합리적인 방식이다.
+     */
+    java.util.List<ReportEntity> findByStatus(ReportStatus status);
 }

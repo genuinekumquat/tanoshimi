@@ -1,8 +1,13 @@
 package net.datasa.tanoshimi.service;
 
-import java.awt.*;
-import java.awt.geom.AffineTransform;
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.awt.geom.AffineTransform;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -16,7 +21,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-
 import javax.imageio.ImageIO;
 
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +30,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.exif.ExifIFD0Directory;
+import com.drew.metadata.exif.GpsDirectory;
+import com.drew.lang.GeoLocation;
 
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
@@ -42,7 +52,7 @@ public class LocalStorageServiceImpl implements FileStorageService {
     private static final List<String> ALLOWED_MIME_TYPES = List.of("image/jpeg", "image/png", "image/gif", "image/webp");
     
     private final AttachmentRepository attachmentRepository;
-    
+
     @Value("${app.upload-dir}")
     private String uploadDirPath;
 
@@ -51,7 +61,6 @@ public class LocalStorageServiceImpl implements FileStorageService {
     }
 
     @Override
-    @Transactional
     public String saveProfileImage(MultipartFile file) {
         return saveImage(file);
     }
@@ -59,40 +68,34 @@ public class LocalStorageServiceImpl implements FileStorageService {
     @Override
     @Transactional
     public String saveImage(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "파일이 비어있습니다.");
-        }
+        if (file == null || file.isEmpty()) throw new BusinessException(ErrorCode.INVALID_INPUT, "파일이 없습니다.");
 
         try {
-            // 1. MIME / Ext 검사
-            String ext = Optional.ofNullable(file.getOriginalFilename())
-                    .filter(f -> f.contains("."))
-                    .map(f -> f.substring(f.lastIndexOf(".") + 1).toLowerCase())
-                    .orElse("");
-
-            if (!ALLOWED_EXTENSIONS.contains(ext) || !ALLOWED_MIME_TYPES.contains(file.getContentType())) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "지원하지 않는 이미지 원본입니다.");
+            byte[] fileBytes = file.getBytes();
+            
+            // 1. 보안 체크 (Spring MultipartFile 기반 MIME 체크 - Tika 의존성 문제 회피)
+            String mimeType = file.getContentType();
+            if (mimeType == null || !ALLOWED_MIME_TYPES.contains(mimeType.toLowerCase())) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT, "이미지 파일만 업로드 가능합니다. (현재: " + mimeType + ")");
             }
 
-            // 2. 파일 중복 검사 
-            byte[] fileBytes = file.getBytes();
+            // 2. 파일 중복 검사 (SHA-256 Deduplication)
             String fileHash = calculateHash(fileBytes);
             Optional<Attachment> existingFile = attachmentRepository.findFirstByFileHash(fileHash);
             if (existingFile.isPresent()) {
-                log.info("중복 이미지 무시 및 캐시 반환: {}", fileHash);
+                log.info("중복 이미지 업로드 감지: {}", fileHash);
                 return existingFile.get().getFilePath();
             }
 
-            // EXIF 의존성 에러 방지를 위해 메타데이터 추출 기능 무효화, 
-            // Java 내장 라이브러리를 통해 EXIF 정보는 복사하지 않음으로써 Stripping 처리
-            Double[] gps = new Double[]{null, null};
-            int orientation = 1;
+            // 3. EXIF 타겟 (위치/회전) 분석
+            Double[] gps = extractGpsAndStripExif(fileBytes);
+            int orientation = extractOrientation(fileBytes);
 
-            // 4. 차세대 포맷 WebP 대신 JPG 라이브러리로 fallback(동기화 에러 방지)
+            // 4. 차세대 포맷 WebP 강제 변환 및 저장 준비
             Path uploadDir = Paths.get(uploadDirPath);
             Files.createDirectories(uploadDir);
             String baseFilename = UUID.randomUUID().toString();
-            String defaultFilename = baseFilename + ".jpg"; 
+            String defaultFilename = baseFilename + ".webp"; 
             Path target = uploadDir.resolve(defaultFilename);
 
             try (InputStream is = new ByteArrayInputStream(fileBytes)) {
@@ -100,8 +103,8 @@ public class LocalStorageServiceImpl implements FileStorageService {
                 if (original != null) {
                     original = correctThumbnailOrientation(original, orientation); 
                     
-                    createResizedImageWithWatermark(original, uploadDir.resolve(baseFilename + "_150.jpg").toFile(), 150);
-                    createResizedImageWithWatermark(original, uploadDir.resolve(baseFilename + "_400.jpg").toFile(), 400);
+                    createResizedImageWithWatermark(original, uploadDir.resolve(baseFilename + "_150.webp").toFile(), 150);
+                    createResizedImageWithWatermark(original, uploadDir.resolve(baseFilename + "_400.webp").toFile(), 400);
                     createResizedImageWithWatermark(original, target.toFile(), 800); 
                 } else {
                     throw new BusinessException(ErrorCode.INVALID_INPUT, "유효하지 않은 이미지 파일입니다.");
@@ -115,9 +118,9 @@ public class LocalStorageServiceImpl implements FileStorageService {
                 .originalFilename(file.getOriginalFilename())
                 .saveFilename(defaultFilename)
                 .filePath(fileUrl)
-                .extension("jpg")
+                .extension("webp")
                 .fileSize((long) fileBytes.length)
-                .mimeType("image/jpeg")
+                .mimeType("image/webp")
                 .fileHash(fileHash)
                 .latitude(gps[0])
                 .longitude(gps[1]) 
@@ -157,7 +160,7 @@ public class LocalStorageServiceImpl implements FileStorageService {
     @Override
     @Transactional
     public String saveDocument(MultipartFile file) {
-        return null; // 생략
+        return null; // 생략..
     }
 
     @Override
@@ -173,7 +176,7 @@ public class LocalStorageServiceImpl implements FileStorageService {
 
     @Override
     public String analyzeImage(MultipartFile file) {
-        return "여름비치,해양여행지"; // Dummy for local
+        return "여름비치,수영복,여행지"; // Dummy for local
     }
 
     private String calculateHash(byte[] fileBytes) throws Exception {
@@ -186,6 +189,33 @@ public class LocalStorageServiceImpl implements FileStorageService {
             hexString.append(hex);
         }
         return hexString.toString();
+    }
+
+    private Double[] extractGpsAndStripExif(byte[] fileBytes) {
+        Double[] coords = new Double[]{null, null};
+        try (InputStream is = new ByteArrayInputStream(fileBytes)) {
+            Metadata metadata = ImageMetadataReader.readMetadata(is);
+            GpsDirectory gpsDir = metadata.getFirstDirectoryOfType(GpsDirectory.class);
+            if (gpsDir != null && gpsDir.getGeoLocation() != null) {
+                GeoLocation location = gpsDir.getGeoLocation();
+                coords[0] = location.getLatitude();
+                coords[1] = location.getLongitude();
+            }
+        } catch (Exception e) {
+            log.warn("EXIF GPS 추출 불가");
+        }
+        return coords;
+    }
+
+    private int extractOrientation(byte[] fileBytes) {
+        try (InputStream is = new ByteArrayInputStream(fileBytes)) {
+            Metadata metadata = ImageMetadataReader.readMetadata(is);
+            ExifIFD0Directory dir = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
+            if (dir != null && dir.containsTag(ExifIFD0Directory.TAG_ORIENTATION)) {
+                return dir.getInt(ExifIFD0Directory.TAG_ORIENTATION);
+            }
+        } catch (Exception ignored) {}
+        return 1; // Default
     }
 
     private BufferedImage correctThumbnailOrientation(BufferedImage img, int orientation) {
@@ -227,7 +257,7 @@ public class LocalStorageServiceImpl implements FileStorageService {
         addWatermark(g, "Tanoshimi", tWidth, tHeight);
         g.dispose();
 
-        ImageIO.write(resized, "jpg", targetFile);
+        ImageIO.write(resized, "webp", targetFile);
     }
 
     private void addWatermark(Graphics2D g, String watermarkText, int width, int height) {

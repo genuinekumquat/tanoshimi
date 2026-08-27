@@ -63,7 +63,13 @@ public class UserEntity {
     @Column(name = "preferred_lang", nullable = false, length = 5)
     private PreferredLang preferredLang;
 
-    /** 매너온도(0~50 캡). 회원가입 시 초기값 대입만 ①(인증·회원가입) 담당, 가산/감산 정책과 계산은 ⑤ 전담. */
+    /**
+     * 매너온도. v16 이전엔 mannerScore(float)/mannerTemp(BigDecimal) 두 필드가 중복으로
+     * 존재했다(기술부채) - v16 DB설계에서 하나로 통합하기로 확정되어 mannerScore 는 삭제하고
+     * 이 필드로 일원화한다. 정책·계산·증감 트리거는 MannerTempService 가 단독 소유하며(⑤),
+     * 회원가입 시 초기값 대입만 ①(인증·회원가입)이 담당한다. 이 엔티티는 0~50 범위 캡만
+     * 스스로 보장한다(applyMannerDelta 참고).
+     */
     @Column(name = "manner_temp", nullable = false)
     private java.math.BigDecimal mannerTemp;
 
@@ -145,7 +151,8 @@ public class UserEntity {
     }
 
     public boolean isSocialAccount() { return socialProvider != null; }
-        public boolean isActive() {
+
+    public boolean isActive() {
         if (status == UserStatus.suspended) {
             if (suspendedUntil != null && LocalDateTime.now().isAfter(suspendedUntil)) {
                 return true;
@@ -154,11 +161,10 @@ public class UserEntity {
         }
         return status.isActive();
     }
-    
+
     public boolean isAdmin() { return role == Role.admin; }
     public void grantAdmin() { this.role = Role.admin; }
     public void revokeAdmin() { this.role = Role.user; }
-
 
     /** 만 나이 계산 - 회원가입 시 성인 인증에 사용. */
     public int age() {
@@ -173,8 +179,7 @@ public class UserEntity {
     }
 
     public void changePreferredLang(PreferredLang lang) { this.preferredLang = lang; }
-    
-    
+
     public void suspend(LocalDateTime until) {
         this.status = UserStatus.suspended;
         this.suspendedUntil = until;
@@ -191,7 +196,6 @@ public class UserEntity {
         return true;
     }
 
-
     public void addPoints(Currency currency, int amount) {
         if (currency == Currency.KRW) this.pointsKrw += amount;
         else this.pointsJpy += amount;
@@ -207,5 +211,21 @@ public class UserEntity {
             pointsJpy -= amount;
         }
         return true;
+    }
+
+    /**
+     * 매너온도 증감 - 반드시 이 메서드를 통해서만 mannerTemp 를 바꾼다(직접 대입 금지).
+     * 0~50 범위를 벗어나는 가산/감산은 경계값으로 캡핑한다(v16 필드제약조건 확정 사항).
+     * 실제로 언제/왜 이 메서드를 호출할지에 대한 정책은 이 엔티티가 아니라
+     * MannerTempService 가 단독으로 결정한다 - 여기는 캡핑 규칙만 보장한다.
+     */
+    public void applyMannerDelta(java.math.BigDecimal delta) {
+        java.math.BigDecimal next = this.mannerTemp.add(delta);
+        if (next.compareTo(java.math.BigDecimal.ZERO) < 0) {
+            next = java.math.BigDecimal.ZERO;
+        } else if (next.compareTo(new java.math.BigDecimal("50.0")) > 0) {
+            next = new java.math.BigDecimal("50.0");
+        }
+        this.mannerTemp = next.setScale(1, java.math.RoundingMode.HALF_UP);
     }
 }

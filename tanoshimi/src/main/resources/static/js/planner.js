@@ -86,7 +86,8 @@
             const el = document.createElement('div');
             el.className = 'block';
             el.dataset.id = item.id;
-            el.draggable = item.source !== 'package_default';
+            // 편집권이 없으면(IS_LOCK_HOLDER=false) 아무 블록도 드래그할 수 없다 - 전원 읽기전용 원칙.
+            el.draggable = item.source !== 'package_default' && (typeof IS_LOCK_HOLDER === 'undefined' || IS_LOCK_HOLDER);
             el.style.top = (startSlot * SLOT_H + 1) + 'px';
             el.style.height = (lenSlot * SLOT_H - 3) + 'px';
 

@@ -12,6 +12,7 @@ public record PartyCreateRequest(
         String description,
         @NotBlank String region,
         @NotNull LocalDate departureDate,
+        int durationDays,
         Integer budgetKrw,
         @Min(1) @Max(20) int capacity,
         String styleTag,

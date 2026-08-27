@@ -14,4 +14,7 @@ public interface ActivityRepository extends JpaRepository<ActivityEntity, Long> 
     List<ActivityEntity> findByRegionAndVenueTypeAndStatus(String region, VenueType venueType, ActiveStatus status);
 
     List<ActivityEntity> findByRegionAndStyleTagContainingAndStatus(String region, String styleTag, ActiveStatus status);
+
+    /** [v16 신규] 장소검색 API 캐시 중복 저장 방지 - 같은 장소를 이미 저장해뒀으면 재사용. */
+    java.util.Optional<ActivityEntity> findByExternalPlaceId(String externalPlaceId);
 }

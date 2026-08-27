@@ -25,10 +25,18 @@ public class TripPlannerService {
     private final ActivityRepository activityRepository;
     private final PartyMemberRepository partyMemberRepository;
     private final UserRepository userRepository;
+    private final TripPlannerLockService lockService;
 
     @Transactional
     public void initializeDefaults(TripScheduleEntity schedule, UserEntity creator) {
-        TourEntity tour = schedule.getReservation().getTour();
+        // [v16] 예약(reservation) 기능이 화면에서 빠지면서, 이제 예약 없이도 파티가 만들어질 수 있다.
+        // reservation 이 있으면(레거시 호환) 그쪽 tour 를, 없으면 파티에 직접 연결된 tour 를 사용한다.
+        // 둘 다 없으면(패키지 없이 순수 계획표만 쓰는 경우) 기본 항공/체크인 블록 없이 빈 계획표로 시작한다.
+        TourEntity tour = schedule.getReservation() != null ? schedule.getReservation().getTour()
+                : (schedule.getParty() != null ? schedule.getParty().getTour() : null);
+        if (tour == null) {
+            return;
+        }
         int nights = tour.getDurationNights();
 
         if (tour.getArrTime() != null) {
@@ -90,6 +98,7 @@ public class TripPlannerService {
 
     @Transactional
     public Long addItem(TripScheduleEntity schedule, UserEntity user, ScheduleItemRequest req) {
+        lockService.assertCanEdit(schedule, user.getId()); // [v16] 편집권 보유자만 추가 가능
         boolean isCustom = req.activityId() == null;
         
 
@@ -121,23 +130,23 @@ public class TripPlannerService {
     }
 
     @Transactional
-    public void resizeItem(Long itemId, int newStartMinute, int newDurationMinute, Integer newDayIndex) {
+    public void resizeItem(Long itemId, Long userId, int newStartMinute, int newDurationMinute, Integer newDayIndex) {
         TripScheduleItemEntity item = itemRepository.findById(itemId).orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
-        if (item.getSource() == ScheduleItemSource.package_default) {
-            throw new BusinessException(ErrorCode.SCHEDULE_NOT_DRAFT, "기본 패키지 일정은 결제가 완료되어 고정되어 있습니다.");
+        lockService.assertCanEdit(item.getSchedule(), userId); // [v16] 편집권 보유자만 이동/리사이즈 가능
+        if (item.isFixed()) {
+            throw new BusinessException(ErrorCode.SCHEDULE_NOT_DRAFT, "고정된 일정은 이동하거나 크기를 바꿀 수 없습니다.");
         }
-        
         item.reschedule((short) newStartMinute, (short) newDurationMinute, newDayIndex != null ? newDayIndex.byteValue() : null);
         itemRepository.save(item);
     }
 
     @Transactional
-    public void removeItem(Long itemId) {
+    public void removeItem(Long itemId, Long userId) {
         TripScheduleItemEntity item = itemRepository.findById(itemId).orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
-        if (item.getSource() == ScheduleItemSource.package_default) {
-            throw new BusinessException(ErrorCode.SCHEDULE_NOT_DRAFT, "기본 패키지 일정은 삭제할 수 없습니다.");
+        lockService.assertCanEdit(item.getSchedule(), userId); // [v16] 편집권 보유자만 삭제 가능
+        if (item.isFixed()) {
+            throw new BusinessException(ErrorCode.SCHEDULE_NOT_DRAFT, "고정된 일정은 삭제할 수 없습니다.");
         }
-        
         itemRepository.delete(item);
     }
 

@@ -8,9 +8,7 @@
   
   <div style="margin-bottom: 20px; display:flex; gap: 10px;">
     <a href="/admin" class="btn btn-primary">회원 관리</a>
-    <a href="/admin/parties" class="btn" style="background:#fff; border:1px solid #ccc;">파티 게시글 관리</a>
-    <a href="/admin/tours/create" class="btn" style="background:#fff; border:1px solid #ccc;">패키지 상품 추가</a>
-    <a href="/admin/banners" class="btn" style="background:#fff; border:1px solid #ccc;">광고 배너 관리</a>
+    <a href="/admin/parties" class="btn" style="background:#fff; border:1px solid #ccc;">파티 게시글 관리</a>    <a href="/admin/banners" class="btn" style="background:#fff; border:1px solid #ccc;">광고 배너 관리</a>
     <a href="/admin/reports" class="btn" style="background:#fff; border:1px solid #ccc; position:relative;">
       신고 처리
       <span th:if="${pendingReportCount != null and pendingReportCount > 0}" th:text="${pendingReportCount}"

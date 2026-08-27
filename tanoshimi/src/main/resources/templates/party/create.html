@@ -46,6 +46,11 @@
           <label for="departureDate" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">출발일 <span style="color:#e53935;">*</span></label>
           <input type="date" id="departureDate" style="width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
         </div>
+        <div>
+          <label for="durationDays" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">여행 일수 <span style="color:#e53935;">*</span></label>
+          <input type="number" id="durationDays" min="1" max="30" value="1" placeholder="예: 3"
+                 style="width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
+        </div>
       </div>
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
@@ -107,6 +112,7 @@ document.getElementById('btn-create').addEventListener('click', async () => {
     const title = document.getElementById('title').value.trim();
     const region = document.getElementById('region').value;
     const dep = document.getElementById('departureDate').value;
+    const duration = document.getElementById('durationDays').value;
     const cap = document.getElementById('capacity').value;
 
     if(!title || !region || !dep || !cap) {
@@ -151,6 +157,7 @@ document.getElementById('btn-create').addEventListener('click', async () => {
                 description: document.getElementById('description').value,
                 region,
                 departureDate: dep,
+                durationDays: parseInt(duration, 10) || 1,
                 capacity: parseInt(cap, 10),
                 budgetKrw: budget ? parseInt(budget, 10) : null,
                 styleTag: style || null,

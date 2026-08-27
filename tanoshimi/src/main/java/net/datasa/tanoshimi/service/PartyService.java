@@ -31,6 +31,7 @@ public class PartyService {
     private final TourRepository tourRepository;
     private final TripScheduleRepository tripScheduleRepository;
     private final NotificationService notificationService;
+    private final MannerTempService mannerTempService;
 
     @Transactional
     public Long createParty(UserEntity owner, PartyCreateRequest req) {
@@ -43,6 +44,7 @@ public class PartyService {
                 .description(req.description())
                 .region(req.region())
                 .departureDate(req.departureDate())
+                .durationDays((byte) (req.durationDays() <= 0 ? 1 : req.durationDays()))
                 .budgetKrw(req.budgetKrw())
                 .capacity((byte) req.capacity())
                 .styleTag(req.styleTag())
@@ -89,6 +91,7 @@ public class PartyService {
                 req.description(),
                 req.region(),
                 req.departureDate(),
+                (byte) (req.durationDays() <= 0 ? 1 : req.durationDays()),
                 req.budgetKrw(),
                 (byte) req.capacity(),
                 req.styleTag(),
@@ -149,6 +152,9 @@ public class PartyService {
         if (party.getStatus() == PartyStatus.full) {
             party.reopen();
         }
+
+        // [v16 신규] 중도이탈 매너온도 -0.5
+        mannerTempService.applyLeaveOrKickPenalty(user, party.getId());
     }
 
     /**
@@ -185,5 +191,8 @@ public class PartyService {
                 "파티에서 내보내졌어요",
                 "'" + party.getTitle() + "' 파티장이 회원님을 파티에서 내보냈습니다.",
                 "/party-board");
+
+        // [v16 신규] 강퇴 매너온도 -0.5 (본인 귀책이 아니어도 동일 규칙 적용 - 필드제약조건 확정 사항)
+        mannerTempService.applyLeaveOrKickPenalty(target, party.getId());
     }
 }
