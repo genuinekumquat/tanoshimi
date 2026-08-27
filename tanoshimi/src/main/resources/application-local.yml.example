@@ -13,9 +13,10 @@ spring:
           naver:
             client-id: 네이버_클라이언트_ID
             client-secret: 네이버_시크릿
-          line:
-            client-id: 라인_채널_ID
-            client-secret: 라인_채널_시크릿
+          # v16 제안서 기준 LINE 로그인 제외 (Google·Naver만 사용)
+          # line:
+          #   client-id: 라인_채널_ID
+          #   client-secret: 라인_채널_시크릿
 
 app:
   sms:

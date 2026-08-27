@@ -10,9 +10,13 @@
 --     없었던 문제 수정)
 --  2) parties.status 신규 값은 한글이 아닌 completed 로 통일 (기존 영어 3종
 --     recruiting/full/closed 와 섞이지 않도록. 화면 표시는 '완료'로 하면 됨)
---  3) trip_schedules.locked_by_user_id 가 NULL 인 경우의 정책을 "전원
---     읽기전용"으로 확정 (자유편집 허용 시 lock 을 도입한 목적 자체가
---     무너지기 때문 - 이 부분은 코드 구현 시 반드시 지켜주세요)
+--  3) trip_schedules.locked_by_user_id 는 NOT NULL 로 확정, 파티 생성 시
+--     방장(owner_user_id)으로 초기화하고 편집권 회수 시에도 NULL이 아닌
+--     방장 ID로 복귀시킵니다 (파티 생성 직후 방장이 스스로에게 편집권을
+--     부여하는 불필요한 단계를 없애기 위함 - 파티/계획표 생성 로직에서
+--     INSERT 시 반드시 locked_by_user_id = owner_user_id 로 명시 세팅해야
+--     합니다. MySQL은 컬럼 DEFAULT가 다른 컬럼을 참조할 수 없어 앱 코드에서
+--     처리해야 함)
 -- =====================================================================
 USE tanoshimi;
 
@@ -30,15 +34,29 @@ ALTER TABLE parties
 
 -- ---------------------------------------------------------------------
 -- 2. trip_schedules: 편집권(lock) 소유자 + 마지막 저장시각
---    locked_by_user_id 가 NULL 이면 "전원 읽기전용" 입니다(자유편집 아님).
+--    locked_by_user_id 는 NOT NULL - 방장(owner_user_id)으로 초기화되며,
+--    편집권 회수 시에도 NULL이 아닌 방장 ID로 복귀합니다.
+--    (컬럼은 일단 NULL 허용으로 추가 → 기존 행 백필 → NOT NULL로 변경,
+--     이렇게 하는 이유는 이미 존재하는 trip_schedules 행이 있을 수 있어서
+--     한 번에 NOT NULL로 추가하면 실패하기 때문)
 -- ---------------------------------------------------------------------
 ALTER TABLE trip_schedules
   ADD COLUMN locked_by_user_id BIGINT NULL
-    COMMENT '현재 편집권을 가진 파티원. NULL이면 전원 읽기전용(자유편집 아님 - lock 도입 취지 유지)'
+    COMMENT '[v16] 현재 편집권을 가진 파티원. 파티 생성 시 방장(owner_user_id)으로 초기화, 회수 시에도 방장 ID로 복귀(앱 코드에서 명시 세팅)'
     AFTER status,
   ADD COLUMN last_saved_at DATETIME NULL
     COMMENT '마지막 저장(자동/수동) 시각 - 화면 상단 표시용'
     AFTER locked_by_user_id;
+
+-- 기존 trip_schedules 행이 있다면 방장 ID로 백필 (파티당 계획표 1개이므로 party_id로 조인)
+UPDATE trip_schedules ts
+JOIN parties p ON ts.party_id = p.id
+SET ts.locked_by_user_id = p.owner_user_id
+WHERE ts.locked_by_user_id IS NULL;
+
+ALTER TABLE trip_schedules
+  MODIFY COLUMN locked_by_user_id BIGINT NOT NULL
+    COMMENT '[v16] 현재 편집권을 가진 파티원. 파티 생성 시 방장(owner_user_id)으로 초기화, 회수 시에도 방장 ID로 복귀(앱 코드에서 명시 세팅)';
 
 ALTER TABLE trip_schedules
   ADD CONSTRAINT fk_ts_locked_by FOREIGN KEY (locked_by_user_id) REFERENCES users(id);
