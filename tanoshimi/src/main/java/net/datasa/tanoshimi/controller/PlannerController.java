@@ -1,8 +1,6 @@
 package net.datasa.tanoshimi.controller;
 
 import jakarta.validation.Valid;
-import java.time.LocalDate;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.dto.ApiResponse;
@@ -11,21 +9,20 @@ import net.datasa.tanoshimi.domain.dto.ScheduleItemView;
 import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
+import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.repository.TripScheduleItemRepository;
 import net.datasa.tanoshimi.repository.TripScheduleRepository;
-import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.repository.UserRepository;
-import net.datasa.tanoshimi.service.AiCreditService;
-import net.datasa.tanoshimi.service.ChatbotActivityService;
-import net.datasa.tanoshimi.service.RouteOptimizationService;
-import net.datasa.tanoshimi.service.TripPlannerLockService;
-import net.datasa.tanoshimi.service.TripPlannerService;
-import net.datasa.tanoshimi.service.WeatherAdvisorService;
+import net.datasa.tanoshimi.service.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Planner page and REST API.
@@ -46,7 +43,8 @@ public class PlannerController {
     private final AiCreditService aiCreditService;
     private final RouteOptimizationService routeOptimizationService;
     private final SimpMessagingTemplate messagingTemplate;
-
+    
+    @Transactional
     @GetMapping("/planner/{scheduleId}")
     public String planner(@PathVariable Long scheduleId, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
