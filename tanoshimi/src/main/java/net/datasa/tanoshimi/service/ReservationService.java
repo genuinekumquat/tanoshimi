@@ -32,7 +32,6 @@ public class ReservationService {
     private final WeatherAdvisorService weatherAdvisorService;
     private final TripPlannerService tripPlannerService;
     private final PartyService partyService;
-    private final TitleService titleService;
     private final UserRepository userRepository;
 
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -127,8 +126,9 @@ public class ReservationService {
         long totalCount = reservationPaymentRepository.findByReservation(reservation).size();
         if (paidCount == totalCount) {
             reservation.confirm();
-            // 예약이 확정된 시점에 여행 횟수 기반 칭호(숙련된 여행자/베테랑 탐험가)를 다시 확인한다
-            reservationPaymentRepository.findByReservation(reservation).forEach(p -> titleService.checkTripCountTitles(p.getUser()));
+            // [v16] 칭호 부여 기준이 "예약 확정 횟수"에서 "완료한 파티 수"로 바뀌어
+            // 여기서 TitleService 를 호출하지 않는다(TitleService 주석 참고).
+            // 이 결제 경로 자체가 삭제 대상이라 별도 대체 호출도 넣지 않았다.
         }
     }
 

@@ -127,6 +127,15 @@ app:
     provider: mock            
     api-key: ${TRANSLATION_API_KEY:}
 
+  # [신규] 전 페이지 우측 여행 도우미 마스코트 챗봇.
+  # provider: mock(기본, 정해진 대답 몇 개 랜덤 응답) / anthropic(Claude API) / gemini(Google Gemini API)
+  # 실제 API 쓰려면 application-local.yml(개인 파일, git 미추적) 에서만 provider/api-key 를 덮어쓰세요.
+  # 이 공유 파일(application.yml)의 기본값은 팀 전체에 영향을 주므로 항상 mock 으로 유지합니다.
+  companion:
+    provider: mock
+    api-key: ${GEMINI_API_KEY:}
+    model: gemini-2.5-flash
+
 logging:
   level:
     org.springframework.security: INFO

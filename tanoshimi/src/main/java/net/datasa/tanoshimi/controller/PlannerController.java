@@ -46,6 +46,7 @@ public class PlannerController {
     
     @Transactional
     @GetMapping("/planner/{scheduleId}")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public String planner(@PathVariable Long scheduleId, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
         TourEntity tour = schedule.getReservation() != null ? schedule.getReservation().getTour() : null;

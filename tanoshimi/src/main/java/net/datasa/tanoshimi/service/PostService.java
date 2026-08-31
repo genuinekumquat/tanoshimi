@@ -20,6 +20,7 @@ public class PostService {
     private final PostCommentRepository postCommentRepository;
     private final PartyRepository partyRepository;
     private final NotificationService notificationService;
+    private final FileStorageService fileStorageService;
 
     @Transactional(readOnly = true)
     public Page<PostEntity> boardList(String region, Pageable pageable) {
@@ -41,7 +42,9 @@ public class PostService {
                 .title(req.title()).content(req.content())
                 .region(req.region()).thumbnailUrl(req.thumbnailUrl())
                 .build();
-        return postRepository.save(post).getId();
+        Long id = postRepository.save(post).getId();
+        fileStorageService.markActive(req.thumbnailUrl());
+        return id;
     }
     
     @Transactional
