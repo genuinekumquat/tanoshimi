@@ -39,6 +39,7 @@ public enum ErrorCode {
     // 계획표
     SCHEDULE_NOT_DRAFT(HttpStatus.CONFLICT, "이미 제출된 계획표는 자유롭게 수정할 수 없습니다."),
     SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "계획표를 찾을 수 없습니다."),
+    ACTIVITY_NOT_FOUND(HttpStatus.NOT_FOUND, "액티비티를 찾을 수 없습니다."),
 
     // [v16 신규] 계획표 편집권(lock) / 스냅샷 롤백
     LOCK_NOT_HELD(HttpStatus.FORBIDDEN, "지금은 편집권을 가진 사람만 수정할 수 있어요."),
