@@ -122,13 +122,15 @@
     .region:hover{ filter:brightness(1.08); stroke-width:2.2; }
     .region:focus { outline:none; }
     .region:focus-visible{ outline:3px solid var(--forest-deep); outline-offset:1px; }
-    .region-label{ fill:#fff; font-family:'Jua',sans-serif; text-anchor:middle; pointer-events:none; paint-order:stroke; stroke:rgba(0,0,0,.25); stroke-width:0.6; }
+    .region-label{ fill:var(--ink); font-family:'Jua',sans-serif; text-anchor:middle; pointer-events:none; paint-order:stroke; stroke:var(--card); stroke-width:0.9; }
 
     .region-hotspot{ fill:rgba(255,255,255,0); stroke:none; cursor:pointer; outline:none; }
     .region-hotspot:hover{ fill:rgba(224,121,63,.16); }
     .region-hotspot:focus { outline:none; }
     .region-hotspot:focus-visible{ outline:2px solid var(--forest-deep); }
-    .region-dot{ pointer-events:none; stroke:#fff; stroke-width:0.6; }
+    .region-dot{ cursor:pointer; stroke:#fff; stroke-width:0.6; transition:stroke-width .12s; outline:none; }
+    .region-dot:hover{ stroke-width:1.4; }
+    .region-dot:focus-visible{ stroke:var(--forest-deep); stroke-width:1.6; }
 
     .legend{ display:flex; justify-content:center; gap:14px; flex-wrap:wrap; margin-top:18px; padding-top:16px; border-top:1px dashed var(--line); font-size:11.5px; color:var(--ink-soft); }
     .legend .sw{ width:12px; height:12px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:-2px; border:1px solid rgba(0,0,0,.15); }
@@ -206,17 +208,18 @@
       <div class="profile-name">
         <span th:text="${me.name}">유자차</span>
         <span style="font-size:12px;color:var(--ink-soft);font-family:'Gowun Dodum',sans-serif;">님</span>
-          <span style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-size:13px; font-family:'Gowun Dodum',sans-serif;">
+        <span style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-size:13px; font-family:'Gowun Dodum',sans-serif;">
             <span style="color:#ff8a00; font-weight:bold;" th:text="${me.mannerTemp} + '°C'">36.5°C</span>
             <div style="width:60px; height:6px; background:#eee; border-radius:3px; overflow:hidden;">
+               <!-- mannerScore(중복 필드) 대신 mannerTemp 사용. MannerTempService에서 0~50 범위로 확정되어 /50*100로 반영함. -->
                <div th:style="'height:100%; background:#ff8a00; width:' + (${me.mannerTemp}/50*100) + '%;'"></div>
             </div>
           </span>
       </div>
 
       <div class="profile-stats">
-        <span><b id="stat-visits">0</b>회 여행</span>
-        <span><b id="stat-regions">0</b>곳 방문</span>
+        <span><b th:text="${totalTrips}">0</b>회 여행</span>
+        <span><b th:text="${visitedRegions}">0</b>곳 방문</span>
         <span><b id="stat-parties" th:text="${#lists.size(myParties)}">0</b>번 파티 참가</span>
         <span>매너온도 <b th:text="${me.mannerTemp}">36.5</b></span>
         <span>팔로워 <b th:text="${followerCount}">0</b></span>
@@ -229,7 +232,7 @@
           <button class="edit-intro-btn" id="btn-intro" title="자기소개 수정" aria-label="자기소개 수정">✍</button>
         </div>
         <p class="intro-text" id="intro-text" th:text="${me.intro}">방문자님 환영합니다!</p>
-        <textarea class="intro-textarea" id="intro-textarea" maxlength="120"></textarea>
+        <textarea class="intro-textarea" id="intro-textarea" maxlength="300"></textarea>
         <div class="intro-actions" id="intro-actions">
           <button class="btn btn-forest" id="btn-intro-save">저장</button>
           <button class="btn btn-ghost" id="btn-intro-cancel">취소</button>
@@ -238,10 +241,30 @@
       <a th:href="@{/messages}" class="btn" style="background:#fff; border:1px solid var(--line); white-space:nowrap; margin-top: 14px;">💬 쪽지함</a>    </div>
   </section>
 
+  <!-- ================= 칭호 ================= -->
+  <div class="sec-head">
+    <h2>🏅 내 칭호</h2>
+    <span class="note">여행을 완료하면 자동으로 획득합니다</span>
+  </div>
+
+  <section class="card" style="padding:18px 22px;">
+    <div th:if="${#lists.isEmpty(myTitles)}" style="color:var(--ink-soft); font-size:13px;">
+      아직 획득한 칭호가 없습니다. 첫 여행을 완료해 보세요.
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:10px;">
+      <span th:each="t : ${myTitles}"
+            style="display:inline-flex; align-items:center; gap:7px; padding:7px 14px; border-radius:999px;
+                   border:1.5px dashed var(--sash); background:rgba(255,255,255,.6); font-size:12.5px; color:var(--sash-deep);"
+            th:title="${t.conditionDesc}">
+        <span>🏷️</span><b th:text="${t.name}" style="font-family:'Jua',sans-serif;">칭호</b>
+      </span>
+    </div>
+  </section>
+
   <!-- ================= 지도 ================= -->
   <div class="sec-head">
     <h2>🗺️ 나의 여행 지도</h2>
-    <span class="note">지역을 눌러 방문 횟수를 확인하세요</span>
+    <span class="note">색이 진할수록 자주 다녀온 지역입니다</span>
   </div>
 
   <section class="map-card card">
@@ -266,12 +289,15 @@
     <p class="region-tip" id="region-tip">지역을 눌러보세요</p>
 
     <div class="legend">
-      <span><i class="sw" style="background:var(--tier-0)"></i>0회</span>
-      <span><i class="sw" style="background:var(--tier-1)"></i>1~5회</span>
-      <span><i class="sw" style="background:var(--tier-2)"></i>6~8회</span>
-      <span><i class="sw" style="background:var(--tier-3)"></i>9~11회</span>
-      <span><i class="sw" style="background:var(--tier-4)"></i>12회 이상</span>
+      <span><i class="sw" style="background:var(--tier-0)"></i>아직 안 가봄</span>
+      <span><i class="sw" style="background:var(--tier-1)"></i>가끔</span>
+      <span><i class="sw" style="background:var(--tier-2)"></i>여러 번</span>
+      <span><i class="sw" style="background:var(--tier-3)"></i>자주</span>
+      <span><i class="sw" style="background:var(--tier-4)"></i>단골</span>
     </div>
+    <p style="text-align:center; font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">
+      완료한 여행 횟수와 여행일수를 함께 반영해 색을 칠합니다.
+    </p>
   </section>
 
   <!-- ================= 피드 ================= -->
@@ -337,155 +363,19 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- Original Scripts -->
-<script th:src="@{/js/post-write.js}" defer></script>
-<script th:src="@{/js/avatar-upload.js}" defer></script>
+<!-- CSRF 토큰을 붙이는 공용 fetch 래퍼(window.api). 아래 스크립트들이 의존하므로 먼저 로드한다. -->
+<script th:src="@{/js/csrf.js}"></script>
 <script th:src="@{/assets/map-data.js}"></script>
 
-<!-- Mockup UI Scripts & Map Binding -->
+<!-- 서버(TravelHeatmapService)가 계산한 지역별 집계를 화면으로 넘긴다. -->
 <script th:inline="javascript">
-  // 1. 자기소개 에디터 (UI Only)
-  const introText = document.getElementById('intro-text');
-  const introArea = document.getElementById('intro-textarea');
-  const introActions = document.getElementById('intro-actions');
-
-  document.getElementById('btn-intro').addEventListener('click', () => {
-    introArea.value = introText.textContent.trim();
-    introText.style.display = 'none';
-    introArea.style.display = 'block';
-    introActions.style.display = 'flex';
-    introArea.focus();
-  });
-  document.getElementById('btn-intro-save').addEventListener('click', () => {
-    introText.textContent = introArea.value.trim() || '아직 자기소개가 없습니다.';
-    introText.style.display = 'block';
-    introArea.style.display = 'none';
-    introActions.style.display = 'none';
-    toast('자기소개를 수정했어요');
-  });
-  document.getElementById('btn-intro-cancel').addEventListener('click', () => {
-    introText.style.display = 'block';
-    introArea.style.display = 'none';
-    introActions.style.display = 'none';
-  });
-
-  // 2. 지도 및 방문 횟수 통계 연동
-  const regionVisits = /*[[${regionVisits}]]*/ {};
-
-  if (typeof KOREA_REGIONS !== 'undefined') {
-    Object.keys(KOREA_REGIONS).forEach(k => {
-      KOREA_REGIONS[k].visits = regionVisits[k] || 0;
-    });
-  }
-  if (typeof JAPAN_REGIONS !== 'undefined') {
-    Object.keys(JAPAN_REGIONS).forEach(k => {
-      JAPAN_REGIONS[k].visits = regionVisits[k] || 0;
-    });
-  }
-
-  const allRegionVisits = [
-    ...(typeof KOREA_REGIONS !== 'undefined' ? Object.values(KOREA_REGIONS).map(r => r.visits) : []),
-    ...(typeof JAPAN_REGIONS !== 'undefined' ? Object.values(JAPAN_REGIONS).map(r => r.visits) : [])
-  ];
-  const totalVisits = allRegionVisits.reduce((s, v) => s + v, 0);
-  const visitedRegions = allRegionVisits.filter(v => v > 0).length;
-
-  document.getElementById('stat-visits').textContent = totalVisits;
-  document.getElementById('stat-regions').textContent = visitedRegions;
-
-  // 칭호는 이제 서버에서 실제 titles/user_titles 테이블 값으로 렌더링한다(위 th:text 참고).
-  // 여기서 다시 덮어쓰면 서버 값이 무시되니, 방문횟수 기반 JS 계산은 더 이상 하지 않는다.
-
-  // 한국 지도 렌더링
-  function drawKoreaMap(){
-    const svg = document.getElementById('map-kr');
-    if (!svg || typeof KOREA_REGIONS === 'undefined') return;
-    const ids = Object.keys(KOREA_REGIONS);
-
-    svg.innerHTML = ids.map(id => {
-      const r = KOREA_REGIONS[id];
-      const tierColor = typeof tierColorForVisits === 'function' ? tierColorForVisits(r.visits) : '#d2e3ed';
-      return `<path class="region" id="kr-${id}" d="${r.d}" fill="${tierColor}"
-                    tabindex="0" role="button" aria-label="${r.name} 방문 ${r.visits}회"></path>`;
-    }).join('') + ids.map(id => {
-      const r = KOREA_REGIONS[id];
-      return `<text class="region-label" x="${r.cx}" y="${r.cy}" font-size="4">${r.name}</text>`;
-    }).join('');
-
-    ids.forEach(id => {
-      const r = KOREA_REGIONS[id];
-      const el = document.getElementById(`kr-${id}`);
-      const show = () => {
-        const tierLabel = typeof tierLabelForVisits === 'function' ? tierLabelForVisits(r.visits) : (r.visits + '회');
-        document.getElementById('region-tip').innerHTML =
-          `<b>${r.name}</b> — ${tierLabel} 방문`;
-      };
-      el.addEventListener('click', show);
-      el.addEventListener('keydown', e => { if (e.key === 'Enter') show(); });
-      el.addEventListener('mouseenter', show);
-    });
-  }
-
-  // 일본 지도 렌더링
-  function drawJapanMap(){
-    const svg = document.getElementById('map-jp');
-    if (!svg || typeof JAPAN_REGIONS === 'undefined') return;
-    const ids = Object.keys(JAPAN_REGIONS);
-
-    const polyToPoints = poly => poly.map(([x, y]) => `${x},${y}`).join(' ');
-
-    svg.innerHTML =
-      ids.map(id => {
-        const r = JAPAN_REGIONS[id];
-        return `<polygon class="region-hotspot" id="jp-${id}" points="${polyToPoints(r.poly)}"
-                       tabindex="0" role="button" aria-label="${r.name} 방문 ${r.visits}회"></polygon>`;
-      }).join('') +
-      ids.map(id => {
-        const r = JAPAN_REGIONS[id];
-        const tierColor = typeof tierColorForVisits === 'function' ? tierColorForVisits(r.visits) : '#d2e3ed';
-        return `<circle class="region-dot" cx="${r.cx}" cy="${r.cy}" r="1.15" fill="${tierColor}"></circle>`;
-      }).join('');
-
-    ids.forEach(id => {
-      const r = JAPAN_REGIONS[id];
-      const el = document.getElementById(`jp-${id}`);
-      const show = () => {
-        const tierLabel = typeof tierLabelForVisits === 'function' ? tierLabelForVisits(r.visits) : (r.visits + '회');
-        document.getElementById('region-tip').innerHTML =
-          `<b>${r.name}</b> — ${tierLabel} 방문`;
-      };
-      el.addEventListener('click', show);
-      el.addEventListener('keydown', e => { if (e.key === 'Enter') show(); });
-      el.addEventListener('mouseenter', show);
-    });
-  }
-
-  drawKoreaMap();
-  drawJapanMap();
-
-  function setMapMode(mode){
-    const toggle = document.getElementById('map-toggle');
-    toggle.classList.toggle('kr-active', mode === 'kr');
-    document.getElementById('btn-map-jp').classList.toggle('on', mode === 'jp');
-    document.getElementById('btn-map-kr').classList.toggle('on', mode === 'kr');
-    document.getElementById('frame-jp').style.display = mode === 'jp' ? '' : 'none';
-    document.getElementById('frame-kr').style.display = mode === 'kr' ? '' : 'none';
-    document.getElementById('region-tip').textContent = '지역을 눌러보세요';
-  }
-  document.getElementById('btn-map-jp')?.addEventListener('click', () => setMapMode('jp'));
-  document.getElementById('btn-map-kr')?.addEventListener('click', () => setMapMode('kr'));
-
-  // Toast
-  let toastTimer;
-  function toast(msg){
-    const t = document.getElementById('toast');
-    if (!t) return;
-    t.textContent = msg;
-    t.classList.add('on');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('on'), 1800);
-  }
+  window.MYPAGE_HEATMAP = /*[[${heatmap}]]*/ { regions: {}, totalTrips: 0, visitedRegions: 0 };
 </script>
-<div th:replace="~{fragments/layout :: companion}"></div>
+
+<script th:src="@{/js/mypage-heatmap.js}"></script>
+<script th:src="@{/js/mypage-profile.js}"></script>
+<script th:src="@{/js/post-write.js}" defer></script>
+<script th:src="@{/js/avatar-upload.js}" defer></script>
+
 </body>
 </html>
