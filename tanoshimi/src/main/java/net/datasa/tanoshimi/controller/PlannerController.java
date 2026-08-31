@@ -6,6 +6,7 @@ import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.dto.ApiResponse;
 import net.datasa.tanoshimi.domain.dto.ScheduleItemRequest;
 import net.datasa.tanoshimi.domain.dto.ScheduleItemView;
+import net.datasa.tanoshimi.domain.dto.WeatherAdviceResponse;
 import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
@@ -42,7 +43,7 @@ public class PlannerController {
     private final AiCreditService aiCreditService;
     private final RouteOptimizationService routeOptimizationService;
     private final SimpMessagingTemplate messagingTemplate;
-	
+  
     @GetMapping("/planner/{scheduleId}")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public String planner(@PathVariable Long scheduleId, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
@@ -234,5 +235,14 @@ public class PlannerController {
     private void broadcast(Long scheduleId) {
         messagingTemplate.convertAndSend("/topic/planner/" + scheduleId,
                 plannerService.getItems(getSchedule(scheduleId)));
+    }
+    
+    @GetMapping("/api/weather/check")
+    @ResponseBody
+    public ApiResponse<WeatherAdviceResponse> checkWeatherAdvice(
+            @RequestParam Long activityId,
+            @RequestParam String date) {
+        LocalDate d = LocalDate.parse(date);
+        return ApiResponse.ok(weatherAdvisorService.checkActivityWeather(activityId, d));
     }
 }
