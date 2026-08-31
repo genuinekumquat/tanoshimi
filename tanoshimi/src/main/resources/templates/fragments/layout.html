@@ -1,15 +1,17 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head th:fragment="head(pageTitle)">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf" th:content="${_csrf.token}" th:if="${_csrf != null}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}" th:if="${_csrf != null}"/>
     <title th:text="${pageTitle != null ? pageTitle + ' - Tanoshimi' : 'Tanoshimi'}">Tanoshimi</title>
-    
+
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
-    
-    <!-- CSP 호환(인라인 스크립트 허용)용 빈 구조 -->
+
+    <!-- CSP 통신(인라인 스크립트 대응)을 위한 함수 구조 -->
     <script>
         window.api = {
             async get(url) {
@@ -23,7 +25,7 @@
                 const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
                 const headers = { 'Content-Type': 'application/json' };
                 if(csrfToken && csrfHeader) headers[csrfHeader] = csrfToken;
-                
+
                 try {
                     const r = await fetch(url, {
                         method: 'POST',
@@ -59,7 +61,75 @@
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script th:src="@{/js/notifications.js}" defer></script>
+
+    <!-- ================= 여행 도우미 마스코트 위젯 (Live2D) ================= -->
+    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.2/dist/browser/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
 </head>
+
+<!-- ============================================== -->
+<!-- 💡 여행 도우미 위젯 UI (우측 하단 고정) 💡 -->
+<!-- ============================================== -->
+<div th:fragment="companion" id="companion-widget-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none;">
+
+    <!-- 1. 채팅 패널 (캐릭터 왼쪽에 표시됨) -->
+    <div id="companion-chat-panel" style="display: none; position: fixed; right: 300px; bottom: 20px; width: 450px; height: 600px; background: #f0f2f5; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); flex-direction: column; overflow: hidden; pointer-events: auto;">
+
+        <!-- 패널 상단 타이틀바 -->
+        <div id="companion-chat-drag-handle" style="background: var(--forest, #4A6741); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; cursor: grab;">
+            <span>🎒 비비안과 여행 계획 짜기</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <button id="companion-chat-clear" title="대화 기록 초기화" style="background: none; border: none; color: white; font-size: 13px; cursor: pointer; text-decoration: underline;">초기화</button>
+                <button id="companion-chat-close" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">✖</button>
+            </div>
+        </div>
+        
+        <!-- 컨트롤바 (크기 조절, 표정 변경) -->
+        <div style="padding: 8px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: #333;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: bold; white-space: nowrap;">크기 조절</span>
+                <input type="range" id="companion-scale-slider" min="0.5" max="2.0" step="0.1" value="1.0" style="flex: 1; accent-color: var(--forest, #4A6741);">
+                <span id="companion-scale-val" style="width: 30px; text-align: right;">1.0</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: bold; white-space: nowrap;">캐릭터 표정</span>
+                <div id="companion-expr-btns" style="display: flex; gap: 5px; flex-wrap: wrap;">
+                    <button data-expr="normal" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">기본</button>
+                    <button data-expr="happy" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">기쁨</button>
+                    <button data-expr="sad" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">슬픔</button>
+                    <button data-expr="angry" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">화남</button>
+                    <button data-expr="shy" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">부끄럼</button>
+                    <!-- 구분선 -->
+                    <div style="width: 1px; background: #ccc; margin: 0 4px;"></div>
+                    <button id="companion-ghost-btn" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: #ffeb3b; border-radius: 4px; cursor: pointer; font-weight: bold;">👻 숨기기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 대화 내역 공간 -->
+        <div id="companion-chat-log" style="flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+            <!-- 말풍선이 여기에 JS로 생성됨 -->
+        </div>
+
+        <!-- 입력창 -->
+        <div style="padding: 12px; background: white; border-top: 1px solid #ddd; display: flex; gap: 8px;">
+            <input type="text" id="companion-chat-input" placeholder="비비안에게 물어보세요!" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; outline: none;">
+            <button id="companion-chat-send" style="background: var(--forest, #4A6741); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; flex-shrink: 0; white-space: nowrap;">전송</button>
+        </div>
+    </div>
+
+    <!-- 2. 캐릭터 캔버스 -->
+    <div id="companion-character-wrap" style="position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; gap: 10px; pointer-events: none;">
+        <canvas id="companion-canvas" style="pointer-events: none; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2));"></canvas>
+        <div style="display: flex; gap: 8px; pointer-events: auto; background: rgba(255,255,255,0.7); padding: 6px; border-radius: 30px; backdrop-filter: blur(4px);">
+            <div id="companion-drag-handle" style="cursor: grab; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.2);" title="드래그하여 이동">✥</div>
+            <button id="companion-chat-open" style="pointer-events: auto; padding: 10px 20px; background: var(--forest, #4A6741); color: white; border: 2px solid white; border-radius: 24px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 14px; transition: all 0.2s;">💬 대화하기</button>
+    </div>
+
+    <script src="/js/companion-widget.js?v=17"></script>
+</div>
 
 <header th:fragment="header" style="position:sticky; top:0; z-index:999; background:rgba(255,255,255,0.95); backdrop-filter:blur(8px); border-bottom:1px solid #eaeaea; padding:12px 20px;">
     <div style="max-width:1200px; margin:0 auto; display:flex; justify-content:space-between; align-items:center;">
@@ -67,7 +137,8 @@
         <div style="display:flex; align-items:center; gap:40px;">
             <a th:href="@{/}" style="font-size:24px; font-weight:900; color:var(--forest); text-decoration:none; letter-spacing:-0.5px;">TANOSHIMI</a>
             <nav style="display:flex; gap:24px; font-weight:700; font-size:15px;" class="hide-mobile">
-                <a th:href="@{/recommendations}" style="color:var(--ink); text-decoration:none;">관광지 추천</a>                <a th:href="@{/party-board}" style="color:var(--ink); text-decoration:none;">파티 게시판</a>
+                <a th:href="@{/recommendations}" style="color:var(--ink); text-decoration:none;">관광지 추천</a>
+                <a th:href="@{/party-board}" style="color:var(--ink); text-decoration:none;">파티 게시판</a>
                 <a th:href="@{/my-parties}" sec:authorize="isAuthenticated()" style="color:var(--ink); text-decoration:none;">내 파티</a>
             </nav>
         </div>
@@ -80,23 +151,23 @@
                 <span style="color:#ccc;">|</span>
                 <a th:href="@{''(lang=ja)}" th:style="${#locale.language == 'ja'} ? 'color:var(--forest);' : 'color:var(--ink-soft); text-decoration:none;'">JP</a>
             </div>
-            
+
             <th:block sec:authorize="!isAuthenticated()">
                 <a th:href="@{/login}" class="btn" style="padding:8px 16px; font-size:14px; background:var(--forest); color:#fff; border-radius:8px; text-decoration:none;">로그인</a>
             </th:block>
-            
+
             <th:block sec:authorize="isAuthenticated()">
                 <!-- 프로필사진 + 닉네임 + 드롭다운 -->
                 <div style="position:relative;" id="profile-menu-wrap">
                     <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" id="profile-btn">
-                        <img th:if="${#authentication.principal.profileImageUrl != null}" th:src="${#authentication.principal.profileImageUrl}" 
+                        <img th:if="${#authentication.principal.profileImageUrl != null}" th:src="${#authentication.principal.profileImageUrl}"
                              style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:1px solid #ddd;">
-                        <div th:if="${#authentication.principal.profileImageUrl == null}" 
+                        <div th:if="${#authentication.principal.profileImageUrl == null}"
                              style="width:36px; height:36px; border-radius:50%; background:#dceef2; color:#3c5a3a; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; border:1px solid #ddd;"
                              th:text="${#strings.substring(#authentication.principal.displayName,0,1)}"></div>
                         <span style="font-size:14.5px; font-weight:700; color:var(--ink);" th:text="${#authentication.principal.displayName}">닉네임</span>
                     </div>
-                    
+
                     <div id="profile-dropdown" style="display:none; position:absolute; top:50px; right:0; background:#fff; border:1px solid #ddd; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.12); width:160px; z-index:1000; overflow:hidden;">
                         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}" style="display:block; padding:12px 16px; font-size:14px; color:var(--danger); font-weight:700; text-decoration:none; transition:background 0.2s;" onmouseover="this.style.background='#fff4f4'" onmouseout="this.style.background='none'">👑 관리자 메뉴</a>
                         <a th:href="@{/mypage}" style="display:block; padding:12px 16px; font-size:14px; color:var(--ink); text-decoration:none; transition:background 0.2s;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='none'">마이페이지</a>
@@ -105,8 +176,8 @@
                         </form>
                     </div>
                 </div>
-                
-                <!-- 알림창 -->
+
+                <!-- 알림 창 -->
                 <div class="notif-wrap" style="position:relative;">
                     <span class="notif-bell" id="top-notif-bell" style="cursor:pointer; font-size:20px; display:flex; align-items:center;">
                         🔔
@@ -127,7 +198,7 @@
             <button id="sidebar-toggle-btn" style="background:none; border:none; font-size:26px; cursor:pointer; color:var(--ink); display:flex; align-items:center;">☰</button>
         </div>
     </div>
-    
+
     <!-- 우측 슬라이드 메뉴 -->
     <div id="right-sidebar" style="position:fixed; top:0; right:-320px; width:300px; height:100vh; background:#fff; box-shadow:-8px 0 30px rgba(0,0,0,0.1); z-index:99999; transition:right 0.3s cubic-bezier(0.4, 0.0, 0.2, 1); display:flex; flex-direction:column;">
         <div style="padding:20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f0f0f0;">
@@ -136,27 +207,25 @@
         </div>
         <ul style="list-style:none; padding:20px; margin:0; display:flex; flex-direction:column; gap:8px;">
             <li sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin}" style="display:block; padding:12px 16px; border-radius:8px; font-size:16px; font-weight:600; text-decoration:none; color:var(--danger); transition:0.2s;" onmouseover="this.style.background='#fff4f4'" onmouseout="this.style.background='none'">👑 관리자 메뉴</a></li>
-            <li><a th:href="@{/recommendations}" style="display:block; padding:12px 16px; border-radius:8px; font-size:16px; font-weight:600; text-decoration:none; color:var(--ink); transition:0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='none'">📸 관광지 추천</a></li>            <li><a th:href="@{/party-board}" style="display:block; padding:12px 16px; border-radius:8px; font-size:16px; font-weight:600; text-decoration:none; color:var(--ink); transition:0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='none'">🎪 파티 모집 게시판</a></li>
+            <li><a th:href="@{/recommendations}" style="display:block; padding:12px 16px; border-radius:8px; font-size:16px; font-weight:600; text-decoration:none; color:var(--ink); transition:0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='none'">⭐ 관광지 추천</a></li>
+            <li><a th:href="@{/party-board}" style="display:block; padding:12px 16px; border-radius:8px; font-size:16px; font-weight:600; text-decoration:none; color:var(--ink); transition:0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='none'">👫 파티 모집 게시판</a></li>
             <li sec:authorize="isAuthenticated()"><a th:href="@{/messages}" style="display:block; padding:12px 16px; border-radius:8px; font-size:16px; font-weight:600; text-decoration:none; color:var(--ink); transition:0.2s;" onmouseover="this.style.background='#f4f5f7'" onmouseout="this.style.background='none'">💬 개인 메시지함</a></li>
         </ul>
     </div>
-    
+
     <script>
-        // 프로필 드롭다운 토글
         document.getElementById('profile-btn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             const el = document.getElementById('profile-dropdown');
             if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
         });
-        
-        // 알림창 드롭다운 토글
+
         document.getElementById('top-notif-bell')?.addEventListener('click', (e) => {
             e.stopPropagation();
             const el = document.getElementById('top-notif-dropdown');
             if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
         });
 
-        // 햄버거 메뉴 토글
         const sidebar = document.getElementById('right-sidebar');
         document.getElementById('sidebar-toggle-btn')?.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -165,8 +234,7 @@
         document.getElementById('sidebar-close-btn')?.addEventListener('click', () => {
             sidebar.style.right = '-320px';
         });
-        
-        // 바깥 클릭 시 메뉴 닫기
+
         document.addEventListener('click', (e) => {
             const dp1 = document.getElementById('profile-dropdown');
             if(dp1 && !dp1.contains(e.target)) dp1.style.display = 'none';
@@ -181,3 +249,21 @@
     </script>
 </header>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

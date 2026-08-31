@@ -92,9 +92,7 @@
     <div style="display:flex; flex-direction:column; gap:8px;">
       <a th:href="@{/oauth2/authorization/google}" class="btn" style="background:#fff; border:1px solid var(--line); text-align:center;">Google로 시작하기</a>
       <a th:href="@{/oauth2/authorization/naver}" class="btn" style="background:#03c75a; color:#fff; text-align:center;">네이버로 시작하기</a>
-      <!-- v16 제안서 기준 LINE 로그인 제외 (Google·Naver만 사용). 재도입 시 주석만 해제.
       <a th:href="@{/oauth2/authorization/line}" class="btn" style="background:#06c755; color:#fff; text-align:center;">LINEで始める</a>
-      -->
     </div>
   </div>
 </main>
@@ -108,5 +106,6 @@
 </style>
 
 <script th:src="@{/js/signup.js}" defer></script>
+<div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

@@ -93,6 +93,7 @@ public class MyPageController {
         
         // 1. 엔티티 업데이트
         me.changeProfile(me.getName(), me.getIntro(), url);
+        fileStorageService.markActive(url);
         
         // 2. 세션 업데이트 (프로필 이미지가 전역적으로 즉시 반영되게 하기 위함)
         CustomUserDetails newUserDetails = new CustomUserDetails(me, principal.getAttributes());
