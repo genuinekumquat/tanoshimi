@@ -192,6 +192,7 @@ public class PartyController {
         }
         String url = fileStorageService.saveImage(file);
         party.changeThumbnail(url);
+        fileStorageService.markActive(url);
         return ApiResponse.ok("썸네일이 변경되었습니다.", url);
     }
 }

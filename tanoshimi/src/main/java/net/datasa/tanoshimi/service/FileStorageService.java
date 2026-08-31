@@ -23,6 +23,13 @@ public interface FileStorageService {
     /** 삭제 */
     void deleteFile(String fileUrl);
 
+    /**
+     * 업로드 직후 ORPHANED 상태로 생성된 파일을, 실제로 어떤 엔티티(프로필/게시글/파티 등)에
+     * 연결됐을 때 ACTIVE 로 전환한다. 이걸 호출하지 않으면 FileCleanupScheduler 가 다음날
+     * 새벽에 "고아 파일"로 오인해 삭제해버린다. (S3 구현은 orphan 추적을 하지 않으므로 no-op)
+     */
+    default void markActive(String fileUrl) {}
+
     /** 일반 파일/문서 저장 */
     String saveDocument(MultipartFile file);
     

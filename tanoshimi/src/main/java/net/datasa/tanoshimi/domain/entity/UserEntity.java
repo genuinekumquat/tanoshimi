@@ -49,12 +49,6 @@ public class UserEntity {
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
-    // v16 제안서 기준 매너온도는 mannerTemp(BigDecimal) 하나로 통일 (아래 참고).
-    // mannerScore 는 이전 패치 스크립트가 남긴 중복 필드라 매핑 해제만 하고 컬럼/DB 기본값은 그대로 둔다.
-    // (컬럼에 NOT NULL default 36.5 가 걸려 있어 INSERT 시 이 필드를 빼도 DB가 알아서 채운다)
-    // @Column(name = "manner_score", nullable = false, columnDefinition = "float default 36.5")
-    // private float mannerScore = 36.5f;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 5)
     private Nationality nationality;
@@ -66,9 +60,8 @@ public class UserEntity {
     /**
      * 매너온도. v16 이전엔 mannerScore(float)/mannerTemp(BigDecimal) 두 필드가 중복으로
      * 존재했다(기술부채) - v16 DB설계에서 하나로 통합하기로 확정되어 mannerScore 는 삭제하고
-     * 이 필드로 일원화한다. 정책·계산·증감 트리거는 MannerTempService 가 단독 소유하며(⑤),
-     * 회원가입 시 초기값 대입만 ①(인증·회원가입)이 담당한다. 이 엔티티는 0~50 범위 캡만
-     * 스스로 보장한다(applyMannerDelta 참고).
+     * 이 필드로 일원화한다. 정책·계산·증감 트리거는 MannerTempService 가 단독 소유하며,
+     * 이 엔티티는 0~50 범위 캡만 스스로 보장한다(applyMannerDelta 참고).
      */
     @Column(name = "manner_temp", nullable = false)
     private java.math.BigDecimal mannerTemp;
@@ -151,8 +144,7 @@ public class UserEntity {
     }
 
     public boolean isSocialAccount() { return socialProvider != null; }
-
-    public boolean isActive() {
+        public boolean isActive() {
         if (status == UserStatus.suspended) {
             if (suspendedUntil != null && LocalDateTime.now().isAfter(suspendedUntil)) {
                 return true;
@@ -161,10 +153,11 @@ public class UserEntity {
         }
         return status.isActive();
     }
-
+    
     public boolean isAdmin() { return role == Role.admin; }
     public void grantAdmin() { this.role = Role.admin; }
     public void revokeAdmin() { this.role = Role.user; }
+
 
     /** 만 나이 계산 - 회원가입 시 성인 인증에 사용. */
     public int age() {
@@ -179,7 +172,8 @@ public class UserEntity {
     }
 
     public void changePreferredLang(PreferredLang lang) { this.preferredLang = lang; }
-
+    
+    
     public void suspend(LocalDateTime until) {
         this.status = UserStatus.suspended;
         this.suspendedUntil = until;
@@ -195,6 +189,7 @@ public class UserEntity {
         }
         return true;
     }
+
 
     public void addPoints(Currency currency, int amount) {
         if (currency == Currency.KRW) this.pointsKrw += amount;

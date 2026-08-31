@@ -146,6 +146,16 @@ public class LocalStorageServiceImpl implements FileStorageService {
 
     @Override
     @Transactional
+    public void markActive(String fileUrl) {
+        if (fileUrl == null) return;
+        attachmentRepository.findByFilePath(fileUrl).ifPresent(attachment -> {
+            attachment.markAsActive();
+            attachmentRepository.save(attachment);
+        });
+    }
+
+    @Override
+    @Transactional
     public void deleteFile(String fileUrl) {
         if (fileUrl == null || !fileUrl.startsWith("/uploads/")) return;
         String filename = fileUrl.replace("/uploads/", "");
