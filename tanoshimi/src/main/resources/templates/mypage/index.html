@@ -441,6 +441,14 @@
         완료한 여행 횟수와 여행일수를 함께 반영해 색을 칠합니다.
       </p>
 
+      <!-- 지역별 스냅 재료. 지역 태그(posts.region)가 붙은 내 글만 넘긴다.
+           mypage-heatmap.js 가 지역명으로 묶어 두고, 지도에서 마우스를 올린 지역의
+           사진을 그 위에 띄운다. -->
+      <div id="snaps-data" hidden>
+        <span th:each="p : ${snapPosts}"
+              th:attr="data-region=${p.region},data-thumb=${p.thumbnailUrl},data-title=${p.title}"></span>
+      </div>
+
       <div class="snaps" id="snaps"></div>
     </section>
 
@@ -455,13 +463,10 @@
       <div th:if="${#lists.isEmpty(myTitles)}" style="color:var(--ink-soft); font-size:13px;">
         아직 획득한 칭호가 없습니다. 첫 여행을 완료해 보세요.
       </div>
-      <!-- 획득한 칭호만 실선 칩으로. 미획득 칭호는 "더보기"의 칭호 관리 뷰에서 잠금 카드로 보여준다.
-           mypage-titles.js 가 이 칩들의 data-* 를 읽어 보유 목록을 만든다. -->
+      <!-- 획득한 칭호만 실선 칩으로. 미획득 칭호는 "더보기"의 칭호 관리 뷰에서 잠금 카드로 보여준다. -->
       <div class="titles" id="mypage-titles">
-        <span th:each="t : ${myTitles}" class="tchip"
-              th:attr="data-name=${t.name},data-cond=${t.conditionDesc}"
-              th:title="${t.conditionDesc}">
-          <span>🏷️</span><b th:text="${t.name}">칭호</b>
+        <span th:each="t : ${myTitles}" class="tchip" th:title="${t.conditionDesc}">
+          <span th:text="${t.iconKey}">🏷️</span><b th:text="${t.name}">칭호</b>
         </span>
       </div>
     </section>
@@ -532,6 +537,16 @@
     </section>
 
     <div class="sec-head"><h2>전체 칭호</h2></div>
+
+    <!-- 칭호 전체 목록(미획득 포함). mypage-titles.js 가 이 data-* 를 읽어 카드를 그린다.
+         엔티티를 JS 로 직렬화하지 않고 마크업에 실어 보내는 방식(단일 출처). -->
+    <div id="titles-data" hidden>
+      <span th:each="t : ${allTitles}"
+            th:attr="data-code=${t.code},data-name=${t.name},data-category=${t.category},
+                     data-cond=${t.conditionDesc},data-icon=${t.iconKey},
+                     data-owned=${#lists.contains(ownedCodes, t.code)}"></span>
+    </div>
+
     <div class="tgrid" id="tgrid"></div>
     <p style="font-size:12px; color:var(--ink-soft); margin-top:14px;">
       잠긴 칭호에 마우스를 올리면 해금 조건이 표시됩니다.

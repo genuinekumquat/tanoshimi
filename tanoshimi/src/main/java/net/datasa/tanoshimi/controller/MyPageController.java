@@ -57,11 +57,14 @@ public class MyPageController {
         // 마지막 방문 이후 파티가 완료됐을 수 있으니 이 시점에 칭호를 맞춰준다.
         // 멱등이라 몇 번을 호출해도 같은 결과이며, 원래는 파티 완료 스케줄러(⑤)에서
         // 한 번만 부르는 게 맞다 - TitleService 주석 참고.
-        titleService.syncTravelTitles(me, heatmap.totalTrips(), heatmap.visitedRegions());
+        titleService.syncTitles(me);
 
         model.addAttribute("me", me);
         model.addAttribute("myParties", partyMemberRepository.findByUserOrderByJoinedAtDesc(me));
         model.addAttribute("myPosts", postService.myPosts(me, PageRequest.of(0, 12)));
+        // 지도에서 지역에 마우스를 올렸을 때 띄울 스냅(지역 태그가 붙은 내 글).
+        // 피드보다 넓게 가져오되, 지도 위에 최대 10장만 뿌리므로 60개면 충분하다.
+        model.addAttribute("snapPosts", postService.regionTaggedPosts(me, 60));
         model.addAttribute("followerCount", followService.followerCount(me));
         model.addAttribute("followingCount", followService.followingCount(me));
         // heatmap 자체는 인라인 JS 로 직렬화(Jackson)해서 넘기고, 화면에 글자로 찍는 숫자는
@@ -72,6 +75,10 @@ public class MyPageController {
         model.addAttribute("visitedRegions", heatmap.visitedRegions());
         model.addAttribute("myTitle", titleService.latestTitle(me));
         model.addAttribute("myTitles", titleService.ownedTitles(me));
+        // 칭호 관리 화면은 미획득분까지 보여줘야 해서 전체 목록도 함께 넘긴다.
+        // 보유 여부는 코드 문자열로 대조한다 - 엔티티는 조회 단위가 달라 동일성 비교가 안 된다.
+        model.addAttribute("allTitles", titleService.allTitlesOrdered());
+        model.addAttribute("ownedCodes", titleService.ownedCodes(me));
 
         return "mypage/index";
     }

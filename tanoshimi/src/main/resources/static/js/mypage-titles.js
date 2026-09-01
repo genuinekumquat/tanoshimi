@@ -7,14 +7,9 @@
  * "내 칭호" 칩(획득분만)은 서버가 Thymeleaf로 이미 그려준다. 이 파일은 "더보기"를 눌렀을 때
  * 나오는 칭호 관리 뷰(카테고리별 전체 목록 + 미획득 잠금 카드 + 대표칭호 수정)를 담당한다.
  *
- * 목표 칭호 체계는 38종 8카테고리인데, 지금 DB(titles)에는 category 컬럼도 없고 시드도
- * 예전 것이라 서버가 카테고리별 전체 목록을 내려줄 수 없다(Phase 2, 시드/스키마 작업).
- * 그래서 카탈로그(CATALOG)는 일단 여기 두고, 획득 여부만 서버가 내려준 실제 보유 칭호
- * (window.MYPAGE_MY_TITLES)와 이름으로 대조한다. Phase 2에서 titles 테이블에 category를
- * 추가하면 이 배열을 지우고 서버 데이터로 갈아끼우면 된다.
- *
- * 카탈로그에 없는데 사용자가 실제로 갖고 있는 칭호(옛 시드 등)는 버리지 않고 "기타"
- * 카테고리로 모아서 보여준다 - 화면에서 사라지면 버그로 보이니까.
+ * 칭호 38종 8카테고리는 DB(titles)가 정본이다. 템플릿이 전체 목록을 #titles-data 에
+ * data-* 로 내려주고(카테고리 순서도 서버가 정함), 이 파일은 그걸 그대로 그린다.
+ * 판정(누가 무엇을 받았는지)은 TitleService 가 한다.
  *
  * ※ 대표 칭호 변경은 아직 저장 API가 없어서 화면 상태만 바뀐다(Phase 2에서
  *   user_titles에 대표 여부 컬럼 + PATCH API 필요).
@@ -161,76 +156,24 @@
 
     /* =========================== 칭호 =========================== */
 
-    var CAT_ORDER = ['여행 횟수', '국내 지역 다양성', '광역시 특색', '일본 권역', '매너온도', '파티 활동', '여행 거리', '액티비티'];
-    var CAT_ETC = '기타';
-
-    // 목표 칭호 카탈로그(38종). Phase 2에서 titles 테이블 + category 컬럼으로 이전 예정.
-    var CATALOG = [
-        { cat: '여행 횟수', name: '첫 발자국', icon: '👣', cond: '여행 1회' },
-        { cat: '여행 횟수', name: '탐험가', icon: '🧭', cond: '여행 15회' },
-        { cat: '여행 횟수', name: '베테랑', icon: '🎖️', cond: '여행 30회' },
-        { cat: '여행 횟수', name: '여행마스터', icon: '🏆', cond: '여행 50회' },
-        { cat: '여행 횟수', name: '여행의 신', icon: '👑', cond: '여행 80회' },
-        { cat: '여행 횟수', name: '지구는 내 앞마당', icon: '🌍', cond: '여행 100회' },
-
-        { cat: '국내 지역 다양성', name: '8도 정복자', icon: '🗾', cond: '전국 8개 권역 완료' },
-        { cat: '국내 지역 다양성', name: '감귤 마니아', icon: '🍊', cond: '제주 5회 이상' },
-        { cat: '국내 지역 다양성', name: '명예 경상도인', icon: '🌾', cond: '비거주자 경상도 5회 이상' },
-        { cat: '국내 지역 다양성', name: '명예 전라도인', icon: '🍚', cond: '비거주자 전라도 5회 이상' },
-        { cat: '국내 지역 다양성', name: '명예 충청도인', icon: '🏞️', cond: '비거주자 충청도 5회 이상' },
-        { cat: '국내 지역 다양성', name: '명예 강원도인', icon: '⛰️', cond: '비거주자 강원도 5회 이상' },
-        { cat: '국내 지역 다양성', name: '명예 경기도인', icon: '🏙️', cond: '비거주자 경기도 5회 이상' },
-
-        { cat: '광역시 특색', name: '한강뷰 마스터', icon: '🌉', cond: '서울 5회 이상' },
-        { cat: '광역시 특색', name: '부산 갈매기', icon: '🦭', cond: '부산 5회 이상' },
-        { cat: '광역시 특색', name: '대프리카 정복자', icon: '🔥', cond: '대구 5회 이상' },
-        { cat: '광역시 특색', name: '인천상륙작전러', icon: '⚓', cond: '인천 5회 이상' },
-        { cat: '광역시 특색', name: '예향 마니아', icon: '🎨', cond: '광주 5회 이상' },
-        { cat: '광역시 특색', name: '노잼도시 재발견자', icon: '🏢', cond: '대전 5회 이상' },
-        { cat: '광역시 특색', name: '고래축제 단골', icon: '🐋', cond: '울산 5회 이상' },
-        { cat: '광역시 특색', name: '신도시 얼리어답터', icon: '🌆', cond: '세종 5회 이상' },
-
-        { cat: '일본 권역', name: '간사이 마스터', icon: '🏯', cond: '간사이 5회 이상' },
-        { cat: '일본 권역', name: '홋카이도 마스터', icon: '❄️', cond: '홋카이도 5회 이상' },
-        { cat: '일본 권역', name: '간토 마스터', icon: '🗼', cond: '간토 5회 이상' },
-        { cat: '일본 권역', name: '규슈 마스터', icon: '♨️', cond: '규슈 5회 이상' },
-        { cat: '일본 권역', name: '오키나와 마스터', icon: '🏝️', cond: '오키나와 5회 이상' },
-
-        { cat: '매너온도', name: '매너왕', icon: '🔥', cond: '매너온도 40도 이상' },
-        { cat: '매너온도', name: '매너요정', icon: '🧚', cond: '매너온도 45도 이상' },
-        { cat: '매너온도', name: '매너의 신', icon: '😇', cond: '매너온도 50도(만점)' },
-
-        { cat: '파티 활동', name: '파티리더', icon: '🎪', cond: '파티 개설 10회 이상' },
-        { cat: '파티 활동', name: '프로참석러', icon: '🙋', cond: '파티 참여 10회 이상' },
-
-        { cat: '여행 거리', name: '천리길 시작', icon: '🚶', cond: '누적 400km 이상' },
-        { cat: '여행 거리', name: '장거리 신고식', icon: '✈️', cond: '누적 1,000km 이상' },
-        { cat: '여행 거리', name: '트래블 홀릭', icon: '🧳', cond: '누적 5,000km 이상' },
-        { cat: '여행 거리', name: '지구 쿼터 클럽', icon: '🌐', cond: '누적 10,000km 이상' },
-
-        { cat: '액티비티', name: '야경 헌터', icon: '🌃', cond: '야경 스냅 5회 이상 등록' },
-        { cat: '액티비티', name: '축제 마니아', icon: '🎆', cond: '축제 스타일 파티 5회 완료' },
-        { cat: '액티비티', name: '지도 수집가', icon: '🗺️', cond: '10개 이상 지역 방문' }
-    ];
-
-    // 서버가 Thymeleaf로 그려준 "내 칭호" 칩에서 실제 보유 칭호를 읽는다: [{name, cond}]
-    var serverTitles = [].map.call(
-        document.querySelectorAll('#mypage-titles .tchip'),
-        function (el) { return { name: el.dataset.name || '', cond: el.dataset.cond || '' }; }
+    /* 칭호 목록은 서버(titles 테이블)가 정본이다.
+     * v17 이전에는 38종 카탈로그를 이 파일에 하드코딩하고 보유 여부만 대조했는데,
+     * 이제 DB에 38종이 카테고리까지 들어있어서 화면이 서버 데이터를 그대로 그린다.
+     * 템플릿이 #titles-data 에 data-* 로 내려주고, 순서(카테고리 정렬)도 서버가 정한다.
+     */
+    var TITLES = [].map.call(
+        document.querySelectorAll('#titles-data span'),
+        function (el) {
+            return {
+                code: el.dataset.code || '',
+                name: el.dataset.name || '',
+                cat: el.dataset.category || '기타',
+                cond: el.dataset.cond || '',
+                icon: el.dataset.icon || '🏷️',
+                owned: el.dataset.owned === 'true'
+            };
+        }
     ).filter(function (t) { return t.name; });
-    var ownedNames = {};
-    serverTitles.forEach(function (t) { ownedNames[t.name] = t.cond || ''; });
-
-    // 카탈로그 + 카탈로그에 없는 보유 칭호("기타")를 합친 최종 목록.
-    var TITLES = CATALOG.map(function (t, i) {
-        return { id: 'c' + i, cat: t.cat, name: t.name, icon: t.icon, cond: t.cond, owned: ownedNames[t.name] !== undefined };
-    });
-    var catalogNames = {};
-    CATALOG.forEach(function (t) { catalogNames[t.name] = true; });
-    serverTitles.forEach(function (t, i) {
-        if (catalogNames[t.name]) return;
-        TITLES.push({ id: 'e' + i, cat: CAT_ETC, name: t.name, icon: '🏷️', cond: t.cond || '', owned: true });
-    });
 
     function findByName(name) {
         for (var i = 0; i < TITLES.length; i++) { if (TITLES[i].name === name) return TITLES[i]; }
@@ -278,13 +221,18 @@
     }
 
     function renderTGrid() {
-        var cats = CAT_ORDER.concat([CAT_ETC]);
+        // 서버가 카테고리 순서대로 내려주므로, 순서를 새로 정하지 않고 나온 순서대로 묶는다.
+        var order = [], groups = {};
+        TITLES.forEach(function (t) {
+            if (!groups[t.cat]) { groups[t.cat] = []; order.push(t.cat); }
+            groups[t.cat].push(t);
+        });
         var html = '';
-        cats.forEach(function (cat) {
-            var items = TITLES.filter(function (t) { return t.cat === cat; });
-            if (!items.length) return;
+        order.forEach(function (cat) {
+            var items = groups[cat];
             var have = items.filter(function (t) { return t.owned; }).length;
-            html += '<div class="tcat"><span>' + cat + '</span><span class="tcat-count">' + have + '/' + items.length + '</span></div>';
+            html += '<div class="tcat"><span>' + esc(cat) + '</span>' +
+                '<span class="tcat-count">' + have + '/' + items.length + '</span></div>';
             html += items.map(cardHTML).join('');
         });
         document.getElementById('tgrid').innerHTML = html;
