@@ -186,6 +186,28 @@ public class MyPageController {
         return "mypage/mytrip";
     }
 
+    /**
+     * [v21 신규] "그 지역 스냅 모아보기".
+     *
+     * <p>지도에서 더 들어갈 데가 없는 지역(상세 지도의 시/군·현, 드릴다운이 없는 시/도)을
+     * 클릭하면 여기로 온다 - 그 지역 태그가 붙은 내 스냅만 모아 보여주고, 스냅을 누르면
+     * 해당 게시글(/board/{id})로 간다. 지역 이름은 지도 쪽 표기(예: "울릉")로 넘어오는데
+     * 글에 적힌 표기("독도", "경상북도" 등)와 다를 수 있어서, 비교는 PostService 에서
+     * 정규화한 뒤에 한다(PostService.normalizeRegion).
+     */
+    @GetMapping("/mypage/snaps")
+    public String regionSnaps(@RequestParam(name = "region", required = false) String region,
+                              @AuthenticationPrincipal CustomUserDetails principal, Model model) {
+        UserEntity me = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        model.addAttribute("me", me);
+        model.addAttribute("region", region == null ? "" : region.trim());
+        model.addAttribute("snaps", postService.regionSnaps(me, region));
+
+        return "mypage/snaps";
+    }
+
     @PostMapping("/api/mypage/profile-image")
     @ResponseBody
     @Transactional

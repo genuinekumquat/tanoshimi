@@ -62,7 +62,57 @@ public class PostService {
                 .filter(post -> post.getRegion() != null && !post.getRegion().isBlank())
                 .toList();
     }
-    
+
+    /** regionSnaps 가 훑어볼 최근 글 수. 한 사람이 이보다 많은 스냅을 올릴 규모가 아니다. */
+    private static final int REGION_SNAPS_SCAN_LIMIT = 500;
+
+    /**
+     * 지역명 정규화표. static/js/mypage-heatmap.js 의 NAME_ALIASES 와 같은 내용이다.
+     * 여기에 없는 이름은 공백만 정리해서 그대로 쓴다(매칭이 안 되면 빈 목록이 될 뿐).
+     *
+     * <p><b>알려진 중복:</b> 이 표가 프론트(mypage-heatmap.js)와 여기 두 곳에 있다.
+     * 인수인계 문서의 "지역 매핑 서버 일원화"(Phase 2)에 이미 올라와 있는 숙제이고,
+     * 이번에 새로 생긴 게 아니라 그 목록에 한 줄 더해진 것이다.
+     */
+    private static final java.util.Map<String, String> REGION_ALIASES = java.util.Map.ofEntries(
+            java.util.Map.entry("서울특별시", "서울"), java.util.Map.entry("경기도", "경기"),
+            java.util.Map.entry("인천광역시", "인천"),
+            java.util.Map.entry("강원특별자치도", "강원"), java.util.Map.entry("강원도", "강원"),
+            java.util.Map.entry("충청북도", "충북"), java.util.Map.entry("충청남도", "충남"),
+            java.util.Map.entry("세종특별자치시", "세종"),
+            java.util.Map.entry("전라북도", "전북"), java.util.Map.entry("전북특별자치도", "전북"),
+            java.util.Map.entry("전라남도", "전남"),
+            java.util.Map.entry("경상북도", "경북"), java.util.Map.entry("경상남도", "경남"),
+            java.util.Map.entry("대구광역시", "대구"), java.util.Map.entry("부산광역시", "부산"),
+            java.util.Map.entry("광주광역시", "광주"), java.util.Map.entry("대전광역시", "대전"),
+            java.util.Map.entry("울산광역시", "울산"),
+            java.util.Map.entry("제주특별자치도", "제주"), java.util.Map.entry("제주도", "제주"),
+            // 독도는 행정구역상 울릉군 소속이라 지도에서도 울릉에 병합돼 있다(v19-2).
+            java.util.Map.entry("독도", "울릉"));
+
+    public static String normalizeRegion(String raw) {
+        String name = raw == null ? "" : raw.trim();
+        return REGION_ALIASES.getOrDefault(name, name);
+    }
+
+    /**
+     * [⑥ 마이페이지, v21 신규] 지도에서 지역을 클릭했을 때 여는 "그 지역 스냅 모아보기"
+     * 페이지(/mypage/snaps)의 재료 - 그 지역 태그가 붙은 내 글만.
+     *
+     * <p>지도 쪽 지역명("울릉")과 글에 적힌 지역명("독도", "경상북도" 등)이 항상 같지는
+     * 않아서, 양쪽 다 {@link #normalizeRegion} 으로 한 번 정규화한 뒤 비교한다.
+     */
+    @Transactional(readOnly = true)
+    public List<PostEntity> regionSnaps(UserEntity user, String region) {
+        if (region == null || region.isBlank()) return List.of();
+        String target = normalizeRegion(region);
+        return postRepository.findByUserOrderByCreatedAtDesc(user, PageRequest.of(0, REGION_SNAPS_SCAN_LIMIT))
+                .getContent().stream()
+                .filter(post -> post.getRegion() != null && !post.getRegion().isBlank())
+                .filter(post -> normalizeRegion(post.getRegion()).equals(target))
+                .toList();
+    }
+
     @Transactional
     public Long write(UserEntity author, PostRequest req) {
         PartyEntity party = req.partyId() == null ? null : partyRepository.findById(req.partyId()).orElse(null);

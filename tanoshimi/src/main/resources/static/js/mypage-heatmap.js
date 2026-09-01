@@ -29,6 +29,12 @@
  *   지역 위에 띄운다. 별도 API 없이 템플릿이 #snaps-data 로 내려준 것을 읽는다.
  *   오버뷰 단계에서 하위 드릴 지역이 있는 항목(일본 지방, 한국 경북)은 그 하위 지역들의
  *   스냅을 합쳐서 보여준다(snapsFor).
+ *   스냅 자체에도 커서를 올릴 수 있다 - 올리면 살짝 커지면서 다른 스냅 위로 올라오고
+ *   (겹쳐서 가려지지 않게), 클릭하면 그 스냅의 게시글(/board/{id})로 간다.
+ *
+ * ※ 클릭 규칙: 오버뷰에서 더 들어갈 데가 있는 지역(drillable)은 상세 지도로 확대되고,
+ *   그 외(상세 지도의 시/군·현, 드릴다운이 없는 시/도)는 그 지역 스냅만 모아놓은
+ *   /mypage/snaps?region=... 페이지로 이동한다.
  *
  * ※ 클릭 버그 교훈: SVG 지역을 hover 시 appendChild로 맨 위로 올리면 실제 마우스 클릭
  *   이벤트가 깨진다. 그래서 활성 지역은 복제본을 최상단 레이어(g-active)에 미리 만들어두고
@@ -38,6 +44,41 @@
     'use strict';
 
     var REGIONS_URL = '/assets/geo/regions.json';
+
+    /** 스냅(사진) 하나를 클릭했을 때 열 게시글 주소. PostController 의 GET /board/{id}. */
+    var POST_URL = '/board/';
+    /** 지역을 클릭했을 때 열 "그 지역 스냅 모아보기" 페이지. MyPageController 의 GET /mypage/snaps. */
+    var REGION_SNAPS_URL = '/mypage/snaps';
+
+    /* ===================== 포커스 홀드존(코리도) =====================
+     *
+     * 스냅은 지역 도형에서 뚝 떨어진 원 궤도에 뜬다. 그래서 "커서 밑에 뭐가 있냐"만 보고
+     * 포커스를 정하면, 지역 -> 스냅으로 가는 길에 반드시 (a)빈 지도 또는 (b)다른 지역을
+     * 밟게 되고, (a)면 포커스가 풀려 스냅이 사라지고 (b)면 그 지역으로 포커스가 넘어가서
+     * 스냅까지 도달할 수가 없다. 시간(유예)으로는 (b)를 못 막는다 - 공간으로 풀어야 한다.
+     *
+     * 그래서 스냅을 띄울 때 "이 안에 있으면 포커스를 유지한다"는 영역을 같이 계산해둔다:
+     *   지역 도형의 경계상자 + (지역 중심 -> 각 스냅 중심을 잇는 굵은 선분) + 스냅 타일들
+     * 커서가 이 안에 있으면 다른 지역 위에 있어도 포커스를 넘기지 않고, 벗어나면 유예
+     * 없이 즉시 평소대로 동작한다(= "지역 밖으로 나가면 바로 풀린다"가 더 정확해짐).
+     *
+     * 홀드존이 스냅이 있는 방향으로만 뻗는 부챗살이라, 끈적이는 면적은 넓지 않다.
+     */
+
+    /** 복도(지역 중심 -> 스냅 중심 선분)의 반폭(px). 스냅 한 변(118)의 절반보다 조금 넉넉하게. */
+    var HOLD_CORRIDOR_HALF = 66;
+    /** 지역 경계상자·스냅 타일에 주는 여유(px). */
+    var HOLD_PAD = 8;
+    /**
+     * 복도 안에서 스냅에 닿지 않은 채 "더 이상 바깥으로 나아가지 않는" 상태가 이만큼
+     * 이어지면 홀드를 푼다(ms).
+     *
+     * <p>안전밸브다. 복도 밑에 깔린 다른 지역은 홀드 때문에 못 고르게 되는데, 그 지역을
+     * 보려고 멈춘 것과 스냅으로 지나가는 것을 구분해줄 장치가 필요하다. 지역 중심에서
+     * 멀어지는 동안(= 스냅 쪽으로 나아가는 중)에는 타이머가 계속 리셋되므로, 실제로
+     * 스냅을 향해 움직이는 사람은 이 시간에 절대 안 걸린다.
+     */
+    var HOLD_STALL_MS = 400;
 
     // 여행 지수 -> 색 단계. mypage-heatmap-tiers.css 대신 index.html의 --tier-0~4 변수를 그대로 쓴다.
     // (TravelHeatmapService: 완료 여행 1건당 3점 + 여행 하루당 1점, 기준을 바꾸면 여기도 같이 고칠 것)
@@ -80,6 +121,7 @@
             if (!raw) return;
             var name = NAME_ALIASES[raw] || raw;
             (map[name] = map[name] || []).push({
+                id: el.dataset.id || '',
                 thumb: el.dataset.thumb || '',
                 title: el.dataset.title || ''
             });
@@ -123,6 +165,15 @@
     var state = { country: 'japan', level: 'overview', region: null };
     var focused = null;
     var hiddenPathEl = null; // 포커싱 중 원본을 숨겨둔 <path> - clearFocus 에서 되돌린다.
+
+    /**
+     * 지금 떠 있는 스냅에 대한 포커스 홀드존(stage 기준 좌표).
+     * { cx, cy, box:{x0,y0,x1,y1}, spokes:[{x,y}], tiles:[{x0,y0,x1,y1}] }
+     * 스냅이 없으면 null - 그때는 예전처럼 "지역 밖 = 즉시 해제"만 남는다.
+     */
+    var holdZone = null;
+    var holdStallAt = 0;   // 마지막으로 "바깥으로 나아간" 시각
+    var holdLastD = 0;     // 직전 샘플의 지역 중심으로부터의 거리
 
     /** 서버 raw(지역명 -> {trips, days, score})를 정규화한 이름으로 다시 색인한다. */
     function normalizeRaw(raw) {
@@ -289,10 +340,13 @@
         if (ac) { pathEl.classList.add('region-hidden'); hiddenPathEl = pathEl; }
         else if (hiddenPathEl === pathEl) { hiddenPathEl = null; }
 
-        var suffix = (state.level === 'overview' && r.drillable) ? ' <span style="font-size:12px;color:var(--sash-deep);">· 클릭해서 자세히 보기</span>' : '';
+        // 더 들어갈 데가 있으면 "자세히 보기", 아니면 그 지역 스냅 모아보기 페이지로 간다.
+        var sc = snapsFor(r).length;
+        var hint = canDrill(r) ? '· 클릭해서 자세히 보기'
+            : (sc > 0 ? '· 클릭해서 스냅 ' + sc + '장 모아보기' : '');
+        var suffix = hint ? ' <span style="font-size:12px;color:var(--sash-deep);">' + hint + '</span>' : '';
         if (r.trips > 0) {
             var n = Math.max(1, r.days - 1);
-            var sc = snapsFor(r).length;
             var scTxt = sc > 0 ? (' · 스냅 ' + sc) : '';
             readout.innerHTML = '<span class="pip" style="background:' + tier(r.score).color + '"></span>' +
                 '<span class="msg"><b>' + r.name + '</b> — ' + n + '박 ' + r.days + '일 즐겼습니다!' + scTxt + suffix + '</span>';
@@ -308,7 +362,7 @@
         [].forEach.call(gL.querySelectorAll('.rlabel.show'), function (el) { el.classList.remove('show'); });
         if (hiddenPathEl) { hiddenPathEl.classList.remove('region-hidden'); hiddenPathEl = null; }
         var hint = state.level === 'drill'
-            ? '현에 마우스를 올리면 그 현의 방문 기록이 떠요'
+            ? '지역에 마우스를 올리면 방문 기록과 스냅이, 클릭하면 그 지역 스냅 모아보기로 이동해요'
             : (DATA[state.country].overview.some(function (x) { return x.drillable; })
                 ? '🔍 지역권을 클릭하면 그 안의 현을 볼 수 있어요'
                 : '지역에 마우스를 올리면 확대되며 방문 기록이 떠요');
@@ -326,14 +380,23 @@
      * 스냅 하나를 그린다.
      * thumbnailUrl 은 실제 업로드 경로(/uploads/...)이거나 자리표시 클래스명(ph1~ph4)이다
      * - 피드(mypage/index.html)가 쓰는 규칙과 같게 맞춘다.
+     *
+     * <p>바깥은 &lt;a&gt;(위치·등장 애니메이션 담당), 안쪽 .snap-in 이 실제로 보이는 사진
+     * 타일이다. 확대(hover)를 안쪽에 거는 이유: 바깥에 걸린 등장 애니메이션(pokeIn)이
+     * animation-fill-mode:forwards 로 transform 을 계속 붙들고 있어서 같은 요소에
+     * :hover transform 을 걸면 애니메이션이 이긴다. 안쪽을 키우면 클릭 영역(바깥 118px)은
+     * 그대로라 커서가 경계에서 떨렸다 말았다 하는 일도 없다.
      */
     function pokeHtml(snap, i, x, y, delay) {
         var thumb = snap.thumb || '';
         var uploaded = thumb.indexOf('/uploads/') === 0;
         var shade = /^ph[1-4]$/.test(thumb) ? 's' + thumb.charAt(2) : 's' + ((i % 4) + 1);
         var bg = uploaded ? "background-image:url('" + encodeURI(thumb) + "');" : '';
-        return '<div class="snap-poke ' + shade + '" title="' + esc(snap.title) + '"' +
-            ' style="' + bg + 'left:' + x + 'px;top:' + y + 'px;animation-delay:' + delay + 'ms"></div>';
+        var href = snap.id ? (POST_URL + encodeURIComponent(snap.id)) : '';
+        return '<a class="snap-poke"' + (href ? ' href="' + href + '"' : '') +
+            ' title="' + esc(snap.title) + '" aria-label="' + esc(snap.title) + ' 게시글 열기"' +
+            ' style="left:' + x + 'px;top:' + y + 'px;animation-delay:' + delay + 'ms">' +
+            '<span class="snap-in ' + shade + '" style="' + bg + '"></span></a>';
     }
 
     function showSnaps(pathEl, r) {
@@ -341,6 +404,7 @@
         var snaps = snapsFor(r);
         var n = Math.min(snaps.length, MAXN);
         snapsEl.classList.remove('show'); void snapsEl.offsetWidth;
+        holdZone = null;
         if (n === 0) { snapsEl.innerHTML = ''; return; }  // 스냅 없으면 포커싱만
 
         var box = pathEl.getBoundingClientRect(), sb = stage.getBoundingClientRect();
@@ -372,36 +436,149 @@
             startAngle = roomySide - fullSpan / 2;
         }
 
+        var spokes = [], tiles = [];
         for (var i = 0; i < n; i++) {
             var ang = startAngle + i * step;
             var x = cx + Math.cos(ang) * R - HALF, y = cy + Math.sin(ang) * R - HALF;
             x = Math.max(6, Math.min(x, sb.width - 118 - 6)); y = Math.max(6, Math.min(y, sb.height - 118 - 6));
             html += pokeHtml(snaps[i], i, x, y, i * 45);
+            // 홀드존 재료: 실제로 배치된(가장자리 보정까지 끝난) 좌표를 그대로 쓴다.
+            spokes.push({ x: x + HALF, y: y + HALF });
+            tiles.push({ x0: x - HOLD_PAD, y0: y - HOLD_PAD, x1: x + 118 + HOLD_PAD, y1: y + 118 + HOLD_PAD });
         }
         snapsEl.innerHTML = html; snapsEl.classList.add('show');
+
+        holdZone = {
+            cx: cx, cy: cy,
+            box: {
+                x0: box.left - sb.left - HOLD_PAD, y0: box.top - sb.top - HOLD_PAD,
+                x1: box.right - sb.left + HOLD_PAD, y1: box.bottom - sb.top + HOLD_PAD
+            },
+            spokes: spokes, tiles: tiles,
+            released: false   // 안전밸브가 풀어놓은 상태인지(holdHolds/holdRefresh 참고)
+        };
+        holdStallAt = Date.now();
+        holdLastD = 0;
     }
 
-    function hideSnaps() { snapsEl.classList.remove('show'); }
+    function hideSnaps() { snapsEl.classList.remove('show'); holdZone = null; }
+
+    /* ---------- 홀드존 판정 ---------- */
+
+    /** 마우스 이벤트를 stage 기준 좌표로. (스크롤로 바뀌므로 매번 다시 잰다) */
+    function stagePoint(e) {
+        var sb = stage.getBoundingClientRect();
+        return { x: e.clientX - sb.left, y: e.clientY - sb.top };
+    }
+
+    function inRect(p, r) { return p.x >= r.x0 && p.x <= r.x1 && p.y >= r.y0 && p.y <= r.y1; }
+
+    /** 점 p 와 선분 ab 사이의 거리. 복도(굵은 선분) 판정용. */
+    function distToSegment(p, ax, ay, bx, by) {
+        var dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+        var t = len2 === 0 ? 0 : ((p.x - ax) * dx + (p.y - ay) * dy) / len2;
+        t = t < 0 ? 0 : (t > 1 ? 1 : t);
+        var qx = ax + t * dx, qy = ay + t * dy;
+        return Math.sqrt((p.x - qx) * (p.x - qx) + (p.y - qy) * (p.y - qy));
+    }
+
+    function inHoldZone(p) {
+        if (!holdZone) return false;
+        if (inRect(p, holdZone.box)) return true;
+        for (var i = 0; i < holdZone.tiles.length; i++) {
+            if (inRect(p, holdZone.tiles[i])) return true;
+        }
+        for (var j = 0; j < holdZone.spokes.length; j++) {
+            var s = holdZone.spokes[j];
+            if (distToSegment(p, holdZone.cx, holdZone.cy, s.x, s.y) <= HOLD_CORRIDOR_HALF) return true;
+        }
+        return false;
+    }
+
+    function distFromCenter(p) {
+        var dx = p.x - holdZone.cx, dy = p.y - holdZone.cy;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    /**
+     * 스냅/원래 지역 위에 있을 때 - 정체 판정을 처음부터 다시 세고, 안전밸브로 풀렸던
+     * 홀드도 다시 무장한다(원래 지역으로 돌아왔으면 다시 스냅으로 갈 수 있어야 하니까).
+     */
+    function holdRefresh(p, now) {
+        if (!holdZone) return;
+        holdZone.released = false;
+        holdStallAt = now;
+        holdLastD = distFromCenter(p);
+    }
+
+    /**
+     * 지금 이 지점에서 포커스를 붙잡아야 하는가.
+     * 홀드존 안이면 true - 단, 바깥으로 나아가지 않는 상태가 HOLD_STALL_MS 넘게
+     * 이어지면 홀드를 풀어 밑에 깔린 다른 지역을 고를 수 있게 해준다(안전밸브).
+     */
+    function holdHolds(p, now) {
+        if (!holdZone || holdZone.released || !inHoldZone(p)) return false;
+        var d = distFromCenter(p);
+        if (d > holdLastD + 1.5) holdStallAt = now;   // 아직 스냅 쪽으로 나아가는 중
+        holdLastD = d;
+        if (now - holdStallAt > HOLD_STALL_MS) { holdZone.released = true; return false; }
+        return true;
+    }
+
+    /** 이 지역을 클릭했을 때 한 단계 더 들어갈 수 있는가(오버뷰 -> 상세 지도). */
+    function canDrill(r) {
+        return !!(r && state.level === 'overview' && r.drillable
+            && DATA[state.country].drill && DATA[state.country].drill[r.key]);
+    }
 
     function drillInto(r) {
-        if (!r) return;
-        if (state.level === 'overview' && r.drillable && DATA[state.country].drill && DATA[state.country].drill[r.key]) {
-            state.level = 'drill'; state.region = r.key; focused = null; hideSnaps(); swapDraw();
-        }
+        if (!canDrill(r)) return;
+        state.level = 'drill'; state.region = r.key; focused = null; hideSnaps(); swapDraw();
     }
 
-    svg.addEventListener('mousemove', function (e) {
-        var t = e.target.closest('.region');
-        if (t && t.__r !== focused) focus(t);
+    /** 더 들어갈 데가 없는 지역을 클릭했을 때 - 그 지역 스냅만 모아놓은 페이지로. */
+    function openRegionSnaps(r) {
+        if (!r) return;
+        window.location.href = REGION_SNAPS_URL + '?region=' + encodeURIComponent(r.name);
+    }
+
+    /**
+     * 포커스 전환/해제 규칙.
+     *
+     * <p>예전에는 `svg.mouseleave` 에서만 clearFocus 를 불렀다 - 그래서 지역 도형 밖으로
+     * 나가도 지도(흰 영역) 안에 있는 한 포커싱이 안 풀렸다. 지금은 홀드존(위 주석 참고)
+     * 밖으로 나가는 순간 유예 없이 바로 정리된다.
+     *
+     * <p>순서가 중요하다: 스냅/원래 지역 -> 홀드존 -> 다른 지역 -> 빈 곳.
+     * 홀드존 판정을 "다른 지역" 앞에 두는 것이 핵심이다 - 스냅으로 가는 길에 다른 지역이
+     * 깔려 있어도 그쪽으로 포커스가 넘어가지 않는다.
+     *
+     * <p>svg 가 아니라 stage(지도 카드 전체)에서 듣는다 - 스냅(.snap-poke)은 svg 밖의
+     * 별도 레이어(#snaps)에 있어서, svg 에서만 들으면 스냅으로 커서를 옮기는 순간
+     * 지도에서 벗어난 것으로 처리돼 스냅이 사라져버린다.
+     */
+    stage.addEventListener('mousemove', function (e) {
+        var now = Date.now();
+        var p = stagePoint(e);
+        var onSnap = !!e.target.closest('.snap-poke');
+        var t = onSnap ? null : e.target.closest('.region');
+
+        if (onSnap || (t && t.__r === focused)) { holdRefresh(p, now); return; }
+        if (holdHolds(p, now)) return;
+        if (t) { focus(t); return; }
+        if (focused) clearFocus();   // 이미 풀린 상태면 매 mousemove 마다 DOM 을 훑지 않게
     });
-    svg.addEventListener('mouseleave', clearFocus);
+    stage.addEventListener('mouseleave', clearFocus);
     svg.addEventListener('focusin', function (e) { var t = e.target.closest('.region'); if (t) focus(t); });
     stage.addEventListener('click', function (e) {
         if (e.target.closest('#map-back') || e.target.closest('.map-toggle')) return;
-        if (state.level === 'overview') drillInto(focused);
+        if (e.target.closest('.snap-poke')) return;   // <a> 가 알아서 게시글로 이동한다
+        if (!focused) return;
+        if (canDrill(focused)) drillInto(focused);
+        else openRegionSnaps(focused);
     });
     backBtn.addEventListener('click', function () { state.level = 'overview'; state.region = null; hideSnaps(); swapDraw(); });
-    window.addEventListener('resize', function () { hideSnaps(); });
+    window.addEventListener('resize', function () { clearFocus(); });
 
     function setCountry(country) {
         state.country = country; state.level = 'overview'; state.region = null;

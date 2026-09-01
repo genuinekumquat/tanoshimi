@@ -210,18 +210,45 @@
     .legend{ display:flex; justify-content:center; gap:14px; flex-wrap:wrap; margin-top:18px; padding-top:16px; border-top:1px dashed var(--line); font-size:11.5px; color:var(--ink-soft); }
     .legend .sw{ width:12px; height:12px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:-2px; border:1px solid rgba(0,0,0,.15); }
 
-    /* 스냅 말풍선. 지역별 스냅 조회 API가 붙기 전(Phase 2)까지는 렌더되지 않는다. */
+    /* 스냅 말풍선. mypage-heatmap.js 가 지역에 커서를 올릴 때 그 지역 사진을 뿌린다.
+       바깥 <a.snap-poke> = 위치 + 등장 애니메이션 + 클릭(게시글로 이동),
+       안쪽 <span.snap-in> = 실제로 보이는 사진 타일 + 확대(hover).
+       확대를 안쪽에 거는 이유: 바깥은 pokeIn 애니메이션이 animation-fill-mode:forwards 로
+       transform 을 계속 붙들고 있어서, 같은 요소에 :hover transform 을 걸면 애니메이션이
+       이겨버린다(!important 없이는). 안쪽만 키우면 클릭 영역(바깥 118px)이 그대로라
+       커서가 확대 경계에서 들락날락하며 깜빡이는 문제도 없다. */
     .snaps{ position:absolute; inset:0; pointer-events:none; z-index:6; }
     .snap-poke{
-      position:absolute; width:118px; height:118px; border-radius:14px; border:4px solid var(--card);
-      box-shadow:0 8px 20px rgba(40,30,15,.24); opacity:0; transform:scale(.4); background-size:cover;
+      position:absolute; display:block; width:118px; height:118px;
+      opacity:0; transform:scale(.4); visibility:hidden; z-index:1;
     }
-    .snaps.show .snap-poke{ animation:pokeIn .42s cubic-bezier(.34,1.56,.64,1) forwards; }
-    @keyframes pokeIn{ to{ opacity:1; transform:scale(1); } }
-    .snap-poke.s1{ background:linear-gradient(135deg,var(--sky),#c7dfe6); }
-    .snap-poke.s2{ background:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
-    .snap-poke.s3{ background:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
-    .snap-poke.s4{ background:linear-gradient(135deg,#e3b7a0,#d99a86); }
+    /* pointer-events 는 .show 일 때만 켠다 - 숨겨진 스냅이 지도 클릭을 가로채지 않게. */
+    .snaps.show .snap-poke{
+      animation:pokeIn .42s cubic-bezier(.34,1.56,.64,1) forwards;
+      pointer-events:auto; cursor:pointer;
+    }
+    /* 커서를 올린 스냅만 다른 스냅 위로 올라온다(겹쳐도 안 가려지게). */
+    .snaps.show .snap-poke:hover,
+    .snaps.show .snap-poke:focus-visible{ z-index:9; outline:none; }
+    /* visibility 를 키프레임에서 켜는 이유: animation-delay(순차 등장) 동안에는 어떤
+       키프레임도 적용되지 않으므로, 아직 안 보이는 스냅이 클릭 영역만 차지하는 걸 막는다. */
+    @keyframes pokeIn{
+      from{ visibility:visible; opacity:0; transform:scale(.4); }
+      to{ visibility:visible; opacity:1; transform:scale(1); }
+    }
+    .snap-in{
+      position:absolute; inset:0; border-radius:14px; border:4px solid var(--card);
+      box-shadow:0 8px 20px rgba(40,30,15,.24); background-size:cover; background-position:center;
+      transition:transform .18s cubic-bezier(.34,1.4,.64,1), box-shadow .18s ease, border-color .18s ease;
+    }
+    .snap-poke:hover .snap-in,
+    .snap-poke:focus-visible .snap-in{
+      transform:scale(1.16); box-shadow:0 15px 32px rgba(40,30,15,.36); border-color:var(--gold);
+    }
+    .snap-in.s1{ background-color:#c7dfe6; background-image:linear-gradient(135deg,var(--sky),#c7dfe6); }
+    .snap-in.s2{ background-color:var(--parchment-deep); background-image:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
+    .snap-in.s3{ background-color:#a9c7a1; background-image:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
+    .snap-in.s4{ background-color:#d99a86; background-image:linear-gradient(135deg,#e3b7a0,#d99a86); }
 
     /* ===================== 칭호 관리 뷰 ===================== */
     .tm-head{ display:flex; align-items:center; gap:12px; margin-bottom:18px; }
@@ -457,7 +484,7 @@
     <!-- ================= 지도 ================= -->
     <div class="sec-head">
       <h2>🗺️ 나의 여행 지도</h2>
-      <span class="note">색이 진할수록 자주 다녀온 지역입니다. 지역권을 클릭하면 그 안의 현이 열려요.</span>
+      <span class="note">색이 진할수록 자주 다녀온 지역입니다. 지역권을 클릭하면 그 안의 현이, 그 아래 지역을 클릭하면 그 지역 스냅 모아보기가 열려요. 스냅을 클릭하면 해당 게시글로 이동합니다.</span>
     </div>
 
     <section class="map-card card" id="stage">
@@ -496,7 +523,7 @@
            사진을 그 위에 띄운다. -->
       <div id="snaps-data" hidden>
         <span th:each="p : ${snapPosts}"
-              th:attr="data-region=${p.region},data-thumb=${p.thumbnailUrl},data-title=${p.title}"></span>
+              th:attr="data-id=${p.id},data-region=${p.region},data-thumb=${p.thumbnailUrl},data-title=${p.title}"></span>
       </div>
 
       <div class="snaps" id="snaps"></div>
