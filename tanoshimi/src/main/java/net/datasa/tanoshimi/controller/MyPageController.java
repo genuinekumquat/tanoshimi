@@ -192,8 +192,9 @@ public class MyPageController {
      * <p>지도에서 더 들어갈 데가 없는 지역(상세 지도의 시/군·현, 드릴다운이 없는 시/도)을
      * 클릭하면 여기로 온다 - 그 지역 태그가 붙은 내 스냅만 모아 보여주고, 스냅을 누르면
      * 해당 게시글(/board/{id})로 간다. 지역 이름은 지도 쪽 표기(예: "울릉")로 넘어오는데
-     * 글에 적힌 표기("독도", "경상북도" 등)와 다를 수 있어서, 비교는 PostService 에서
-     * 정규화한 뒤에 한다(PostService.normalizeRegion).
+     * 글에 적힌 표기("독도", "경상북도" 등)와 다를 수 있어서, 비교는
+     * {@link net.datasa.tanoshimi.service.RegionCatalog} 로 정규화한 뒤에 한다.
+     * 권역 이름(예: "전남")으로 들어오면 그 아래 지역("여수")의 스냅까지 같이 모아준다.
      */
     @GetMapping("/mypage/snaps")
     public String regionSnaps(@RequestParam(name = "region", required = false) String region,
