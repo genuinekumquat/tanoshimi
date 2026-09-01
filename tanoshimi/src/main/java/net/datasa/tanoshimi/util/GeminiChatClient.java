@@ -47,7 +47,7 @@ public class GeminiChatClient implements CompanionChatClient {
     private String apiKey;
 
     /** 2026-08 기준 무난한 저지연/저비용 모델. 최신 세대가 나왔으면 이 값만 바꾸면 된다. */
-    @Value("${app.companion.model:gemini-2.5-flash}")
+    @Value("${app.companion.model:gemini-1.5-flash}")
     private String model;
 
     @Override
