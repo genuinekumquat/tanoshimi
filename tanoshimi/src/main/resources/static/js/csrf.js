@@ -32,6 +32,13 @@
             if (token) headers[header] = token;
             return request(url, { method: 'PATCH', headers });
         },
+        // [v19] "내 여행" 수정(MyTripController)에 필요해 추가 - post와 같은 모양,
+        // 메서드만 PUT. 기존 호출부(get/post/patch/del)는 그대로다.
+        put(url, payload) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers[header] = token;
+            return request(url, { method: 'PUT', headers, body: JSON.stringify(payload) });
+        },
         del(url) {
             const headers = {};
             if (token) headers[header] = token;

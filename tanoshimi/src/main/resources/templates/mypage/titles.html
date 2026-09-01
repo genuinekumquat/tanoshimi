@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{fragments/layout :: head('칭호 관리 | 타노시미')}"></th:block>
+  <style>
+    :root{
+      --parchment:#f3e8cf; --parchment-deep:#e8dab3; --card:#fffcf4;
+      --forest:#4b6b4a; --forest-deep:#33472f; --sash:#e0793f; --sash-deep:#b85c2b;
+      --gold:#d9a441; --sky:#8fb9c9; --ink:#3a2e22; --ink-soft:#6b5c46; --rope:#c9b58b; --line:#d8c69a;
+      --warm:#ff8a00; --map-line:#33302a;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background:radial-gradient(ellipse at top left, rgba(255,255,255,.35), transparent 55%), var(--parchment);
+      color:var(--ink); font-family:'Gowun Dodum','Apple SD Gothic Neo',sans-serif; line-height:1.6;
+    }
+    h1,h2,h3,.disp{ font-family:'Jua','Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
+    a{ color:var(--forest-deep); text-decoration:none; }
+    .wrap{ max-width:980px; margin:0 auto; padding:26px 22px 90px; }
+    .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; }
+    .btn{
+      font-family:'Gowun Dodum',sans-serif; font-weight:700; font-size:12.5px; border:none; border-radius:9px;
+      padding:8px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    }
+    .btn:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+    .btn-forest{ background:var(--forest); color:#fff; box-shadow:0 3px 0 var(--forest-deep); }
+    .btn-forest:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--forest-deep); }
+    .btn-ghost{ background:var(--card); color:var(--forest-deep); border:1.5px solid var(--line); }
+    .btn-ghost:hover{ border-color:var(--sash); color:var(--sash-deep); }
+
+    .sec-head{ display:flex; align-items:baseline; gap:10px; margin:34px 0 12px; flex-wrap:wrap; }
+    .sec-head h2{ font-size:18px; }
+
+    /* ===================== 칭호 관리 뷰 ===================== */
+    .tm-head{ display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+    .back-btn{
+      display:inline-block; font-size:13px; color:var(--forest-deep); background:var(--card); border:1.5px solid var(--line);
+      border-radius:10px; padding:8px 13px; cursor:pointer; font-family:'Gowun Dodum',sans-serif; font-weight:700;
+    }
+    .back-btn:hover{ border-color:var(--sash); color:var(--sash-deep); }
+    .rep-card{ display:flex; align-items:center; gap:18px; padding:22px 24px; margin-bottom:22px; flex-wrap:wrap; }
+    .rep-badge{
+      width:76px; height:76px; flex:none; border-radius:20px; background:rgba(224,121,63,.1);
+      border:2px solid var(--sash); display:flex; align-items:center; justify-content:center; font-size:38px;
+    }
+    .rep-info .lbl{ font-size:11.5px; color:var(--ink-soft); letter-spacing:.04em; }
+    .rep-info .rep-name{ font-family:'Jua',sans-serif; font-size:22px; color:var(--forest-deep); margin:3px 0 2px; }
+    .rep-info .rep-cond{ font-size:12.5px; color:var(--ink-soft); }
+    .rep-edit{ margin-left:auto; }
+
+    .tgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; }
+    .tcat{
+      grid-column:1/-1; display:flex; align-items:baseline; gap:10px; margin:14px 2px 2px;
+      font-family:'Jua',sans-serif; font-size:15px; color:var(--forest-deep);
+      border-bottom:1.5px dashed var(--line); padding-bottom:6px;
+    }
+    .tcat:first-child{ margin-top:0; }
+    .tcat-count{ font-size:11px; color:var(--ink-soft); margin-left:auto; font-family:'Gowun Dodum',sans-serif; }
+    .tcard{
+      position:relative; padding:16px 14px; border-radius:14px; border:1px solid var(--line); background:var(--card);
+      text-align:center; transition:transform .15s, box-shadow .15s;
+    }
+    .tcard.owned{ border-color:var(--sash); background:rgba(224,121,63,.06); }
+    .tcard.owned:hover{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(59,44,20,.12); }
+    .tcard.rep{ outline:2.5px solid var(--gold); outline-offset:1px; }
+    .tcard.locked{ opacity:.55; filter:grayscale(1); background:var(--parchment-deep); border-style:dashed; cursor:help; }
+    .tcard.locked .tc-ic{ opacity:.5; }
+    .tcard .tc-ic{ font-size:30px; }
+    .tcard .tc-name{ font-family:'Jua',sans-serif; font-size:14px; color:var(--forest-deep); margin-top:6px; }
+    .tcard.locked .tc-name{ color:var(--ink-soft); }
+    .tcard .tc-badge{ position:absolute; top:8px; right:8px; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; }
+    .tcard .tc-badge.on{ background:var(--gold); color:#fff; }
+    .tcard .tc-lock{
+      position:absolute; top:7px; right:7px; font-size:10px; font-weight:700; color:var(--ink-soft);
+      background:rgba(0,0,0,.06); border-radius:999px; padding:2px 7px; display:inline-flex; align-items:center; gap:3px;
+    }
+    .tc-tip{
+      position:fixed; z-index:60; background:var(--forest-deep); color:#fff; font-size:11.5px; padding:6px 11px;
+      border-radius:8px; pointer-events:none; opacity:0; transform:translateY(4px); transition:.15s;
+      max-width:200px; text-align:center;
+    }
+    .tc-tip.show{ opacity:1; transform:translateY(0); }
+
+    /* ===================== 모달(대표 칭호) ===================== */
+    .modal{ position:fixed; inset:0; background:rgba(30,22,14,.42); display:none; align-items:center; justify-content:center; z-index:80; padding:20px; }
+    .modal.show{ display:flex; }
+    .modal-panel{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; width:min(460px,100%); box-shadow:0 20px 50px rgba(30,22,14,.3); }
+    .modal-panel h3{ font-family:'Jua',sans-serif; color:var(--forest-deep); margin:0 0 4px; font-size:18px; }
+    .modal-panel .m-sub{ font-size:12.5px; color:var(--ink-soft); margin-bottom:16px; }
+    .m-list{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px; max-height:320px; overflow-y:auto; }
+    .m-opt{
+      display:flex; align-items:center; gap:9px; padding:11px 13px; border-radius:12px; border:1.5px solid var(--line);
+      background:var(--parchment); cursor:pointer; transition:.12s;
+    }
+    .m-opt:hover{ border-color:var(--sash); }
+    .m-opt.sel{ border-color:var(--sash); background:rgba(224,121,63,.1); box-shadow:0 0 0 2px rgba(224,121,63,.15); }
+    .m-opt .mo-ic{ font-size:22px; }
+    .m-opt .mo-name{ font-family:'Jua',sans-serif; font-size:13.5px; color:var(--forest-deep); }
+    .m-actions{ display:flex; gap:9px; justify-content:flex-end; }
+
+    .toast{
+      position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+      background:var(--forest-deep); color:#fff; font-size:13px; padding:10px 18px; border-radius:999px;
+      box-shadow:0 6px 16px rgba(59,44,20,.3); opacity:0; pointer-events:none; transition:.25s; z-index:90;
+    }
+    .toast.on{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+    @media (max-width:640px){ .rep-edit{ margin-left:0; } }
+    @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
+  </style>
+</head>
+<body>
+
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="wrap">
+
+  <!-- [v20 신규] 예전에는 /mypage 안에서 JS로 이 뷰만 감췄다 보여줬는데, 뒤로가기를 누르면
+       칭호 관리 화면이 아니라 메인 페이지로 나가버리는 문제가 있어 실제 URL(/mypage/titles)이
+       있는 별도 페이지로 분리했다. 카탈로그(38종 8카테고리)는 mypage-titles-manage.js 가
+       그리고, 획득 여부는 서버가 내려준 ownedCodes 와 대조해서 정한다. -->
+  <span id="titles-meta" hidden th:attr="data-rep-title=${myTitle != null ? myTitle.name : ''}"></span>
+
+  <div class="tm-head">
+    <a th:href="@{/mypage}" class="back-btn">‹ 마이페이지</a>
+    <h1 style="font-size:22px;">칭호 관리</h1>
+  </div>
+
+  <section class="card rep-card">
+    <div class="rep-badge" id="rep-badge">🏷️</div>
+    <div class="rep-info">
+      <div class="lbl">현재 대표 칭호</div>
+      <div class="rep-name" id="rep-name">아직 없음</div>
+      <div class="rep-cond" id="rep-cond">첫 여행을 완료하면 칭호가 열려요</div>
+    </div>
+    <button type="button" class="btn btn-ghost rep-edit" id="btn-rep-edit">✍ 수정</button>
+  </section>
+
+  <div class="sec-head" style="margin-top:0;"><h2>전체 칭호</h2></div>
+
+  <!-- 칭호 전체 목록(미획득 포함). mypage-titles-manage.js 가 이 data-* 를 읽어 카드를 그린다.
+       엔티티를 JS 로 직렬화하지 않고 마크업에 실어 보내는 방식(단일 출처). -->
+  <div id="titles-data" hidden>
+    <span th:each="t : ${allTitles}"
+          th:attr="data-code=${t.code},data-name=${t.name},data-category=${t.category},
+                   data-cond=${t.conditionDesc},data-icon=${t.iconKey},
+                   data-owned=${#lists.contains(ownedCodes, t.code)}"></span>
+  </div>
+
+  <div class="tgrid" id="tgrid"></div>
+  <p style="font-size:12px; color:var(--ink-soft); margin-top:14px;">
+    잠긴 칭호에 마우스를 올리면 해금 조건이 표시됩니다.
+  </p>
+
+</main>
+
+<!-- 대표 칭호 설정 모달 (※ 저장 API는 Phase 2. 지금은 화면 상태만 바뀐다) -->
+<div class="modal" id="rep-modal">
+  <div class="modal-panel">
+    <h3>대표 칭호 설정</h3>
+    <p class="m-sub">획득한 칭호 중에서 대표로 표시할 칭호를 골라주세요.</p>
+    <div class="m-list" id="m-list"></div>
+    <div class="m-actions">
+      <button type="button" class="btn btn-ghost" id="m-cancel">취소</button>
+      <button type="button" class="btn btn-forest" id="m-confirm">확인</button>
+    </div>
+  </div>
+</div>
+
+<div class="tc-tip" id="tc-tip"></div>
+<div class="toast" id="toast"></div>
+
+<!-- CSRF 토큰을 붙이는 공용 fetch 래퍼(window.api). 아래 스크립트가 의존하므로 먼저 로드한다. -->
+<script th:src="@{/js/csrf.js}"></script>
+<script th:src="@{/js/mypage-titles-manage.js}"></script>
+
+</body>
+</html>

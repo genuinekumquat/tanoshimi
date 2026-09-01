@@ -31,6 +31,16 @@ public class PostEntity {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "party_id")
     private PartyEntity party;
 
+    /**
+     * [v19 신규] 이 스냅이 어느 "내 여행"(my_trips) 기록인지. 여행 횟수 집계와는 무관하다
+     * (그건 my_trips 행 개수 자체가 근거 - MyTripService 참고) - 다만 [v19-4] 부터는
+     * source=PARTY 인 여행이 실제로 "카운트"되려면(칭호/지도 반영) 이 trip 을 가리키는 스냅이
+     * 최소 1장 있어야 한다(MyTripService.isCountable). 파티를 만들고 완료 처리만 해두고 실제로
+     * 다녀오지 않아도 여행 기록이 남는 것을 막기 위함(2026-09-01 요청).
+     */
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "trip_id")
+    private MyTripEntity trip;
+
     @Column(nullable = false, length = 200)
     private String title;
 
@@ -60,9 +70,10 @@ public class PostEntity {
     private LocalDateTime updatedAt;
 
     @Builder
-    public PostEntity(UserEntity user, PartyEntity party, String title, String content, String region, String thumbnailUrl) {
+    public PostEntity(UserEntity user, PartyEntity party, MyTripEntity trip, String title, String content, String region, String thumbnailUrl) {
         this.user = user;
         this.party = party;
+        this.trip = trip;
         this.title = title;
         this.content = content;
         this.region = region;

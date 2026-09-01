@@ -10,8 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.datasa.tanoshimi.domain.entity.PartyEntity;
-import net.datasa.tanoshimi.domain.entity.PartyStatus;
+import net.datasa.tanoshimi.domain.entity.MyTripEntity;
 import net.datasa.tanoshimi.domain.entity.TitleEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.domain.entity.UserTitleEntity;
@@ -33,13 +32,25 @@ import org.springframework.transaction.annotation.Transactional;
  *   MAN=매너온도 / P=파티 활동 / D=여행 거리 / A=액티비티
  * </pre>
  *
- * <p><b>판정 근거</b>는 완료된 파티(PartyStatus.completed)다. TravelHeatmapService 와 같은
- * 근거를 쓰되, 지도는 "지수"로 색을 칠하고 칭호는 "횟수"로 판정한다.
+ * <p><b>v18 변경 ①</b> - 여행 거리 칭호에 상위 2종(D20000/D40000, "지구 반바퀴/한바퀴 클럽")을
+ * 추가해 40종이 됐다(마이그레이션 {@code db/migration_v18_titles_distance_tiers.sql}).
+ * 판정 방식은 기존 여행 거리 4종과 동일하게 아직 미구현이다(아래 참고).
  *
- * <p><b>아직 판정하지 않는 10종</b> - 행은 있지만 근거 데이터가 없어 잠금 상태로 둔다.
+ * <p><b>v18 변경 ② - 개별 여행(파티 없이 혼자 다녀온 여행) 인정.</b> TravelHeatmapService 와
+ * 같은 이유로, 파티에 안 걸린(party_id NULL) 지역 태그 스냅도 여행 횟수·지역 판정에 넣는다
+ * (자세한 배경은 그쪽 클래스 주석 참고). 시/군 단위 태그(예: "경주")는 {@link #normalizeRegion}
+ * 이 상위 시/도("경북")로 접어서 합산한다 - 이 클래스의 "지역" 판정(8도 정복자, 광역시 특색
+ * 등)은 전부 시/도·현 단위 전제라서다. 지도 드릴다운(mypage-heatmap.js)은 반대로 시/군
+ * 단위를 그대로 보여줘야 해서 접지 않는다 - 같은 원본 데이터를 서로 다른 두 단위로 쓰는
+ * 셈이니, 시/군 목록을 하나 늘리면 여기 {@code KOREA_CITY_TO_PROVINCE} 도 같이 늘려야 한다.
+ *
+ * <p><b>판정 근거</b>는 완료된 파티(PartyStatus.completed) + 개별 여행이다. TravelHeatmapService
+ * 와 같은 근거를 쓰되, 지도는 "지수"로 색을 칠하고 칭호는 "횟수"로 판정한다.
+ *
+ * <p><b>아직 판정하지 않는 12종</b> - 행은 있지만 근거 데이터가 없어 잠금 상태로 둔다.
  * <ul>
  *   <li>명예 OO인 5종(R_GS/R_JL/R_CC/R_GW/R_GG) — "비거주자" 판정에 집 주소 필요</li>
- *   <li>여행 거리 4종(D400~D10000) — 집 좌표 기준 누적 거리 필요</li>
+ *   <li>여행 거리 6종(D400~D40000) — 집 좌표 기준 누적 거리 필요</li>
  *   <li>야경 헌터(A_NIGHT) — 스냅에 '야경' 분류가 없음</li>
  * </ul>
  * users 에 home_lat/lng 가 생기면(⑤ 스키마) 여기에 판정만 추가하면 된다.
@@ -136,6 +147,23 @@ public class TitleService {
             Map.entry("대전광역시", "대전"), Map.entry("울산광역시", "울산"),
             Map.entry("제주특별자치도", "제주"), Map.entry("제주도", "제주"));
 
+    /**
+     * 시/군/구 -> 소속 시/도. v18에서 개별 여행(스냅 지역 태그) 판정이 생기면서, "경주"·"포항"
+     * 처럼 시/군 단위 태그도 들어올 수 있게 됐다(마이페이지 지도가 경북부터 시/군 드릴다운을
+     * 지원하기 시작했다 - regions.json 참고). 이 클래스의 지역 판정은 전부 시/도 단위라서
+     * 여기로 되돌린다. 아직 경북만 드릴다운이 있어 경북만 채워뒀다 - 다른 시/도도 드릴다운이
+     * 생기면 이 표에 추가해야 그 시/도의 "8도 정복자"·"지도 수집가" 등 판정이 안 새 나간다.
+     */
+    private static final Map<String, String> KOREA_CITY_TO_PROVINCE = Map.ofEntries(
+            Map.entry("포항", "경북"), Map.entry("경주", "경북"), Map.entry("김천", "경북"),
+            Map.entry("안동", "경북"), Map.entry("구미", "경북"), Map.entry("영주", "경북"),
+            Map.entry("영천", "경북"), Map.entry("상주", "경북"), Map.entry("문경", "경북"),
+            Map.entry("경산", "경북"), Map.entry("군위", "경북"), Map.entry("의성", "경북"),
+            Map.entry("청송", "경북"), Map.entry("영양", "경북"), Map.entry("영덕", "경북"),
+            Map.entry("청도", "경북"), Map.entry("고령", "경북"), Map.entry("성주", "경북"),
+            Map.entry("칠곡", "경북"), Map.entry("예천", "경북"), Map.entry("봉화", "경북"),
+            Map.entry("울진", "경북"), Map.entry("울릉", "경북"), Map.entry("독도", "경북"));
+
     private final TitleRepository titleRepository;
     private final UserTitleRepository userTitleRepository;
     private final PartyMemberRepository partyMemberRepository;
@@ -144,33 +172,37 @@ public class TitleService {
     /**
      * 완료한 여행·파티 활동·매너온도로 칭호를 확인해 부여한다.
      *
+     * <p><b>v19 변경</b> - parties/posts 를 직접 스캔하던 판정 근거를 "내 여행"(my_trips)
+     * 목록으로 옮겼다. {@code trips} 는 MyPageController 가 MyTripService.listMine 으로
+     * 이미 동기화·조회한 뒤, 그중 {@link net.datasa.tanoshimi.service.MyTripService#isCountable}
+     * 로 걸러낸 "실제로 카운트할" 목록만 넘겨준다 - 파티 여행이라도 연결된 스냅이 한 장도
+     * 없으면 여기 들어오지 않는다(2026-09-01 요청: 파티만 만들고 완료 처리해서 여행 기록을
+     * 조작하는 것을 막기 위함). SOLO 여행은 등록 자체가 근거라 항상 포함된다.
+     *
      * <p>이미 가진 칭호는 건너뛰므로 여러 번 호출해도 안전하다. 한 번 딴 칭호는 실적이
      * 줄어도 회수하지 않는다(수집 요소라 뺏기면 기분이 나쁘다).
      */
     @Transactional
-    public void syncTitles(UserEntity user) {
-        List<PartyEntity> completed =
-                partyMemberRepository.findPartiesByUserAndStatus(user, PartyStatus.completed);
-
+    public void syncTitles(UserEntity user, List<MyTripEntity> trips) {
         Map<String, Integer> tripsByRegion = new HashMap<>();
         int festivalTrips = 0;
-        for (PartyEntity party : completed) {
-            String region = normalizeRegion(party.getRegion());
+        for (MyTripEntity trip : trips) {
+            String region = normalizeRegion(trip.getDestination());
             if (region != null) {
                 tripsByRegion.merge(region, 1, Integer::sum);
             }
-            if (STYLE_FESTIVAL.equals(party.getStyleTag())) {
+            if (trip.isParty() && trip.getParty() != null && STYLE_FESTIVAL.equals(trip.getParty().getStyleTag())) {
                 festivalTrips++;
             }
         }
 
         Set<String> earned = new HashSet<>();
-        int trips = completed.size();
+        int totalTrips = trips.size();
         int visitedRegions = tripsByRegion.size();
 
         // 여행 횟수 - 조건을 넘긴 등급을 모두 준다(누적 수집형이라 상위만 주면 하위가 비어 보인다).
         TRIP_COUNT_TITLES.forEach((code, need) -> {
-            if (trips >= need) {
+            if (totalTrips >= need) {
                 earned.add(code);
             }
         });
@@ -261,13 +293,25 @@ public class TitleService {
         }
     }
 
-    /** parties.region 표기를 지도/칭호가 쓰는 표준 지역명으로 맞춘다. */
+    /**
+     * parties.region / posts.region 표기를 지도/칭호가 쓰는 표준 지역명(시/도·현 단위)으로
+     * 맞춘다. 긴 표기(예: "경상북도")는 짧은 표기로, 시/군 단위(예: "경주")는 소속 시/도로
+     * 접는다.
+     */
     private static String normalizeRegion(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         String trimmed = raw.trim();
-        return REGION_ALIASES.getOrDefault(trimmed, trimmed);
+        String alias = REGION_ALIASES.get(trimmed);
+        if (alias != null) {
+            return alias;
+        }
+        String province = KOREA_CITY_TO_PROVINCE.get(trimmed);
+        if (province != null) {
+            return province;
+        }
+        return trimmed;
     }
 
     /** 마이페이지 뱃지에 보여줄 "가장 최근에 딴 칭호" - 없으면 null. */
@@ -306,13 +350,21 @@ public class TitleService {
      *
      * <p>CATEGORY_ORDER 에 없는 카테고리(나중에 추가되거나 category 가 비어 있는 행)는
      * 목록 끝으로 보낸다 - 화면에서 사라지지 않게.
+     *
+     * <p>※ category 가 NULL 인 행을 반드시 견뎌야 한다. v17 마이그레이션을 아직 안 돌린
+     * DB 에는 category 가 NULL 인 구 칭호가 남아 있고, 그 상태로 마이페이지를 열면
+     * 이 정렬에서 터져 화면 전체가 500 이 된다(실제로 그렇게 터졌다).
+     * {@code CATEGORY_ORDER} 는 {@code List.of(...)} 라 불변 리스트이고,
+     * 불변 리스트의 {@code indexOf(null)} 은 -1 이 아니라 NPE 를 던진다.
+     * 그래서 null 은 indexOf 에 넘기지 않고 미리 걸러낸다.
      */
     @Transactional(readOnly = true)
     public List<TitleEntity> allTitlesOrdered() {
         List<TitleEntity> titles = new ArrayList<>(titleRepository.findAll());
         titles.sort(Comparator
                 .comparingInt((TitleEntity title) -> {
-                    int index = CATEGORY_ORDER.indexOf(title.getCategory());
+                    String category = title.getCategory();
+                    int index = (category == null) ? -1 : CATEGORY_ORDER.indexOf(category);
                     return index < 0 ? CATEGORY_ORDER.size() : index;
                 })
                 .thenComparing(TitleEntity::getId));
