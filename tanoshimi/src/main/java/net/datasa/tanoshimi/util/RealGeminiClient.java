@@ -24,7 +24,7 @@ public class RealGeminiClient implements GeminiClient {
     @Value("${app.companion.api-key:}")
     private String apiKey;
 
-    @Value("${app.companion.model:gemini-flash-lite-latest}")
+    @Value("${app.companion.model:gemini-3.5-flash-lite}")
     private String model;
 
     @Override
