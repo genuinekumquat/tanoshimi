@@ -1,10 +1,12 @@
 package net.datasa.tanoshimi.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.companion.provider", havingValue = "mock", matchIfMissing = true)
 public class MockGeminiClient implements GeminiClient {
 	
 	@Override

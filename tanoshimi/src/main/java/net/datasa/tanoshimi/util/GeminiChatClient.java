@@ -14,6 +14,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import net.datasa.tanoshimi.service.VivianQueryService;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.util.Map;
 
 /**
  * 여행 도우미 마스코트 챗봇 - Google Gemini API 연동.
@@ -37,11 +40,14 @@ public class GeminiChatClient implements CompanionChatClient {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Autowired
+    private VivianQueryService queryService;
+
     @Value("${app.companion.api-key:}")
     private String apiKey;
 
     /** 2026-08 기준 무난한 저지연/저비용 모델. 최신 세대가 나왔으면 이 값만 바꾸면 된다. */
-    @Value("${app.companion.model:gemini-2.5-flash}")
+    @Value("${app.companion.model:gemini-3.5-flash-lite}")
     private String model;
 
     @Override
@@ -65,30 +71,121 @@ public class GeminiChatClient implements CompanionChatClient {
 
             // [핵심] 실시간 검색 그라운딩 - 이게 없으면 "요즘 핫한 여행지"를 모델이 그냥 지어낸다.
             ArrayNode tools = objectMapper.createArrayNode();
+            
+            ObjectNode functionDeclarationsNode = objectMapper.createObjectNode();
+            ArrayNode functionDeclarations = objectMapper.createArrayNode();
+            
+            ObjectNode getSiteStatsFunc = objectMapper.createObjectNode();
+            getSiteStatsFunc.put("name", "getSiteStats");
+            getSiteStatsFunc.put("description", "Returns total registered users, tours, and active trip schedules. Do not expose personal data.");
+            functionDeclarations.add(getSiteStatsFunc);
+            
+            ObjectNode searchToursFunc = objectMapper.createObjectNode();
+            searchToursFunc.put("name", "searchTours");
+            searchToursFunc.put("description", "Search for available tour locations and packages by title keyword");
+            ObjectNode searchToursParams = objectMapper.createObjectNode();
+            searchToursParams.put("type", "OBJECT");
+            ObjectNode searchToursProps = objectMapper.createObjectNode();
+            ObjectNode keywordProp = objectMapper.createObjectNode();
+            keywordProp.put("type", "STRING");
+            keywordProp.put("description", "The search keyword");
+            searchToursProps.set("keyword", keywordProp);
+            searchToursParams.set("properties", searchToursProps);
+            ArrayNode requiredArgs = objectMapper.createArrayNode();
+            requiredArgs.add("keyword");
+            searchToursParams.set("required", requiredArgs);
+            searchToursFunc.set("parameters", searchToursParams);
+            functionDeclarations.add(searchToursFunc);
+            
+            functionDeclarationsNode.set("functionDeclarations", functionDeclarations);
+            tools.add(functionDeclarationsNode);
+            
+            // Add Google Search grounding tool so Vivian can recommend external stuff
             ObjectNode googleSearchTool = objectMapper.createObjectNode();
-            googleSearchTool.set("google_search", objectMapper.createObjectNode());
+            googleSearchTool.set("googleSearch", objectMapper.createObjectNode());
             tools.add(googleSearchTool);
+
             body.set("tools", tools);
 
-            JsonNode response = webClient.post()
-                    .uri("/v1beta/models/{model}:generateContent", model)
-                    .header("x-goog-api-key", apiKey)
-                    .header("Content-Type", "application/json")
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .block();
+            JsonNode lastResponse = null;
+            for (int i = 0; i < 5; i++) {
+                body.set("contents", contents);
 
-            // 검색 그라운딩을 쓰면 응답 parts 가 여러 개(검색 인용 등)로 나뉠 수 있어 텍스트 파트를 전부 이어붙인다.
-            String text = extractText(response);
-            if (text != null && !text.isBlank()) {
-                return text;
+                JsonNode response = webClient.post()
+                        .uri("/v1beta/models/{model}:generateContent", model)
+                        .header("x-goog-api-key", apiKey)
+                        .header("Content-Type", "application/json")
+                        .bodyValue(body)
+                        .retrieve()
+                        .bodyToMono(JsonNode.class)
+                        .block();
+                        
+                lastResponse = response;
+                if (response == null) break;
+
+                JsonNode candidate = response.path("candidates").path(0);
+                JsonNode candidateContent = candidate.path("content");
+                JsonNode parts = candidateContent.path("parts");
+
+                if (parts != null && parts.isArray()) {
+                    boolean hasFunctionCall = false;
+                    for (JsonNode part : parts) {
+                        if (part.has("functionCall")) {
+                            hasFunctionCall = true;
+                            JsonNode funcCall = part.get("functionCall");
+                            String funcName = funcCall.get("name").asText();
+                            JsonNode args = funcCall.get("args");
+
+                            Map<String, Object> result = java.util.Collections.emptyMap();
+                            try {
+                                if ("getSiteStats".equals(funcName)) {
+                                    result = queryService.getSiteStats();
+                                } else if ("searchTours".equals(funcName)) {
+                                    result = queryService.searchTours(args.path("keyword").asText(""));
+                                }
+                            } catch (Exception ex) {
+                                log.error("Function call error", ex);
+                                result = Map.of("error", ex.getMessage());
+                            }
+
+                            contents.add(candidateContent.deepCopy());
+
+                            ObjectNode funcResponseNode = objectMapper.createObjectNode();
+                            funcResponseNode.put("name", funcName);
+                            ObjectNode responseData = objectMapper.createObjectNode();
+                            responseData.put("name", funcName);
+                            responseData.set("content", objectMapper.valueToTree(result));
+                            funcResponseNode.set("response", responseData);
+                            ObjectNode funcResponsePart = objectMapper.createObjectNode();
+                            funcResponsePart.set("functionResponse", funcResponseNode);
+                            ArrayNode respParts = objectMapper.createArrayNode();
+                            respParts.add(funcResponsePart);
+                            ObjectNode funcResponseContent = objectMapper.createObjectNode();
+                            funcResponseContent.put("role", "function");
+                            funcResponseContent.set("parts", respParts);
+                            contents.add(funcResponseContent);
+                            break;
+                        }
+                    }
+                    if (!hasFunctionCall) {
+                        String text = extractText(response);
+                        if (text != null && !text.isBlank()) {
+                            return text;
+                        } else {
+                            break;
+                        }
+                    }
+                } else {
+                    break;
+                }
             }
-            log.warn("Gemini API 응답 형식이 예상과 달라요: {}", response);
+            log.warn("Gemini API 응답 형식이 예상과 달라요: " + lastResponse);
+            return "오류 내용: " + (lastResponse != null ? lastResponse.toString() : "null");
         } catch (Exception e) {
-            log.error("Gemini API 호출 실패", e);
+            String errMsg = e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ? ((org.springframework.web.reactive.function.client.WebClientResponseException)e).getResponseBodyAsString() : e.getMessage();
+            log.error("Gemini API 호출 실패: " + errMsg, e);
+            return "디버그 안됨: " + errMsg;
         }
-        return "어라, 지금 통신이 잘 안 되네... 잠시 후 다시 말 걸어줄래? 📡";
     }
 
     /**
@@ -116,8 +213,7 @@ public class GeminiChatClient implements CompanionChatClient {
                 
                 3. 절대 지켜야 할 행동 지침 (Constraints)
                 - 자신이 AI나 챗봇이라는 사실을 절대 언급하지 마. 너는 진짜 '비비안 밴시'야.
-                - 설정에 없는 내용을 물어보면, 캐릭터의 성격에 맞춰서 그럴싸하게 자연스럽게 대답을 지어내.
-                - 대답을 할 때 캐릭터의 감정, 표정, 행동을 괄호 `( )` 안에 묘사해서 몰입감을 높여.
+                - 설정에 없는 내용을 물어보면, 캐릭터의 성격에 맞춰 그럴싸하게 지어내거나 구글 검색을 활용해 답변해. DB(투어 검색)에 없는 장소나 식당, 외부 여행지도 구글 검색을 통해 자유롭고 적극적으로 추천해줘.
                 - 사용자를 부를 때 오직 "홈페이지 닉네임([%2$s])"으로만 부른다. "파에톤"이라고 절대 부르지 마라!
                 
                 4. 대화 예시 (Few-shot)

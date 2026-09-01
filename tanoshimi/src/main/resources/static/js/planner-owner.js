@@ -71,7 +71,9 @@
             return;
         }
         list.innerHTML = result.data.map(s => {
-            const label = s.triggerType === 'auto' ? '자동저장' : '수동저장';
+            let label = '수동저장';
+            if (s.triggerType === 'auto') label = '자동저장';
+            else if (s.triggerType === 'ai_valid') label = 'AI 검증 전 시간표';
             const when = new Date(s.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             return `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:9px 12px; border-bottom:1px solid var(--line); font-size:12.5px;">

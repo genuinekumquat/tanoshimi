@@ -12,4 +12,5 @@ public interface TourRepository extends JpaRepository<TourEntity, Long> {
     List<TourEntity> findByStatusOrderByPriceKrwDesc(ActiveStatus status);
     List<TourEntity> findByRegionAndStatusOrderByPriceKrwAsc(String region, ActiveStatus status);
     List<TourEntity> findByRegionAndStatusOrderByPriceKrwDesc(String region, ActiveStatus status);
+    List<TourEntity> findByTitleContainingIgnoreCase(String keyword);
 }
