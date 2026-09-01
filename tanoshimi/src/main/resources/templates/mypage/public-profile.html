@@ -25,6 +25,8 @@
               th:text="${isFollowing} ? '언팔로우' : '팔로우'" th:attr="data-target-id=${profileUser.id},data-following=${isFollowing}">팔로우</button>
       <button type="button" id="btn-message" class="btn" style="background:#fff; border:1px solid var(--line);"
               th:attr="data-target-id=${profileUser.id}">💬 메시지 보내기</button>
+      <button type="button" id="btn-block" class="btn" style="background:#fff; border:1px solid var(--danger);color:var(--danger);"
+              th:text="${isBlocked} ? '차단해제' : '차단하기'" th:attr="data-target-id=${profileUser.id},data-blocked=${isBlocked}">차단하기</button>
       <button type="button" th:attr="data-report-type='user',data-report-id=${profileUser.id},data-report-label=${profileUser.name}"
               style="font-size:11.5px; color:var(--ink-soft); background:none; border:none; cursor:pointer;">🚨 신고</button>
     </div>
@@ -41,6 +43,15 @@ document.getElementById('btn-follow')?.addEventListener('click', async function 
 document.getElementById('btn-message')?.addEventListener('click', async function () {
     const result = await window.api.post(`/api/dm/${this.dataset.targetId}/room`, {});
     if (result.success) window.location.href = `/messages/${result.data}`;
+    else alert(result.message);
+});
+document.getElementById('btn-block')?.addEventListener('click', async function () {
+    const targetId = this.dataset.targetId;
+    const blocked = this.dataset.blocked === 'true';
+    const confirmMsg = blocked ? '차단을 해제하시겠습니까?' : '차단하시겠습니까? 서로의 게시글/댓글이 숨겨지고 메시지를 주고받을 수 없게 됩니다.';
+    if (!confirm(confirmMsg)) return;
+    const result = blocked ? await window.api.del(`/api/block/${targetId}`) : await window.api.post(`/api/block/${targetId}`, {});
+    if (result.success) location.reload();
     else alert(result.message);
 });
 </script>

@@ -25,6 +25,7 @@ public class MessagesController {
     private final ChatRoomRepository chatRoomRepository;
     private final DmService dmService;
     private final ChatService chatService;
+    private final net.datasa.tanoshimi.service.BlockService blockService;
 
     @GetMapping("/messages")
     public String list(@AuthenticationPrincipal CustomUserDetails principal, Model model) {
@@ -39,9 +40,13 @@ public class MessagesController {
         ChatRoomEntity room = chatRoomRepository.findById(roomId).orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
         dmService.assertMember(room, me);
 
+        Long otherUserId = dmService.otherUserId(room, me);
         model.addAttribute("roomId", room.getId());
+        model.addAttribute("otherUserId", otherUserId);
         model.addAttribute("otherUserName", dmService.otherUserName(room, me));
         model.addAttribute("chatHistory", chatService.history(room));
+        model.addAttribute("isBlocked", otherUserId != null && userRepository.findById(otherUserId)
+                .map(other -> blockService.isBlockedByMe(me, other)).orElse(false));
         return "messages/room";
     }
 }
