@@ -8,8 +8,11 @@
   <a th:href="@{/messages}" style="font-size:13px; color:var(--ink-soft);">← 쪽지함으로</a>
 
   <div class="card" style="padding:0; display:flex; flex-direction:column; height:70vh; margin-top:12px;">
-    <div style="padding:12px 14px; border-bottom:1px solid var(--line); font-weight:700; font-size:14px;"
-         th:text="${otherUserName}">상대방</div>
+    <div style="padding:12px 14px; border-bottom:1px solid var(--line); font-weight:700; font-size:14px; display:flex; justify-content:space-between; align-items:center;">
+      <span th:text="${otherUserName}">상대방</span>
+      <button type="button" id="btn-block" style="font-size:11px; font-weight:700; color:var(--danger); background:none; border:1px solid var(--danger); border-radius:6px; padding:3px 8px; cursor:pointer;"
+              th:text="${isBlocked} ? '차단해제' : '차단하기'" th:attr="data-target-id=${otherUserId},data-blocked=${isBlocked}">차단하기</button>
+    </div>
 
     <div id="chat-log" style="flex:1; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:8px;">
       <div th:each="m : ${chatHistory}" class="chat-msg" th:attr="data-original=${m.content}">
@@ -36,6 +39,18 @@ const MY_LANG = /*[[${#locale.language}]]*/ 'ko';
 <script th:src="@{/vendor/sockjs.min.js}"></script>
 <script th:src="@{/vendor/stomp.min.js}"></script>
 <script th:src="@{/js/dm-room.js}" defer></script>
+<script>
+document.getElementById('btn-block')?.addEventListener('click', async function () {
+    const targetId = this.dataset.targetId;
+    if (!targetId) return;
+    const blocked = this.dataset.blocked === 'true';
+    const confirmMsg = blocked ? '차단을 해제하시겠습니까?' : '차단하시겠습니까? 서로 메시지를 주고받을 수 없게 됩니다.';
+    if (!confirm(confirmMsg)) return;
+    const result = blocked ? await window.api.del(`/api/block/${targetId}`) : await window.api.post(`/api/block/${targetId}`, {});
+    if (result.success) location.reload();
+    else alert(result.message);
+});
+</script>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

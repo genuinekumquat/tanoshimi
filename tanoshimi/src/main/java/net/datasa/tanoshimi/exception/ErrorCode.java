@@ -49,6 +49,10 @@ public enum ErrorCode {
     // [v16 신규] AI 크레딧
     AI_CREDIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "오늘의 AI 추천 크레딧을 모두 사용했어요. 내일 다시 시도해 주세요."),
 
+    // [v16 신규] 유저 차단 (TNSM-96)
+    BLOCKED_USER(HttpStatus.FORBIDDEN, "차단 관계인 상대에게는 메시지를 보낼 수 없습니다."),
+    CANNOT_APPLY_BLOCKED_PARTY(HttpStatus.FORBIDDEN, "차단 관계인 파티장의 파티에는 신청할 수 없습니다."),
+
     // 공통
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "입력값을 확인해 주세요."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다.");
