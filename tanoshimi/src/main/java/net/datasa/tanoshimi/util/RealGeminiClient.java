@@ -1,4 +1,4 @@
-package net.datasa.tanoshimi.util;
+﻿package net.datasa.tanoshimi.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -72,14 +72,13 @@ public class RealGeminiClient implements GeminiClient {
             return extractText(response);
         } catch (Exception e) {
             log.error("Gemini Real API call failed", e);
-            String errMsg = e.getMessage().replace(""", "'");
+            String errMsg = e.getMessage().replace("\"", "'");
             if (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException) {
                 org.springframework.web.reactive.function.client.WebClientResponseException we = (org.springframework.web.reactive.function.client.WebClientResponseException) e;
                 if (we.getStatusCode().value() == 429) {
                     return "{\"briefing\": \"구글 할배가 화가 단단히 난 데스! (429 Rate Limit) 무료 API 한도를 초과해서 잠시 막힌 테치. 딱 1분만 숨 참고 다시 눌러보는 데스웅~\", \"newSchedule\": []}";
                 }
-                errMsg = we.getResponseBodyAsString().replace(""", "'").replace("
-", " ");
+                errMsg = we.getResponseBodyAsString().replace("\"", "'").replace("\n", " ");
             }
             return "{\"briefing\": \"API 오류: " + errMsg + "\", \"newSchedule\": []}";
         }
@@ -98,3 +97,5 @@ public class RealGeminiClient implements GeminiClient {
         return sb.toString();
     }
 }
+
+
