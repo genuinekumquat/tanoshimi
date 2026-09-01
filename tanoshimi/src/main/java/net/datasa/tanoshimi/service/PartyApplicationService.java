@@ -32,9 +32,14 @@ public class PartyApplicationService {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final NotificationService notificationService;
+    private final BlockService blockService;
 
     @Transactional
     public Long apply(PartyEntity party, UserEntity applicant, String message) {
+        // TNSM-96: 파티장과 차단 관계면 신청 자체를 막는다. 이미 참여 중인 파티는 별도 처리하지 않는다(스펙 명시).
+        if (blockService.isBlockedEitherWay(applicant, party.getOwner())) {
+            throw new BusinessException(ErrorCode.CANNOT_APPLY_BLOCKED_PARTY);
+        }
         var eligibility = eligibilityService.check(party, applicant);
         if (!eligibility.eligible()) {
             ErrorCode code = switch (eligibility.messageKey()) {

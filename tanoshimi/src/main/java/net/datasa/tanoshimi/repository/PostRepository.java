@@ -25,6 +25,15 @@ public interface PostRepository extends JpaRepository<PostEntity, Long> {
     @EntityGraph(attributePaths = {"user"})
     Page<PostEntity> findByBlindedFalseAndRegionOrderByCreatedAtDesc(String region, Pageable pageable);
 
+    /** TNSM-96: 나와 차단 관계인 유저의 글은 목록에서 제외. blockedUserIds 가 비어있지 않을 때만 사용. */
+    @EntityGraph(attributePaths = {"user"})
+    @Query("select p from PostEntity p where p.blinded = false and p.user.id not in :blockedUserIds order by p.createdAt desc")
+    Page<PostEntity> findByBlindedFalseAndUserIdNotInOrderByCreatedAtDesc(@Param("blockedUserIds") List<Long> blockedUserIds, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user"})
+    @Query("select p from PostEntity p where p.blinded = false and p.region = :region and p.user.id not in :blockedUserIds order by p.createdAt desc")
+    Page<PostEntity> findByBlindedFalseAndRegionAndUserIdNotInOrderByCreatedAtDesc(@Param("region") String region, @Param("blockedUserIds") List<Long> blockedUserIds, Pageable pageable);
+
     /** 마이페이지 진입 경로: 같은 테이블을 user_id 로만 필터링 */
     Page<PostEntity> findByUserOrderByCreatedAtDesc(UserEntity user, Pageable pageable);
 

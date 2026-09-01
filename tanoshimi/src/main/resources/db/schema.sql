@@ -514,3 +514,21 @@ CREATE TABLE IF NOT EXISTS user_profile_theme (
     UNIQUE KEY uk_upt_user (user_id),
     CONSTRAINT fk_upt_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 24. user_blocks [v16 신규] (유저 차단, TNSM-96)
+-- 차단 여부는 이 테이블에 대한 조회(EXISTS)로 그때그때 판단한다.
+-- chat_rooms 등에 별도 상태 플래그를 두지 않는다 (docs/user_blocks_design_decisions.txt 참고).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_blocks (
+    id          BIGINT   NOT NULL AUTO_INCREMENT,
+    blocker_id  BIGINT   NOT NULL COMMENT '차단 하는 사람',
+    blocked_id  BIGINT   NOT NULL COMMENT '차단 당하는 사람',
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_block_pair (blocker_id, blocked_id),
+    KEY idx_block_blocked (blocked_id),
+    CONSTRAINT fk_block_blocker FOREIGN KEY (blocker_id) REFERENCES users(id),
+    CONSTRAINT fk_block_blocked FOREIGN KEY (blocked_id) REFERENCES users(id),
+    CONSTRAINT ck_block_not_self CHECK (blocker_id <> blocked_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

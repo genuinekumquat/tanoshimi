@@ -23,12 +23,24 @@ public class PostService {
     private final PartyRepository partyRepository;
     private final NotificationService notificationService;
     private final FileStorageService fileStorageService;
+    private final BlockService blockService;
 
     @Transactional(readOnly = true)
     public Page<PostEntity> boardList(String region, Pageable pageable) {
         return (region == null || region.isBlank())
                 ? postRepository.findByBlindedFalseOrderByCreatedAtDesc(pageable)
                 : postRepository.findByBlindedFalseAndRegionOrderByCreatedAtDesc(region, pageable);
+    }
+
+    /** TNSM-96: 로그인 사용자 기준으로 차단 관계인 글쓴이의 글을 제외하고 조회. */
+    @Transactional(readOnly = true)
+    public Page<PostEntity> boardList(String region, Pageable pageable, UserEntity viewer) {
+        if (viewer == null) return boardList(region, pageable);
+        var blockedIds = blockService.relatedBlockedUserIds(viewer);
+        if (blockedIds.isEmpty()) return boardList(region, pageable);
+        return (region == null || region.isBlank())
+                ? postRepository.findByBlindedFalseAndUserIdNotInOrderByCreatedAtDesc(blockedIds, pageable)
+                : postRepository.findByBlindedFalseAndRegionAndUserIdNotInOrderByCreatedAtDesc(region, blockedIds, pageable);
     }
     
     @Transactional(readOnly = true)

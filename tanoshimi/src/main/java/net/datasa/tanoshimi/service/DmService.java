@@ -64,4 +64,11 @@ public class DmService {
                 .map(m -> m.getUser().getName())
                 .orElse("알 수 없음");
     }
+
+    @Transactional(readOnly = true)
+    public Long otherUserId(ChatRoomEntity room, UserEntity me) {
+        return chatRoomMemberRepository.findOtherMember(room, me)
+                .map(m -> m.getUser().getId())
+                .orElse(null);
+    }
 }

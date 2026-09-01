@@ -46,6 +46,7 @@ public class MyPageController {
     private final FileStorageService fileStorageService;
     private final TitleService titleService;
     private final TravelHeatmapService travelHeatmapService;
+    private final net.datasa.tanoshimi.service.BlockService blockService;
 
     @GetMapping("/mypage")
     public String myPage(@AuthenticationPrincipal CustomUserDetails principal, Model model) {
@@ -138,6 +139,7 @@ public class MyPageController {
             UserEntity me = userRepository.findById(principal.getId()).orElse(null);
             model.addAttribute("isFollowing", me != null && followService.isFollowing(me, target));
             model.addAttribute("isSelf", me != null && me.getId().equals(target.getId()));
+            model.addAttribute("isBlocked", me != null && blockService.isBlockedByMe(me, target));
         }
         return "mypage/public-profile";
     }
