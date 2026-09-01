@@ -37,6 +37,15 @@ public interface PostRepository extends JpaRepository<PostEntity, Long> {
     /** 마이페이지 진입 경로: 같은 테이블을 user_id 로만 필터링 */
     Page<PostEntity> findByUserOrderByCreatedAtDesc(UserEntity user, Pageable pageable);
 
+    /**
+     * 개별 여행 인정(⑥, TNSM 미부여): 파티 없이 혼자 다녀온 여행을 스냅의 지역 태그로 인정하기
+     * 위한 조회. party IS NULL 인 글만 대상으로 한다 - party 가 있는 글은 그 파티가 완료됐을 때
+     * TravelHeatmapService/TitleService 가 파티 기준으로 이미 세고 있으므로, 여기서 또 세면
+     * 같은 여행이 두 번 잡힌다(중복 집계 방지가 이 조건의 핵심).
+     * region 정제(공백/블랭크 제외)와 날짜별 중복 제거는 호출부에서 한다.
+     */
+    List<PostEntity> findByUserAndPartyIsNullAndBlindedFalse(UserEntity user);
+
     /** 파티 전용 게시판(사진첩) 진입 경로 - party_id 로 필터링, 이것도 같은 posts 테이블을 공유한다. */
     @EntityGraph(attributePaths = {"user"})
     List<PostEntity> findByPartyOrderByCreatedAtDesc(PartyEntity party);

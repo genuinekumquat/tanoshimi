@@ -156,6 +156,13 @@
         Object.keys(DATA.japan.drill).forEach(function (key) {
             attachStats(DATA.japan.drill[key], byName, matchedNames);
         });
+        // 한국도 드릴(시/군/구) 데이터가 생기면 색을 칠해야 한다. 지금은 서버가 시/도
+        // 단위 지역명만 내려주므로 전부 0(미방문)으로 붙지만, 이 루프가 없으면 r.trips 등이
+        // undefined로 남아 tier() 비교에서 조용히 깨진다 - 드릴 데이터를 추가할 때마다
+        // 매번 여기 고칠 필요 없게 미리 일반화해둔다.
+        Object.keys(DATA.korea.drill).forEach(function (key) {
+            attachStats(DATA.korea.drill[key], byName, matchedNames);
+        });
         rollUpJapanOverview();
 
         if (matchedNames.size) {

@@ -166,8 +166,14 @@
     svg.map.swapping{ opacity:0; }
 
     /* 지역(면). 색은 mypage-heatmap.js 가 지수에 따라 fill 로 직접 넣는다. */
+    /* ⚠️ 여기서 fill 을 선언하면 안 된다 - mypage-heatmap.js 가 draw() 마다 각 path에
+       fill="var(--tier-N)" 속성(setAttribute)으로 색을 직접 넣는데, SVG presentation
+       attribute는 CSS 캐스케이드에서 가장 낮은 우선순위라 매칭되는 CSS 규칙이 하나라도
+       있으면 항상 그쪽이 이긴다. 예전에 여기 `fill:var(--tier-0);`가 있어서 방문 횟수와
+       무관하게 모든 지역이 항상 미방문 색으로만 보이던 버그가 있었다(원 목업에도 같은
+       버그가 있었음) - Playwright로 getComputedStyle 을 실제로 찍어보고 잡았다. */
     .region{
-      fill:var(--tier-0); stroke:var(--map-line); stroke-width:.9; cursor:pointer;
+      stroke:var(--map-line); stroke-width:.9; cursor:pointer;
       transform-box:fill-box; transform-origin:center;
       transition:opacity .4s ease, filter .4s ease, transform .5s cubic-bezier(.3,.85,.35,1); outline:none;
     }

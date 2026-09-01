@@ -211,7 +211,7 @@
     function cardHTML(t) {
         if (t.owned) {
             var isRep = rep && t.name === rep.name;
-            return '<div class="tcard owned' + (isRep ? ' rep' : '') + '">' +
+            return '<div class="tcard owned' + (isRep ? ' rep' : '') + '" data-cond="' + esc(t.cond) + '">' +
                 (isRep ? '<span class="tc-badge on">대표</span>' : '') +
                 '<div class="tc-ic">' + t.icon + '</div><div class="tc-name">' + esc(t.name) + '</div></div>';
         }
@@ -248,23 +248,24 @@
         window.scrollTo(0, 0);
     });
 
-    // 잠긴 칭호 호버 시 해금 조건 툴팁
+    // 칭호 호버 시 조건 툴팁 - 잠긴 칭호는 해금 조건, 이미 딴 칭호는 달성 조건을 보여준다.
+    // (원 목업은 잠긴 카드에만 data-cond 를 심어놔서 딴 칭호는 호버해도 아무것도 안 떴다)
     var tip = document.getElementById('tc-tip'), tg = document.getElementById('tgrid');
     if (tip && tg) {
         tg.addEventListener('mouseover', function (e) {
-            var c = e.target.closest('.tcard.locked');
-            if (!c) return;
-            tip.textContent = '🔒 ' + c.dataset.cond;
+            var c = e.target.closest('.tcard');
+            if (!c || !c.dataset.cond) return;
+            tip.textContent = (c.classList.contains('locked') ? '🔒 ' : '✅ ') + c.dataset.cond;
             tip.classList.add('show');
         });
         tg.addEventListener('mousemove', function (e) {
-            var c = e.target.closest('.tcard.locked');
-            if (!c) { tip.classList.remove('show'); return; }
+            var c = e.target.closest('.tcard');
+            if (!c || !c.dataset.cond) { tip.classList.remove('show'); return; }
             tip.style.left = (e.clientX - tip.offsetWidth / 2) + 'px';
             tip.style.top = (e.clientY - tip.offsetHeight - 12) + 'px';
         });
         tg.addEventListener('mouseout', function (e) {
-            if (e.target.closest('.tcard.locked')) tip.classList.remove('show');
+            if (e.target.closest('.tcard')) tip.classList.remove('show');
         });
     }
 
