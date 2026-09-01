@@ -102,6 +102,7 @@ public class GeminiChatClient implements CompanionChatClient {
 
             body.set("tools", tools);
 
+            JsonNode lastResponse = null;
             for (int i = 0; i < 5; i++) {
                 body.set("contents", contents);
 
@@ -114,6 +115,7 @@ public class GeminiChatClient implements CompanionChatClient {
                         .bodyToMono(JsonNode.class)
                         .block();
                         
+                lastResponse = response;
                 if (response == null) break;
 
                 JsonNode candidate = response.path("candidates").path(0);
@@ -172,9 +174,12 @@ public class GeminiChatClient implements CompanionChatClient {
                     break;
                 }
             }
-            log.warn("Gemini API 응답 형식이 예상과 달라요");
+            log.warn("Gemini API 응답 형식이 예상과 달라요: " + lastResponse);
+            return "오류 내용: " + (lastResponse != null ? lastResponse.toString() : "null");
         } catch (Exception e) {
-            log.error("Gemini API 호출 실패: " + (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ? ((org.springframework.web.reactive.function.client.WebClientResponseException)e).getResponseBodyAsString() : e.getMessage()), e);
+            String errMsg = e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ? ((org.springframework.web.reactive.function.client.WebClientResponseException)e).getResponseBodyAsString() : e.getMessage();
+            log.error("Gemini API 호출 실패: " + errMsg, e);
+            return "디버그 안됨: " + errMsg;
         }
         return "어라, 지금 통신이 잘 안 되네... 잠시 후 다시 말 걸어줄래? 📡";
     }

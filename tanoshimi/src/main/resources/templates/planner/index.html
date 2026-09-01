@@ -156,7 +156,7 @@
     background: var(--custom-slot-color, #ffa500);
     color:var(--ink-soft); box-shadow:none;
   }
-  .block.blank .t{ color:var(--ink); }
+  .block.blank .t{ color:var(--custom-text-color, var(--ink)); }
   .block.blank .grip::after{ background:var(--rope); }
   
   .block.pkg{ background:var(--forest); }
@@ -321,7 +321,8 @@
             <option value="public">대중교통</option>
             <option value="car">자동차</option>
           </select>
-          <input type="color" id="custom-slot-color" title="색상 커스텀" value="#ffa500" style="width:30px; height:30px; padding:0; border:none; cursor:pointer;" />
+          <input type="color" id="custom-slot-color" title="배경 색상 커스텀" value="#ffa500" style="width:30px; height:30px; padding:0; border:none; cursor:pointer;" />
+          <input type="color" id="custom-text-color" title="기존 계획표 글자색상" value="#4b6b4a" style="width:30px; height:30px; padding:0; border:none; cursor:pointer; margin-right:8px;" />
           <button type="button" id="btn-ai-validate" class="btn btn-ghost btn-sm">일정 AI 검증 브리핑</button>
           <div style="font-weight:700; font-size:16px; color:var(--sash); display:inline-flex; align-items:center; margin-right:6px;">
             Total: <span id="total-price" style="letter-spacing:-0.5px; margin-left:4px;">0</span> ¥

@@ -186,7 +186,7 @@
 
             let memoHtml = item.memo ? `<div class="m" style="font-size:10px; opacity:0.85; margin-top:1px; line-height:1.2; word-break:keep-all;">${escapeHtml(item.memo)}</div>` : '';
             el.innerHTML = `
-              <div class="t" style="color: ${item.color || ''}; font-weight: 700;">${escapeHtml(item.title)}</div>
+              <div class="t" style="color: ${item.color || 'var(--custom-text-color, #4b6b4a)'}; font-weight: 700;">${escapeHtml(item.title)}</div>
               ${memoHtml}
               <div class="bg"></div>
               ${item.source !== 'package_default' ? '<div class="del">X</div>' : ''}
@@ -498,6 +498,22 @@
             reload();
         }
     });
+
+        const ctc = document.getElementById('custom-text-color');
+    if (ctc) {
+        ctc.value = localStorage.getItem('custom-text-color') || '#4b6b4a';
+        document.documentElement.style.setProperty('--custom-text-color', ctc.value);
+        ctc.addEventListener('input', e => {
+            localStorage.setItem('custom-text-color', e.target.value);
+            document.documentElement.style.setProperty('--custom-text-color', e.target.value);
+            // Also override the inline style of all blocks if they were using the global one
+            document.querySelectorAll('.block .t').forEach(el => {
+                if (!el.style.color || el.style.color === 'inherited' || el.style.color === '') {
+                    el.style.color = e.target.value;
+                }
+            });
+        });
+    }
 
     buildGrid();
     reload();
