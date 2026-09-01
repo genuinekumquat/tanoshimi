@@ -1,6 +1,6 @@
 (function () {
     const SLOT_MIN = 30;         // 30 min slots
-    const SLOT_H = 22;           // px per slot
+    const SLOT_H = 110;           // px per slot
 
     // DAYS and SLOTS depend on schedule
     const START_HOUR = 6;
@@ -20,7 +20,8 @@
         const total = START_HOUR * 60 + slot * SLOT_MIN;
         const h = Math.floor(total / 60);
         const m = total % 60;
-        return `${h}:${m.toString().padStart(2, '0')}`;
+        const tStr = `${h}:${m.toString().padStart(2, '0')}`;
+        return m === 0 ? `<strong>${tStr}</strong>` : `<span style="font-weight:normal;opacity:0.8;">${tStr}</span>`;
     }
 
     const gridHead = document.getElementById('grid-head');
@@ -120,6 +121,31 @@
                 const grip = el.querySelector('.grip');
                 if (grip) grip.addEventListener('pointerdown', (e) => startResize(e, item, el, startSlot, lenSlot));
             }
+            
+            // Allow edit for blocks
+            if (item.source !== 'package_default' && (typeof IS_LOCK_HOLDER === 'undefined' || IS_LOCK_HOLDER)) {
+                el.addEventListener('dblclick', async (e) => {
+                    e.stopPropagation();
+                    const newTitle = prompt('일정 제목을 수정하세요:', item.title);
+                    if (newTitle !== null && newTitle.trim() !== '') {
+                        let originalActivityId = item.source === 'custom' ? null : null; // In frontend item view we don't know activityId.
+                        // We will just post as custom if they rename it or we can pass title. 
+                        // Actually wait we could change startMinute and durationMinute, but they are same here. 
+                        // we can put it as custom. But it drops the linkage. Is there an update API?
+                        // Let's just create custom block
+                        await window.api.delete(`/api/planner/items/${item.id}`);
+                        await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                            dayIndex: item.dayIndex,
+                            startMinute: item.startMinute,
+                            durationMinute: item.durationMinute,
+                            activityId: null,
+                            title: newTitle.trim(),
+                            memo: item.memo
+                        });
+                        reload();
+                    }
+                });
+            }
         });
 
         const totalEl = document.getElementById('total-cost');
@@ -178,11 +204,14 @@
         const rawSlot = Math.round((e.clientY - col.getBoundingClientRect().top) / SLOT_H);
         const startMinute = START_HOUR * 60 + Math.max(0, rawSlot) * SLOT_MIN;
 
-        if (data.kind === 'recommend') {
-            await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
-                dayIndex: day, startMinute, durationMinute: data.durationMin,
-                activityId: data.activityId, title: null, memo: null
+        if (data.kind === 'recommend' || data.kind === 'custom') {
+            const parsedDuration = parseInt(data.durationMin, 10);
+            const finalDuration = (!isNaN(parsedDuration) && parsedDuration > 0) ? parsedDuration : 60;
+            const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                dayIndex: day, startMinute, durationMinute: finalDuration,
+                activityId: data.activityId || null, title: data.title || '새 일정', memo: null
             });
+            if (!res.success && res.message) alert(res.message);
         } else if (data.id) {
             const existing = items.find(i => i.id === data.id);
             if (!existing) return;
@@ -230,12 +259,18 @@
             const card = document.createElement('div');
             card.className = 'rec-card';
             card.draggable = true;
-            card.dataset.payload = JSON.stringify({ kind:'recommend', activityId:item.id, durationMin:item.durationMin });
+            card.dataset.payload = JSON.stringify({ 
+                kind: item.kind || 'recommend', 
+                activityId: item.activityId || null, 
+                title: item.title,
+                durationMin: item.durationMin 
+            });
+            const priceText = item.priceKrw ? ` \${item.priceKrw.toLocaleString()}` : '';
             card.innerHTML = `
               <span class="sw" style="background:var(--cat-festival)"></span>
               <span class="info">
                 <span class="t">${escapeHtml(item.title)}</span>
-                <span class="m">${item.durationMin}분 소요 \\${item.priceKrw.toLocaleString()}</span>
+                <span class="m">${item.durationMin}분 소요${priceText}</span>
               </span>
               <button class="put" title="계획표에 추가">+</button>`;
 
@@ -243,12 +278,13 @@
                 e.dataTransfer.setData('text/plain', card.dataset.payload);
             });
             card.querySelector('.put').addEventListener('click', async () => {
-                await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
-                    dayIndex: 1, startMinute: 12*60, durationMinute: item.durationMin,
-                    activityId: item.id, title: null, memo: null
-                });
-                await reload();
-            });
+                  const finalDuration = (!isNaN(parseInt(item.durationMin)) && parseInt(item.durationMin) > 0) ? parseInt(item.durationMin) : 60;
+                  const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                      dayIndex: 1, startMinute: 12*60, durationMinute: finalDuration,
+                      activityId: item.activityId || null, title: item.title || '새 일정', memo: item.description || null
+                  });
+                  if(!res.success && res.message) { alert(res.message); } else { await reload(); }
+              });
             wrap.appendChild(card);
         });
         chat.appendChild(wrap);
@@ -338,6 +374,16 @@
         });
     }
 
+    const cp = document.getElementById('custom-slot-color');
+    if (cp) {
+        cp.value = localStorage.getItem('custom-slot-color') || '#ffa500';
+        document.documentElement.style.setProperty('--custom-slot-color', cp.value);
+        cp.addEventListener('input', e => {
+            localStorage.setItem('custom-slot-color', e.target.value);
+            document.documentElement.style.setProperty('--custom-slot-color', e.target.value);
+        });
+    }
+
     buildGrid();
     reload();
     connectRealtime();
@@ -348,10 +394,43 @@
         alert(r.message);
         if (r.success) location.reload();
     });
-    
-    document.getElementById('btn-pay')?.addEventListener('click', async () => {
-        const r = await window.api.post(`/api/planner/${SCHEDULE_ID}/pay`, {});
-        alert(r.message);
+
+    document.getElementById('btn-ai-validate')?.addEventListener('click', async () => {
+        const modeElem = document.getElementById('transit-mode');
+        const mode = modeElem && modeElem.value === 'car' ? '자동차' : '대중교통';
+        const btn = document.getElementById('btn-ai-validate');
+        const oldText = btn.textContent;
+        btn.textContent = '검증 중...';
+        btn.disabled = true;
+
+        const vBubble = document.getElementById('companion-speech-bubble');
+
+        try {
+            if (vBubble) {
+                if (window.companionTimeout) clearTimeout(window.companionTimeout);
+                vBubble.innerText = `${mode} 기준으로 일정을 검증하고 있어요...`;
+                vBubble.style.display = 'block';
+            }
+            const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/ai-validate?mode=${encodeURIComponent(mode)}`, {});
+            if (res.success) {
+                if (vBubble) {
+                    vBubble.innerText = res.data.briefing;
+                    if (window.companionTimeout) clearTimeout(window.companionTimeout);
+                }
+                await reload();
+            } else {
+                if (vBubble) {
+                    vBubble.innerText = '검증에 실패했습니다. ' + (res.message || '');
+                }
+            }
+        } catch (e) {
+            if (vBubble) {
+                vBubble.innerText = '오류가 발생했습니다.';
+            }
+        } finally {
+            btn.textContent = oldText;
+            btn.disabled = false;
+        }
     });
 
 })();

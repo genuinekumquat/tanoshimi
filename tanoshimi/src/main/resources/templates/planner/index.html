@@ -27,7 +27,7 @@
     --cat-rest:#a58fb0;
     --cat-blank:#c9b58b;
 
-    --slot-h:22px;
+    --slot-h:110px;
   }
   *{ box-sizing:border-box; }
   body{
@@ -153,8 +153,8 @@
     width:22px; height:2px; border-radius:2px; background:rgba(255,255,255,.65);
   }
   .block.blank{
-    background:repeating-linear-gradient(45deg, #f7efd9 0 7px, #f1e6c9 7px 14px);
-    color:var(--ink-soft); border:2px dashed var(--rope); box-shadow:none;
+    background: var(--custom-slot-color, #ffa500);
+    color:var(--ink-soft); box-shadow:none;
   }
   .block.blank .t{ color:var(--ink); }
   .block.blank .grip::after{ background:var(--rope); }
@@ -317,13 +317,19 @@
         </div>
 
         <div class="board-tools">
+          <select id="transit-mode" style="padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:12.5px;">
+            <option value="public">대중교통</option>
+            <option value="car">자동차</option>
+          </select>
+          <input type="color" id="custom-slot-color" title="색상 커스텀" value="#ffa500" style="width:30px; height:30px; padding:0; border:none; cursor:pointer;" />
+          <button type="button" id="btn-ai-validate" class="btn btn-ghost btn-sm">일정 AI 검증 브리핑</button>
           <div style="font-weight:700; font-size:16px; color:var(--sash); display:inline-flex; align-items:center; margin-right:6px;">
             Total: <span id="total-price" style="letter-spacing:-0.5px; margin-left:4px;">0</span> ¥
           </div>
           <button class="btn btn-primary btn-sm" id="btn-add" th:text="#{planner.add.blank}">일정추가</button>
           <button class="btn btn-ghost btn-sm" id="btn-clear">전체 비우기</button>
-          <button type="button" id="btn-submit" class="btn btn-primary btn-sm" th:text="#{planner.submit}" th:attr="data-schedule-id=${schedule.id}">계획표 제출하기</button>
-          <button type="button" id="btn-pay" class="btn btn-forest btn-sm" style="display:none;">투어결제하기</button>        
+          <button type="button" id="btn-submit" class="btn btn-primary btn-sm" th:if="${schedule.status.name() == 'draft'}" th:text="#{planner.submit}" th:attr="data-schedule-id=${schedule.id}">계획표 제출하기</button>
+          <a class="btn btn-outline btn-sm" th:if="${schedule.status.name() == 'confirmed'}" target="_blank" th:href="@{/planner/{id}/report(id=${schedule.id})}">플랜 PDF로 인쇄하기</a>
         </div>
       </div>
 
@@ -383,7 +389,7 @@ const IS_LOCK_HOLDER = /*[[${isLockHolder}]]*/ false;
 /*]]>*/
 </script>
 
-<script th:src="@{/js/planner.js?v=4}" defer></script>
+<script th:src="@{/js/planner.js?v=6}" defer></script>
 <script th:src="@{/js/planner-owner.js}" defer></script>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
