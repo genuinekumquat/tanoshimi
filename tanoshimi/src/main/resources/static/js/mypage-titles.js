@@ -1,20 +1,13 @@
 /**
- * 마이페이지 칭호 관리 뷰 + 여행 거리. 담당: 김민규(⑥).
+ * 마이페이지(/mypage) 여행 거리 계산 + 집(출발지) 설정 모달. 담당: 김민규(⑥).
  *
- * 지도 목업(아티팩트)의 칭호/거리 로직을 실제 코드로 이식한 버전.
+ * 지도 목업(아티팩트)의 거리 로직을 실제 코드로 이식한 버전.
  *
- * ── 칭호 ─────────────────────────────────────────────────────────────
- * "내 칭호" 칩(획득분만)은 서버가 Thymeleaf로 이미 그려준다. 이 파일은 "더보기"를 눌렀을 때
- * 나오는 칭호 관리 뷰(카테고리별 전체 목록 + 미획득 잠금 카드 + 대표칭호 수정)를 담당한다.
+ * [v20 변경] 이 파일은 원래 "칭호 관리 뷰"(더보기 클릭 시 #view-titles 전환 + 카탈로그
+ * 렌더링 + 대표 칭호 수정 모달)도 함께 담당했었는데, 그 화면이 실제 URL이 있는 별도 페이지
+ * (/mypage/titles)로 분리되면서 그 로직은 static/js/mypage-titles-manage.js 로 옮겼다.
+ * 이 파일에는 이제 /mypage 본문에 남아있는 "집 기준 여행 거리" 계산만 남아 있다.
  *
- * 칭호 38종 8카테고리는 DB(titles)가 정본이다. 템플릿이 전체 목록을 #titles-data 에
- * data-* 로 내려주고(카테고리 순서도 서버가 정함), 이 파일은 그걸 그대로 그린다.
- * 판정(누가 무엇을 받았는지)은 TitleService 가 한다.
- *
- * ※ 대표 칭호 변경은 아직 저장 API가 없어서 화면 상태만 바뀐다(Phase 2에서
- *   user_titles에 대표 여부 컬럼 + PATCH API 필요).
- *
- * ── 여행 거리 ─────────────────────────────────────────────────────────
  * 집(출발지) 기준 하버사인 왕복 누적. 방문 횟수는 서버 히트맵(window.MYPAGE_HEATMAP)의
  * 실제 완료 여행 집계를 그대로 쓰고, 좌표는 아래 COORDS 표(시도청/현청 소재지 기준)를 쓴다.
  * 집 주소만 아직 DB에 없어서(users.home_lat/lng = Phase 2, ⑤ 허수연) 브라우저
@@ -30,7 +23,6 @@
      */
     var meta = document.getElementById('mypage-meta');
     var USER_KEY = (meta && meta.dataset.userKey) || 'guest';
-    var REP_TITLE = (meta && meta.dataset.repTitle) || '';
 
     /* =========================== 여행 거리 =========================== */
 
@@ -153,164 +145,4 @@
         });
     }
     renderDistance();
-
-    /* =========================== 칭호 =========================== */
-
-    /* 칭호 목록은 서버(titles 테이블)가 정본이다.
-     * v17 이전에는 38종 카탈로그를 이 파일에 하드코딩하고 보유 여부만 대조했는데,
-     * 이제 DB에 38종이 카테고리까지 들어있어서 화면이 서버 데이터를 그대로 그린다.
-     * 템플릿이 #titles-data 에 data-* 로 내려주고, 순서(카테고리 정렬)도 서버가 정한다.
-     */
-    var TITLES = [].map.call(
-        document.querySelectorAll('#titles-data span'),
-        function (el) {
-            return {
-                code: el.dataset.code || '',
-                name: el.dataset.name || '',
-                cat: el.dataset.category || '기타',
-                cond: el.dataset.cond || '',
-                icon: el.dataset.icon || '🏷️',
-                owned: el.dataset.owned === 'true'
-            };
-        }
-    ).filter(function (t) { return t.name; });
-
-    function findByName(name) {
-        for (var i = 0; i < TITLES.length; i++) { if (TITLES[i].name === name) return TITLES[i]; }
-        return null;
-    }
-
-    // 대표 칭호: 서버가 정한 값에서 출발. 변경은 아직 화면 상태만(저장 API는 Phase 2).
-    var rep = findByName(REP_TITLE) || TITLES.filter(function (t) { return t.owned; })[0] || null;
-
-    var vMy = document.getElementById('view-mypage');
-    var vT = document.getElementById('view-titles');
-    var btnMore = document.getElementById('btn-titles-more');
-    var btnBack = document.getElementById('btn-titles-back');
-    if (!vMy || !vT || !btnMore) return;
-
-    function esc(s) {
-        return String(s).replace(/[&<>"]/g, function (c) {
-            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-        });
-    }
-
-    function renderRepCard() {
-        var badge = document.getElementById('rep-badge'),
-            name = document.getElementById('rep-name'),
-            cond = document.getElementById('rep-cond');
-        if (!badge) return;
-        if (!rep) {
-            badge.textContent = '🔒'; name.textContent = '아직 없음';
-            cond.textContent = '첫 여행을 완료하면 칭호가 열려요';
-            return;
-        }
-        badge.textContent = rep.icon; name.textContent = rep.name; cond.textContent = rep.cond;
-    }
-
-    function cardHTML(t) {
-        if (t.owned) {
-            var isRep = rep && t.name === rep.name;
-            return '<div class="tcard owned' + (isRep ? ' rep' : '') + '" data-cond="' + esc(t.cond) + '">' +
-                (isRep ? '<span class="tc-badge on">대표</span>' : '') +
-                '<div class="tc-ic">' + t.icon + '</div><div class="tc-name">' + esc(t.name) + '</div></div>';
-        }
-        return '<div class="tcard locked" data-cond="' + esc(t.cond) + '">' +
-            '<span class="tc-lock">🔒 미획득</span>' +
-            '<div class="tc-ic">' + t.icon + '</div><div class="tc-name">' + esc(t.name) + '</div></div>';
-    }
-
-    function renderTGrid() {
-        // 서버가 카테고리 순서대로 내려주므로, 순서를 새로 정하지 않고 나온 순서대로 묶는다.
-        var order = [], groups = {};
-        TITLES.forEach(function (t) {
-            if (!groups[t.cat]) { groups[t.cat] = []; order.push(t.cat); }
-            groups[t.cat].push(t);
-        });
-        var html = '';
-        order.forEach(function (cat) {
-            var items = groups[cat];
-            var have = items.filter(function (t) { return t.owned; }).length;
-            html += '<div class="tcat"><span>' + esc(cat) + '</span>' +
-                '<span class="tcat-count">' + have + '/' + items.length + '</span></div>';
-            html += items.map(cardHTML).join('');
-        });
-        document.getElementById('tgrid').innerHTML = html;
-    }
-
-    btnMore.addEventListener('click', function () {
-        vMy.hidden = true; vT.hidden = false;
-        renderRepCard(); renderTGrid();
-        window.scrollTo(0, 0);
-    });
-    if (btnBack) btnBack.addEventListener('click', function () {
-        vT.hidden = true; vMy.hidden = false;
-        window.scrollTo(0, 0);
-    });
-
-    // 칭호 호버 시 조건 툴팁 - 잠긴 칭호는 해금 조건, 이미 딴 칭호는 달성 조건을 보여준다.
-    // (원 목업은 잠긴 카드에만 data-cond 를 심어놔서 딴 칭호는 호버해도 아무것도 안 떴다)
-    var tip = document.getElementById('tc-tip'), tg = document.getElementById('tgrid');
-    if (tip && tg) {
-        tg.addEventListener('mouseover', function (e) {
-            var c = e.target.closest('.tcard');
-            if (!c || !c.dataset.cond) return;
-            tip.textContent = (c.classList.contains('locked') ? '🔒 ' : '✅ ') + c.dataset.cond;
-            tip.classList.add('show');
-        });
-        tg.addEventListener('mousemove', function (e) {
-            var c = e.target.closest('.tcard');
-            if (!c || !c.dataset.cond) { tip.classList.remove('show'); return; }
-            tip.style.left = (e.clientX - tip.offsetWidth / 2) + 'px';
-            tip.style.top = (e.clientY - tip.offsetHeight - 12) + 'px';
-        });
-        tg.addEventListener('mouseout', function (e) {
-            if (e.target.closest('.tcard')) tip.classList.remove('show');
-        });
-    }
-
-    // 대표 칭호 수정 모달
-    var modal = document.getElementById('rep-modal'), mList = document.getElementById('m-list');
-    var pending = rep;
-    if (modal && mList) {
-        document.getElementById('btn-rep-edit').addEventListener('click', function () {
-            pending = rep;
-            var owned = TITLES.filter(function (t) { return t.owned; });
-            mList.innerHTML = owned.length
-                ? owned.map(function (t) {
-                    return '<div class="m-opt' + (rep && t.name === rep.name ? ' sel' : '') + '" data-name="' + esc(t.name) + '">' +
-                        '<span class="mo-ic">' + t.icon + '</span><span class="mo-name">' + esc(t.name) + '</span></div>';
-                }).join('')
-                : '<p style="grid-column:1/-1; font-size:13px; color:var(--ink-soft); margin:0;">아직 획득한 칭호가 없어요.</p>';
-            modal.classList.add('show');
-        });
-        mList.addEventListener('click', function (e) {
-            var o = e.target.closest('.m-opt');
-            if (!o) return;
-            pending = findByName(o.dataset.name);
-            [].forEach.call(mList.children, function (c) { c.classList.toggle('sel', c === o); });
-        });
-        document.getElementById('m-cancel').addEventListener('click', function () { modal.classList.remove('show'); });
-        modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('show'); });
-        document.getElementById('m-confirm').addEventListener('click', function () {
-            rep = pending;
-            modal.classList.remove('show');
-            renderRepCard(); renderTGrid();
-            // 프로필 이름 옆 대표 칭호 칩도 같이 갱신(🏷️ 는 형제 span 이라 이름만 넣는다)
-            var chip = document.getElementById('title-text');
-            if (chip && rep) chip.textContent = rep.name;
-            // TODO(Phase 2): 대표 칭호 저장 API 연결. 지금은 새로고침하면 서버 값으로 돌아간다.
-            toast('대표 칭호를 바꿨어요 (저장 기능은 준비 중이에요)');
-        });
-    }
-
-    var toastTimer;
-    function toast(message) {
-        var el = document.getElementById('toast');
-        if (!el) return;
-        el.textContent = message;
-        el.classList.add('on');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { el.classList.remove('on'); }, 2200);
-    }
 })();

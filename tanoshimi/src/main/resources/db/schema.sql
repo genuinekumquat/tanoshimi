@@ -324,12 +324,36 @@ CREATE TABLE IF NOT EXISTS trip_schedule_votes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
+-- 14-1. my_trips ("내 여행" - v19 신규. 여행 횟수/지역 집계의 단일 근거)
+--   담당: 김민규(⑥ 마이페이지). MyTripEntity 클래스 주석 참고.
+--   source=PARTY 는 파티 완료 시 자동 생성(수정/삭제 불가), SOLO 는 사용자가 직접 등록.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS my_trips (
+    id           BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id      BIGINT       NOT NULL,
+    source       ENUM('SOLO','PARTY') NOT NULL DEFAULT 'SOLO',
+    party_id     BIGINT       NULL COMMENT 'source=PARTY일 때만. 같은 파티 중복 등록 방지 근거',
+    title        VARCHAR(200) NOT NULL,
+    destination  VARCHAR(100) NOT NULL COMMENT '여행지(자유 입력 - 위치태그 선택 아님)',
+    start_date   DATE         NOT NULL,
+    end_date     DATE         NOT NULL,
+    memo         VARCHAR(500) NULL,
+    created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_my_trips_user_party (user_id, party_id),
+    CONSTRAINT fk_my_trips_user FOREIGN KEY (user_id) REFERENCES users(id),
+    CONSTRAINT fk_my_trips_party FOREIGN KEY (party_id) REFERENCES parties(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
 -- 15. posts (여행 게시판 글 / 마이페이지 피드)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS posts (
     id            BIGINT       NOT NULL AUTO_INCREMENT,
     user_id       BIGINT       NOT NULL,
     party_id      BIGINT       NULL COMMENT '어떤 여행/파티에 대한 인증글인지(선택)',
+    trip_id       BIGINT       NULL COMMENT '[v19] 이 스냅이 딸린 내 여행(선택) - 집계에는 관여 안 함',
     title         VARCHAR(200) NOT NULL,
     content       TEXT         NOT NULL,
     region        VARCHAR(50)  NULL,
@@ -339,7 +363,8 @@ CREATE TABLE IF NOT EXISTS posts (
     updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     CONSTRAINT fk_post_user FOREIGN KEY (user_id) REFERENCES users(id),
-    CONSTRAINT fk_post_party FOREIGN KEY (party_id) REFERENCES parties(id)
+    CONSTRAINT fk_post_party FOREIGN KEY (party_id) REFERENCES parties(id),
+    CONSTRAINT fk_post_trip FOREIGN KEY (trip_id) REFERENCES my_trips(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS post_likes (

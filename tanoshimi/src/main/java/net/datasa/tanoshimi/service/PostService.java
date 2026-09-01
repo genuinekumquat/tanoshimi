@@ -21,6 +21,7 @@ public class PostService {
     private final PostLikeRepository postLikeRepository;
     private final PostCommentRepository postCommentRepository;
     private final PartyRepository partyRepository;
+    private final MyTripRepository myTripRepository;
     private final NotificationService notificationService;
     private final FileStorageService fileStorageService;
     private final BlockService blockService;
@@ -65,10 +66,25 @@ public class PostService {
     @Transactional
     public Long write(UserEntity author, PostRequest req) {
         PartyEntity party = req.partyId() == null ? null : partyRepository.findById(req.partyId()).orElse(null);
+
+        // [v19 신규] "내 여행"을 선택했으면 그 여행에 스냅을 묶는다 - 소유자 본인 여행만
+        // 선택 가능(findByIdAndUser). 지역을 직접 안 적었으면 선택한 여행의 여행지로 채운다
+        // (post-write.js 가 이미 자동으로 채워 보내지만, API를 직접 호출하는 경우까지 대비해
+        // 서버에서도 한 번 더 보정).
+        MyTripEntity trip = null;
+        String region = req.region();
+        if (req.tripId() != null) {
+            trip = myTripRepository.findByIdAndUser(req.tripId(), author)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT, "선택한 여행을 찾을 수 없습니다."));
+            if (region == null || region.isBlank()) {
+                region = trip.getDestination();
+            }
+        }
+
         PostEntity post = PostEntity.builder()
-                .user(author).party(party)
+                .user(author).party(party).trip(trip)
                 .title(req.title()).content(req.content())
-                .region(req.region()).thumbnailUrl(req.thumbnailUrl())
+                .region(region).thumbnailUrl(req.thumbnailUrl())
                 .build();
         Long id = postRepository.save(post).getId();
         fileStorageService.markActive(req.thumbnailUrl());

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{fragments/layout :: head('내 여행 | 타노시미')}"></th:block>
+  <style>
+    :root{
+      --parchment:#f3e8cf; --parchment-deep:#e8dab3; --card:#fffcf4;
+      --forest:#4b6b4a; --forest-deep:#33472f; --sash:#e0793f; --sash-deep:#b85c2b;
+      --gold:#d9a441; --sky:#8fb9c9; --ink:#3a2e22; --ink-soft:#6b5c46; --rope:#c9b58b; --line:#d8c69a;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background:radial-gradient(ellipse at top left, rgba(255,255,255,.35), transparent 55%), var(--parchment);
+      color:var(--ink); font-family:'Gowun Dodum','Apple SD Gothic Neo',sans-serif; line-height:1.6;
+    }
+    h1,h2,h3{ font-family:'Jua','Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
+    a{ color:var(--forest-deep); text-decoration:none; }
+    .wrap{ max-width:980px; margin:0 auto; padding:26px 22px 90px; }
+    .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; }
+    .btn{
+      font-family:'Gowun Dodum',sans-serif; font-weight:700; font-size:12.5px; border:none; border-radius:9px;
+      padding:8px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    }
+    .btn:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+    .btn-forest{ background:var(--forest); color:#fff; box-shadow:0 3px 0 var(--forest-deep); }
+    .btn-forest:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--forest-deep); }
+    .btn-ghost{ background:var(--card); color:var(--forest-deep); border:1.5px solid var(--line); }
+    .btn-ghost:hover{ border-color:var(--sash); color:var(--sash-deep); }
+    .btn-sash{ background:var(--sash); color:#fff; box-shadow:0 3px 0 var(--sash-deep); }
+    .btn-sash:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--sash-deep); }
+
+    .sec-head{ display:flex; align-items:baseline; gap:10px; margin:0 0 12px; flex-wrap:wrap; }
+    .sec-head .note{ font-size:12px; color:var(--ink-soft); }
+
+    .tm-head{ display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+    .back-btn{
+      display:inline-block; font-size:13px; color:var(--forest-deep); background:var(--card); border:1.5px solid var(--line);
+      border-radius:10px; padding:8px 13px; cursor:pointer; font-family:'Gowun Dodum',sans-serif; font-weight:700;
+    }
+    .back-btn:hover{ border-color:var(--sash); color:var(--sash-deep); }
+
+    /* ===================== 내 여행 카드 ===================== */
+    .trip-list{ display:flex; flex-direction:column; gap:10px; }
+    .trip-card{
+      display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:12px;
+      border:1px solid var(--line); background:var(--parchment);
+    }
+    .trip-card .trip-main{ flex:1; min-width:0; }
+    .trip-card .trip-title{ font-family:'Jua',sans-serif; font-size:14.5px; color:var(--forest-deep); }
+    .trip-card .trip-sub{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
+    .trip-card .trip-memo{ font-size:12px; color:var(--ink-soft); margin-top:6px; white-space:pre-line; }
+    .trip-badge{
+      flex:none; font-size:10.5px; font-weight:700; color:var(--sash-deep); background:rgba(224,121,63,.1);
+      border:1px solid var(--sash); border-radius:999px; padding:3px 10px; white-space:nowrap;
+    }
+    .trip-badge.pending{ color:var(--ink-soft); background:rgba(107,92,70,.08); border-color:var(--line); }
+    /* [v20-7 신규] 직접 등록(SOLO) 카드 배지 - 파티 자동 등록 배지와 대비되게 forest 계열로. */
+    .trip-badge.manual{ color:var(--forest-deep); background:rgba(75,107,74,.1); border-color:var(--forest); }
+    .trip-actions{ display:flex; flex-direction:column; gap:6px; flex:none; align-items:stretch; }
+    .trip-actions-row{ display:flex; gap:6px; flex:none; }
+    .trip-actions button{
+      font-size:11.5px; border:1.5px solid var(--line); background:var(--card); color:var(--ink-soft);
+      border-radius:8px; padding:6px 11px; cursor:pointer; font-family:'Gowun Dodum',sans-serif; font-weight:700;
+      white-space:nowrap;
+    }
+    .trip-actions button:hover{ border-color:var(--sash); color:var(--sash-deep); }
+    .trip-actions button.trip-upload-snap{ border-color:var(--sash); color:var(--sash-deep); }
+    .trip-actions button.trip-view-snaps{ border-color:var(--sky); color:#3f6f80; }
+    .trip-field-label{ display:block; font-size:12px; font-weight:700; margin-top:10px; margin-bottom:4px; color:var(--ink-soft); }
+    .trip-input{ width:100%; padding:9px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; }
+
+    /* ===================== [v20-7 신규] 게시판식 페이지네이션 ===================== */
+    .pagination{ display:flex; justify-content:center; align-items:center; gap:6px; margin-top:18px; flex-wrap:wrap; }
+    .pagination a{
+      display:inline-flex; align-items:center; justify-content:center; min-width:30px; height:30px; padding:0 6px;
+      border:1.5px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink-soft);
+      font-size:12.5px; font-weight:700; font-family:'Gowun Dodum',sans-serif;
+    }
+    .pagination a:hover{ border-color:var(--sash); color:var(--sash-deep); }
+    .pagination a.active{ background:var(--forest); border-color:var(--forest-deep); color:#fff; }
+
+    /* ===================== [v20-7 신규] "📷 스냅 보기" 읽기 전용 모달 ===================== */
+    .snap-view-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; max-height:360px; overflow-y:auto; padding-right:2px; }
+    .snap-view-item{ border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--parchment); }
+    .snap-view-item .ph{ width:100%; height:90px; background-size:cover; background-position:center; }
+    .snap-view-item .ph.ph1{ background-image:linear-gradient(135deg,var(--sky),#c7dfe6); }
+    .snap-view-item .ph.ph2{ background-image:linear-gradient(135deg,var(--gold),#f2d9a3); }
+    .snap-view-item .ph.ph3{ background-image:linear-gradient(135deg,var(--sash),#f0b58e); }
+    .snap-view-item .ph.ph4{ background-image:linear-gradient(135deg,var(--forest),#a9c3a8); }
+    .snap-view-item .snap-view-cap{ padding:6px 8px; font-size:11.5px; color:var(--ink-soft); }
+    .snap-view-item .snap-view-cap b{ display:block; color:var(--ink); font-size:12px; font-weight:700; }
+    .snap-view-empty{ text-align:center; color:var(--ink-soft); font-size:13px; padding:24px 0; }
+
+    /* ===================== 모달 공용 ===================== */
+    .modal{ position:fixed; inset:0; background:rgba(30,22,14,.42); display:none; align-items:center; justify-content:center; z-index:80; padding:20px; }
+    .modal.show{ display:flex; }
+    .modal-panel{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; width:min(460px,100%); box-shadow:0 20px 50px rgba(30,22,14,.3); }
+    .modal-panel h3{ font-family:'Jua',sans-serif; color:var(--forest-deep); margin:0 0 4px; font-size:18px; }
+    .modal-panel .m-sub{ font-size:12.5px; color:var(--ink-soft); margin-bottom:16px; }
+    .m-actions{ display:flex; gap:9px; justify-content:flex-end; }
+
+    @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
+  </style>
+</head>
+<body>
+
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="wrap">
+
+  <!-- [v20 신규] "내 여행" 전체 목록 + 추가·수정·삭제. 마이페이지 본문에는
+       최근 5개만 미리보기로 보이고, 전체 관리는 실제 URL(/mypage/mytrip)이 있는 이 페이지에서
+       한다(칭호 관리와 같은 이유 - 뒤로가기가 /mypage 로 정상 동작하게).
+       [v20-4] "스냅 인증 대기" 여행은 여기서 "📸 스냅 업로드"를 누르면 글쓰기 모달이 그
+       여행을 미리 선택한 채로 열린다 - 이미 올려둔 스냅을 소급 연결하는 방식(v20-2)은
+       걷어냈다: "여행을 먼저 등록하고, 스냅을 올릴 때 그 여행을 선택한다"는 정방향
+       순서만 인정한다(2026-09-01 요청). -->
+  <div class="tm-head">
+    <a th:href="@{/mypage}" class="back-btn">‹ 마이페이지</a>
+    <h1 style="font-size:22px;">내 여행</h1>
+  </div>
+
+  <div class="sec-head" style="justify-content:space-between;">
+    <span class="note">여기 등록된 여행 수가 그대로 "N번의 여행"·칭호 판정 근거가 됩니다. 파티 완료로
+      자동 등록된 여행은 "📸 스냅 업로드"로 사진을 한 장 올려야 카운트됩니다.</span>
+    <button type="button" id="btn-trip-add" class="btn btn-sash">+ 여행 추가</button>
+  </div>
+
+  <section class="card" style="padding:16px 18px;">
+    <!-- [v20-7] 서버 값을 data-* 로만 넘긴다(mypage-trips.js 가 읽어서 카드를 그린다).
+         카드로 보여줄 목록은 이번 페이지 20개(myTripPageViews)만 - 전체(myTripViews)는
+         아래 글쓰기 모달의 "여행 선택" 드롭다운에서 그대로 쓴다. -->
+    <div id="trips-data" hidden>
+      <span th:each="t : ${myTripPageViews}"
+            th:attr="data-id=${t.id},data-source=${t.source},data-title=${t.title},
+                     data-destination=${t.destination},data-start=${t.startDate},data-end=${t.endDate},
+                     data-days=${t.days},data-memo=${t.memo ?: ''},data-manageable=${t.manageable},
+                     data-counted=${t.counted}"></span>
+    </div>
+    <div class="trip-list" id="trip-list"></div>
+    <p id="trip-empty" style="color:var(--ink-soft); font-size:13px; margin:4px 2px;" th:if="${#lists.isEmpty(myTripViews)}">
+      아직 등록한 여행이 없습니다. "+ 여행 추가"로 다녀온 여행을 남겨보세요.
+    </p>
+
+    <!-- [v20-7 신규] 게시판식 페이지 번호 네비게이션. 20개 이하(1페이지)면 아예 숨긴다.
+         페이지 이동은 SPA 방식이 아니라 그냥 /mypage/mytrip?page=N 으로 서버에 새로
+         요청한다 - 여행 목록 자체가 이미 새로고침 기반(추가/수정/삭제 후 location.reload())
+         이라 이 페이지 전체가 새로고침에 익숙한 화면이고, 페이지네이션 하나만 SPA로 만들
+         이유가 없다. -->
+    <nav class="pagination" id="trip-pagination" th:if="${totalPages > 1}">
+      <a th:if="${currentPage > 0}" th:href="@{/mypage/mytrip(page=${currentPage - 1})}">‹</a>
+      <a th:each="p : ${#numbers.sequence(0, totalPages - 1)}"
+         th:href="@{/mypage/mytrip(page=${p})}"
+         th:text="${p + 1}"
+         th:classappend="${p == currentPage} ? 'active'"></a>
+      <a th:if="${currentPage < totalPages - 1}" th:href="@{/mypage/mytrip(page=${currentPage + 1})}">›</a>
+    </nav>
+  </section>
+
+</main>
+
+<!-- "내 여행" 추가/수정 모달 -->
+<div class="modal" id="trip-modal">
+  <div class="modal-panel">
+    <h3 id="trip-modal-title">여행 추가</h3>
+    <p class="m-sub">직접 다녀온 여행을 기록하면 지도·칭호에 그대로 반영돼요. 파티로 완료한 여행은 자동으로 추가됩니다.</p>
+    <input type="hidden" id="trip-id">
+    <label class="trip-field-label">여행 이름</label>
+    <input type="text" id="trip-title" placeholder="예: 포항 바다 보러" class="trip-input" maxlength="200">
+    <label class="trip-field-label">여행지</label>
+    <input type="text" id="trip-destination" placeholder="예: 포항" class="trip-input" maxlength="100">
+    <div style="display:flex; gap:8px;">
+      <div style="flex:1;">
+        <label class="trip-field-label">가는 날</label>
+        <input type="date" id="trip-start" class="trip-input">
+      </div>
+      <div style="flex:1;">
+        <label class="trip-field-label">오는 날</label>
+        <input type="date" id="trip-end" class="trip-input">
+      </div>
+    </div>
+    <div id="trip-days-preview" style="font-size:12px; color:var(--ink-soft); margin-top:5px;"></div>
+    <label class="trip-field-label">메모(선택)</label>
+    <textarea id="trip-memo" placeholder="여행 메모" class="trip-input" style="min-height:64px; resize:vertical;" maxlength="500"></textarea>
+    <div class="m-actions" style="margin-top:16px;">
+      <button type="button" class="btn btn-ghost" id="trip-cancel">취소</button>
+      <button type="button" class="btn btn-forest" id="trip-save">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- [v20-4 신규] 글쓰기 모달 - index.html의 것과 같은 마크업/스크립트(post-write.js)를
+     그대로 쓴다. "스냅 업로드" 버튼을 누르면 mypage-trips.js가 이 모달을 열면서 #w-trip을
+     그 여행으로 미리 선택해둔다(post-write.js의 window.openWriteModalWithTrip 참고) -
+     "여행을 먼저 등록하고, 그 여행을 선택해서 스냅을 올린다"는 정방향 순서 그대로다. -->
+<div id="write-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:90; align-items:center; justify-content:center;">
+  <div class="card" style="width:420px; padding:20px;">
+    <h2 style="font-size:17px; margin-bottom:14px;">📝 스냅 올리기</h2>
+    <input type="text" id="w-title" placeholder="제목" style="width:100%; padding:9px; margin-bottom:8px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
+    <textarea id="w-content" placeholder="내용을 입력하세요" style="width:100%; min-height:120px; padding:9px; border:1px solid var(--line); border-radius:8px; font-family:inherit; resize:vertical;"></textarea>
+    <select id="w-trip" style="width:100%; padding:9px; margin-top:8px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
+      <option value="">여행 선택 안 함(지역 직접 입력)</option>
+      <option th:each="t : ${myTripViews}" th:value="${t.id}"
+              th:text="${t.title + ' · ' + t.destination + ((!t.manageable and !t.counted) ? ' (📸 인증 대기)' : '')}"
+              th:attr="data-destination=${t.destination}"></option>
+    </select>
+    <input type="text" id="w-region" placeholder="지역(선택)" style="width:100%; padding:9px; margin-top:8px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
+    <label style="display:block; font-size:12px; font-weight:700; margin-top:10px; margin-bottom:4px; color:var(--ink-soft);">사진 (선택, 없으면 기본 이미지)</label>
+    <input type="file" id="w-thumbnail" accept="image/png,image/jpeg,image/gif,image/webp" style="width:100%; font-size:12.5px;">
+    <img id="w-thumbnail-preview" style="display:none; width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-top:8px;">
+    <div style="display:flex; gap:8px; margin-top:16px;">
+      <button type="button" id="btn-write-cancel" class="btn btn-ghost" style="flex:1;">취소</button>
+      <button type="button" id="btn-write-submit" class="btn btn-forest" style="flex:1;">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- [v20-7 신규] "📷 스냅 보기" 읽기 전용 모달 - 이 여행에 연결된 스냅들을 API로 불러와
+     그리기만 한다(mypage-trips.js 의 openSnapViewModal). 예전 "스냅 연결" 모달(v20-2, v20-4에서
+     제거)과 달리 선택/클릭 동작이 전혀 없다 - 순수 조회용. -->
+<div class="modal" id="snap-view-modal">
+  <div class="modal-panel" style="width:min(480px,100%);">
+    <h3 id="snap-view-title">스냅 보기</h3>
+    <p class="m-sub" id="snap-view-sub">이 여행에 연결된 스냅이에요.</p>
+    <div class="snap-view-grid" id="snap-view-grid"></div>
+    <p class="snap-view-empty" id="snap-view-empty" style="display:none;">아직 이 여행에 연결된 스냅이 없어요.</p>
+    <div class="m-actions" style="margin-top:16px;">
+      <button type="button" class="btn btn-ghost" id="snap-view-close">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" style="position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+     background:var(--forest-deep); color:#fff; font-size:13px; padding:10px 18px; border-radius:999px;
+     box-shadow:0 6px 16px rgba(59,44,20,.3); opacity:0; pointer-events:none; transition:.25s; z-index:90;"></div>
+
+<!-- CSRF 토큰을 붙이는 공용 fetch 래퍼(window.api). 아래 스크립트가 의존하므로 먼저 로드한다.
+     post-write.js는 #btn-write가 없어도(이 페이지엔 없음) 동작한다 - mypage-trips.js가
+     window.openWriteModalWithTrip으로 직접 모달을 연다. -->
+<script th:src="@{/js/csrf.js}"></script>
+<script th:src="@{/js/post-write.js}"></script>
+<script th:src="@{/js/mypage-trips.js}"></script>
+
+</body>
+</html>

@@ -179,6 +179,13 @@
     }
     .region:focus-visible{ stroke:var(--forest-deep); stroke-width:1.8; }
     svg.map.focusing .region{ opacity:.72; }
+    /* 포커싱된 지역의 "원래 크기" 원본은 완전히 숨긴다(opacity:0) - 확대된 복제본
+       (.active-clone)이 그 자리를 "대체"하는 것처럼 보이게 하기 위함이다.
+       이게 없으면 확대된 복제본 뒤로 흐릿해진 원본 크기 도형이 계속 비쳐서, 특히
+       오목한 해안선 모양에서 확대본이 원본을 다 못 가려 지저분하게(이중으로) 보였다.
+       인셋(예: 울릉/독도)처럼 active-clone 이 아예 없는 지역은 JS 에서 이 클래스를
+       안 붙이므로 그냥 계속 흐릿하게만 보인다(정상). */
+    svg.map.focusing .region.region-hidden{ opacity:0; }
     /* 활성 지역은 최상단 레이어(g-active)의 복제본으로 표시한다. hover 때 appendChild 로
        맨 위로 올리면 클릭 이벤트가 깨져서, 복제본을 미리 만들어두고 표시만 토글한다. */
     .active-clone{
@@ -266,6 +273,38 @@
     }
     .tc-tip.show{ opacity:1; transform:translateY(0); }
 
+    /* ===================== 내 여행 (v19 신규) ===================== */
+    .trip-list{ display:flex; flex-direction:column; gap:10px; }
+    .trip-card{
+      display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:12px;
+      border:1px solid var(--line); background:var(--parchment);
+    }
+    .trip-card .trip-main{ flex:1; min-width:0; }
+    .trip-card .trip-title{ font-family:'Jua',sans-serif; font-size:14.5px; color:var(--forest-deep); }
+    .trip-card .trip-sub{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
+    .trip-card .trip-memo{ font-size:12px; color:var(--ink-soft); margin-top:6px; white-space:pre-line; }
+    .trip-badge{
+      flex:none; font-size:10.5px; font-weight:700; color:var(--sash-deep); background:rgba(224,121,63,.1);
+      border:1px solid var(--sash); border-radius:999px; padding:3px 10px; white-space:nowrap;
+    }
+    /* [v19-4 신규] 파티 완료로 등록됐지만 아직 연결된 스냅이 없어 여행 횟수에 반영되지
+       않는 상태 - 색을 다르게 줘서 "등록은 됐지만 아직 카운트는 안 됐다"를 구분한다. */
+    .trip-badge.pending{
+      color:var(--ink-soft); background:rgba(107,92,70,.08); border-color:var(--line);
+    }
+    /* [v20-7 신규] 직접 등록(SOLO) 배지 - /mypage/mytrip 카드와 같은 색상 규칙(forest 계열). */
+    .trip-badge.manual{
+      color:var(--forest-deep); background:rgba(75,107,74,.1); border-color:var(--forest);
+    }
+    .trip-actions{ display:flex; gap:6px; flex:none; }
+    .trip-actions button{
+      font-size:11.5px; border:1.5px solid var(--line); background:var(--card); color:var(--ink-soft);
+      border-radius:8px; padding:6px 11px; cursor:pointer; font-family:'Gowun Dodum',sans-serif; font-weight:700;
+    }
+    .trip-actions button:hover{ border-color:var(--sash); color:var(--sash-deep); }
+    .trip-field-label{ display:block; font-size:12px; font-weight:700; margin-top:10px; margin-bottom:4px; color:var(--ink-soft); }
+    .trip-input{ width:100%; padding:9px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; }
+
     /* ===================== 모달(대표 칭호 / 집 주소) ===================== */
     .modal{ position:fixed; inset:0; background:rgba(30,22,14,.42); display:none; align-items:center; justify-content:center; z-index:80; padding:20px; }
     .modal.show{ display:flex; }
@@ -331,13 +370,15 @@
 <main class="wrap">
 
   <!-- ================================================================
-       마이페이지 뷰. "내 칭호 > 더보기"를 누르면 이 뷰를 감추고
-       아래 #view-titles(칭호 관리)를 보여준다. 별도 라우팅 없이 화면만 전환한다.
+       마이페이지 본문. [v20] 칭호 관리(/mypage/titles), 내 여행 전체(/mypage/mytrip)는
+       각각 실제 URL이 있는 별도 페이지로 분리했다 - 예전에는 이 안에서 JS로 뷰만 감추고
+       보여줬는데, 주소가 항상 /mypage라 뒤로가기를 누르면 그 화면이 아니라 브라우저
+       히스토리상 그 전 페이지로 나가버리는 문제가 있었다.
        ================================================================ -->
   <div id="view-mypage">
 
     <!-- 서버 값 중 스크립트가 필요한 것들. 엔티티를 통째로 JS 로 직렬화하지 않고
-         data-* 속성으로만 넘긴다(mypage-titles.js 가 읽는다). -->
+         data-* 속성으로만 넘긴다(mypage-titles.js 의 여행 거리 계산이 읽는다). -->
     <span id="mypage-meta" hidden
           th:attr="data-user-key=${me.name},data-rep-title=${myTitle != null ? myTitle.name : ''}"></span>
 
@@ -363,8 +404,11 @@
           <span class="profile-name">
             <span th:text="${me.name}">유자차</span><span class="nim">님</span>
           </span>
-          <!-- 대표 칭호. 칭호 관리에서 대표를 바꾸면 mypage-titles.js 가 #title-text 를 갱신한다. -->
-          <span class="title-chip"><span>🏷️</span><span id="title-text"
+          <!-- 대표 칭호. 아이콘도 그 칭호의 icon_key 를 쓴다(예전엔 🏷️로 고정돼 있어서
+               실제 대표 칭호 아이콘과 안 맞았음 - 칭호 관리에서 대표를 바꾸면
+               mypage-titles.js 가 #title-icon/#title-text 둘 다 갱신한다). -->
+          <span class="title-chip"><span id="title-icon"
+                th:text="${myTitle} != null ? ${myTitle.iconKey} : '🏷️'">🏷️</span><span id="title-text"
                 th:text="${myTitle} != null ? ${myTitle.name} : '칭호 없음'">숙련된 여행자</span></span>
           <!-- mannerScore(중복 필드) 대신 mannerTemp 사용. MannerTempService에서 0~50 범위로 확정되어 /50*100로 반영함. -->
           <span class="manner">
@@ -458,11 +502,52 @@
       <div class="snaps" id="snaps"></div>
     </section>
 
+    <!-- ================= 내 여행 =================
+         [v19 신규] 여행 횟수/지도색/칭호 판정의 단일 근거. 파티를 완료하면 자동으로
+         한 줄이 추가되고(수정·삭제 불가 - 파티 완료 자체가 이미 검증된 여행 증거라서),
+         혼자 다녀온 여행은 여기서 직접 추가·수정·삭제한다. 스냅을 몇 장 올리든 여기 등록된
+         "여행" 개수 자체는 그대로라, 예전처럼 사진을 여러 장 올렸다고 여행 횟수가
+         뻥튀기되지 않는다.
+         [v20 변경] 마이페이지 본문에는 최근 5개만 읽기 전용으로 미리보고, 전체 목록·추가·
+         수정·삭제·스냅 연결은 /mypage/mytrip 별도 페이지에서 한다(칭호 관리와 같은 이유 -
+         뒤로가기가 실제 URL 기준으로 동작하게). 그래서 여기는 mypage-trips.js 없이 서버가
+         바로 카드를 그린다(다른 미리보기 섹션들 - 피드, 내 파티 - 과 같은 방식). -->
+    <div class="sec-head" style="justify-content:space-between;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <h2>🧳 내 여행</h2>
+        <span class="note">여기 등록된 여행 수가 그대로 "N번의 여행"·칭호 판정 근거가 됩니다.</span>
+      </div>
+      <a th:href="@{/mypage/mytrip}" class="more-btn">더보기 ›</a>
+    </div>
+
+    <section class="card" style="padding:16px 18px;">
+      <div class="trip-list">
+        <div class="trip-card" th:each="t : ${myTripPreview}">
+          <div class="trip-main">
+            <div class="trip-title" th:text="${t.title}">여행</div>
+            <div class="trip-sub">📍 <span th:text="${t.destination}">지역</span> ·
+              <span th:text="${t.startDate}">2026-01-01</span> ~ <span th:text="${t.endDate}">2026-01-01</span> ·
+              <span th:text="${t.days <= 1 ? '당일치기' : (t.days - 1) + '박 ' + t.days + '일'}">당일치기</span></div>
+            <div class="trip-memo" th:if="${t.memo != null and !#strings.isEmpty(t.memo)}" th:text="${t.memo}">메모</div>
+          </div>
+          <span class="trip-badge manual" th:if="${t.manageable}">✍️ 직접 등록</span>
+          <span class="trip-badge" th:if="${!t.manageable and t.counted}">🎒 파티 완료로 자동 등록</span>
+          <span class="trip-badge pending" th:if="${!t.manageable and !t.counted}">📸 스냅 인증 대기</span>
+        </div>
+      </div>
+      <p style="color:var(--ink-soft); font-size:13px; margin:4px 2px 0;" th:if="${#lists.isEmpty(myTripPreview)}">
+        아직 등록한 여행이 없습니다. "더보기"에서 다녀온 여행을 남겨보세요.
+      </p>
+      <p style="color:var(--ink-soft); font-size:12px; margin:10px 2px 0;" th:if="${myTripTotal > myTripPreview.size()}">
+        전체 <span th:text="${myTripTotal}">0</span>개 중 최근 <span th:text="${myTripPreview.size()}">5</span>개만 표시 중이에요.
+      </p>
+    </section>
+
     <!-- ================= 칭호 ================= -->
     <div class="sec-head">
       <h2>🏅 내 칭호</h2>
       <span class="note">여행을 완료하면 자동으로 획득합니다</span>
-      <button type="button" class="more-btn" id="btn-titles-more">더보기 ›</button>
+      <a th:href="@{/mypage/titles}" class="more-btn">더보기 ›</a>
     </div>
 
     <section class="card" style="padding:18px 22px;">
@@ -521,44 +606,6 @@
 
   </div><!-- /#view-mypage -->
 
-  <!-- ================================================================
-       칭호 관리 뷰. 카탈로그(38종 8카테고리)는 mypage-titles.js 가 갖고 있고,
-       획득 여부는 위 "내 칭호" 칩(서버 데이터)과 대조해서 정한다.
-       Phase 2 에서 titles 테이블에 category 가 생기면 서버 데이터로 갈아끼운다.
-       ================================================================ -->
-  <div id="view-titles" hidden>
-    <div class="tm-head">
-      <button type="button" class="back-btn" id="btn-titles-back">‹ 마이페이지</button>
-      <h1 style="font-size:22px;">칭호 관리</h1>
-    </div>
-
-    <section class="card rep-card">
-      <div class="rep-badge" id="rep-badge">🏷️</div>
-      <div class="rep-info">
-        <div class="lbl">현재 대표 칭호</div>
-        <div class="rep-name" id="rep-name">아직 없음</div>
-        <div class="rep-cond" id="rep-cond">첫 여행을 완료하면 칭호가 열려요</div>
-      </div>
-      <button type="button" class="btn btn-ghost rep-edit" id="btn-rep-edit">✍ 수정</button>
-    </section>
-
-    <div class="sec-head"><h2>전체 칭호</h2></div>
-
-    <!-- 칭호 전체 목록(미획득 포함). mypage-titles.js 가 이 data-* 를 읽어 카드를 그린다.
-         엔티티를 JS 로 직렬화하지 않고 마크업에 실어 보내는 방식(단일 출처). -->
-    <div id="titles-data" hidden>
-      <span th:each="t : ${allTitles}"
-            th:attr="data-code=${t.code},data-name=${t.name},data-category=${t.category},
-                     data-cond=${t.conditionDesc},data-icon=${t.iconKey},
-                     data-owned=${#lists.contains(ownedCodes, t.code)}"></span>
-    </div>
-
-    <div class="tgrid" id="tgrid"></div>
-    <p style="font-size:12px; color:var(--ink-soft); margin-top:14px;">
-      잠긴 칭호에 마우스를 올리면 해금 조건이 표시됩니다.
-    </p>
-  </div>
-
 </main>
 
   <!-- 글쓰기 모달 -->
@@ -567,6 +614,19 @@
       <h2 style="font-size:17px; margin-bottom:14px;">📝 글쓰기</h2>
       <input type="text" id="w-title" placeholder="제목" style="width:100%; padding:9px; margin-bottom:8px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
       <textarea id="w-content" placeholder="내용을 입력하세요" style="width:100%; min-height:120px; padding:9px; border:1px solid var(--line); border-radius:8px; font-family:inherit; resize:vertical;"></textarea>
+      <!-- [v19 신규] "내 여행" 중 하나를 고르면 region 이 그 여행의 여행지로 자동 채워진다
+           (post-write.js). 여행 횟수 집계에는 영향 없음 - my_trips 자체가 근거라 사진을
+           몇 장 올리든 상관없다. [v20-3 신규] "스냅 인증 대기"(파티 완료로 등록됐지만 아직
+           연결된 스냅이 없는) 여행은 옵션 텍스트에 표시해 둔다 - 여기서 그 여행을 골라 스냅을
+           올리는 게 원래 의도한 정방향 플로우(여행 등록 → 글쓰기에서 선택 → 자동 연결)라,
+           어떤 여행이 아직 "증거"가 필요한지 바로 보이면 굳이 "내 여행" 페이지의 소급
+           "스냅 연결" 버튼까지 안 가도 된다. -->
+      <select id="w-trip" style="width:100%; padding:9px; margin-top:8px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
+        <option value="">여행 선택 안 함(지역 직접 입력)</option>
+        <option th:each="t : ${myTripViews}" th:value="${t.id}"
+                th:text="${t.title + ' · ' + t.destination + ((!t.manageable and !t.counted) ? ' (📸 인증 대기)' : '')}"
+                th:attr="data-destination=${t.destination}"></option>
+      </select>
       <input type="text" id="w-region" placeholder="지역(선택)" style="width:100%; padding:9px; margin-top:8px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
       <label style="display:block; font-size:12px; font-weight:700; margin-top:10px; margin-bottom:4px; color:var(--ink-soft);">사진 (선택, 없으면 기본 이미지)</label>
       <input type="file" id="w-thumbnail" accept="image/png,image/jpeg,image/gif,image/webp" style="width:100%; font-size:12.5px;">
@@ -578,18 +638,8 @@
     </div>
   </div>
 
-  <!-- 대표 칭호 설정 모달 (※ 저장 API는 Phase 2. 지금은 화면 상태만 바뀐다) -->
-  <div class="modal" id="rep-modal">
-    <div class="modal-panel">
-      <h3>대표 칭호 설정</h3>
-      <p class="m-sub">획득한 칭호 중에서 대표로 표시할 칭호를 골라주세요.</p>
-      <div class="m-list" id="m-list"></div>
-      <div class="m-actions">
-        <button type="button" class="btn btn-ghost" id="m-cancel">취소</button>
-        <button type="button" class="btn btn-forest" id="m-confirm">확인</button>
-      </div>
-    </div>
-  </div>
+  <!-- 대표 칭호 설정 모달, "내 여행" 추가/수정 모달은 [v20] 각각 /mypage/titles,
+       /mypage/mytrip 페이지로 옮겨졌다. -->
 
   <!-- 집(출발지) 설정 모달 -->
   <div class="modal" id="home-modal">

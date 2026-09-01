@@ -1,19 +1,12 @@
 package net.datasa.tanoshimi.service;
 
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.domain.dto.RegionVisitView;
 import net.datasa.tanoshimi.domain.dto.TravelHeatmapView;
-import net.datasa.tanoshimi.domain.entity.PartyEntity;
-import net.datasa.tanoshimi.domain.entity.PartyStatus;
-import net.datasa.tanoshimi.domain.entity.PostEntity;
-import net.datasa.tanoshimi.domain.entity.UserEntity;
-import net.datasa.tanoshimi.repository.PartyMemberRepository;
-import net.datasa.tanoshimi.repository.PostRepository;
+import net.datasa.tanoshimi.domain.entity.MyTripEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,65 +49,37 @@ public class TravelHeatmapService {
     /** 여행 하루당 추가 점수. */
     static final int SCORE_PER_DAY = 1;
 
-    private final PartyMemberRepository partyMemberRepository;
-    private final PostRepository postRepository;
-
-    /** 사용자의 완료된 여행(파티 + 개별)을 지역별로 묶어 히트맵 데이터를 만든다. */
+    /**
+     * "내 여행"(my_trips) 목록을 지역별로 묶어 히트맵 데이터를 만든다.
+     *
+     * <p><b>v19 변경</b> - parties/posts 를 직접 스캔하던 걸 my_trips 목록 하나로 옮겼다.
+     * {@code trips} 는 MyPageController 가 MyTripService.listMine 으로 동기화·조회한 뒤,
+     * {@link net.datasa.tanoshimi.service.MyTripService#isCountable} 로 걸러낸 "실제로
+     * 카운트할" 목록만 넘겨준다 - TitleService.syncTitles 와 같은 근거를 공유해야 지도 색과
+     * 칭호가 "몇 번 다녀왔는지"를 다르게 말하지 않는다.
+     */
     @Transactional(readOnly = true)
-    public TravelHeatmapView summarize(UserEntity user) {
-        List<PartyEntity> completed =
-                partyMemberRepository.findPartiesByUserAndStatus(user, PartyStatus.completed);
-
+    public TravelHeatmapView summarize(List<MyTripEntity> trips) {
         // region -> [횟수, 일수]. 화면에 나열되는 순서를 안정적으로 두려고 LinkedHashMap 사용.
         Map<String, int[]> accumulator = new LinkedHashMap<>();
-        for (PartyEntity party : completed) {
-            String region = party.getRegion();
+        for (MyTripEntity trip : trips) {
+            String region = trip.getDestination();
             if (region == null || region.isBlank()) {
                 continue;
             }
             int[] cell = accumulator.computeIfAbsent(region.trim(), key -> new int[2]);
             cell[0] += 1;
-            // durationDays 는 NOT NULL DEFAULT 1 이지만, 과거 데이터에 0이 들어있을 수 있어 최소 1일로 본다.
-            cell[1] += Math.max(1, party.getDurationDays());
+            cell[1] += (int) Math.max(1, trip.days());
         }
-
-        int soloTrips = mergeSoloTravel(user, accumulator);
 
         Map<String, RegionVisitView> regions = new LinkedHashMap<>();
         accumulator.forEach((region, cell) -> {
-            int trips = cell[0];
+            int tripCount = cell[0];
             int days = cell[1];
-            regions.put(region, new RegionVisitView(trips, days, score(trips, days)));
+            regions.put(region, new RegionVisitView(tripCount, days, score(tripCount, days)));
         });
 
-        return new TravelHeatmapView(regions, completed.size() + soloTrips, regions.size());
-    }
-
-    /**
-     * 개별 여행(파티 없이 혼자 다녀온 여행)을 위 accumulator 에 합쳐 넣는다.
-     * 같은 지역·같은 날짜는 한 번만 센다. 합쳐진 개별 여행 횟수를 반환한다
-     * (파티 횟수와 더해 화면에 "N회 여행"으로 보여줄 총 횟수를 만들기 위함).
-     */
-    private int mergeSoloTravel(UserEntity user, Map<String, int[]> accumulator) {
-        List<PostEntity> soloPosts = postRepository.findByUserAndPartyIsNullAndBlindedFalse(user);
-        Set<String> countedDays = new HashSet<>(); // "지역|날짜" 중복 방지
-        int soloTrips = 0;
-        for (PostEntity post : soloPosts) {
-            String region = post.getRegion();
-            if (region == null || region.isBlank() || post.getCreatedAt() == null) {
-                continue;
-            }
-            String normalized = region.trim();
-            String dayKey = normalized + "|" + post.getCreatedAt().toLocalDate();
-            if (!countedDays.add(dayKey)) {
-                continue; // 같은 지역, 같은 날 - 이미 셌음
-            }
-            int[] cell = accumulator.computeIfAbsent(normalized, key -> new int[2]);
-            cell[0] += 1;
-            cell[1] += 1; // 개별 여행은 지속일수를 모르니 최소 1일로 취급(파티와 동일 규칙)
-            soloTrips++;
-        }
-        return soloTrips;
+        return new TravelHeatmapView(regions, trips.size(), regions.size());
     }
 
     static int score(int trips, int days) {

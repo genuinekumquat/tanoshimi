@@ -13,16 +13,22 @@
  * 얹어서 계산한다.
  *
  * ※ 지역 계층 불일치(중요, Phase 2 팀 협의 필요):
- *   - 한국: regions.json의 오버뷰가 17개 시도 평면이라 서버 지역명과 거의 그대로 맞는다.
  *   - 일본: regions.json은 지방(8권역+오키나와) -> 현 2단계인데, 서버는 지금 현 단위
  *     한글 지명만 갖고 있다. 그래서 현 단위로 서버 데이터를 매칭한 뒤, 지방(오버뷰) 단계는
- *     그 지방에 속한 현들의 합계로 집계해서 색을 칠한다. 지역명이 REGION_ALIASES에
- *     없으면 어느 현/시도에도 못 얹히니 콘솔에 경고만 남기고 조용히 넘어간다.
+ *     그 지방에 속한 현들의 합계로 집계해서 색을 칠한다.
+ *   - 한국: 오버뷰는 17개 시/도 평면이라 대부분 서버 지역명(파티 region, 시/도 단위)과
+ *     그대로 맞는다. 다만 경북은 v18에서 드릴다운(23개 시/군/구)이 생겼고, 개별 여행
+ *     스냅은 "포항"/"경주"처럼 시/군 단위 이름으로 내려오기 때문에, 경북 오버뷰 항목도
+ *     일본과 같은 방식(rollUpOverviewFromDrill)으로 그 하위 시/군들의 합계를 더해서
+ *     칠한다 - 안 그러면 경북 밑의 시/군 단위 태그가 상위 지도에는 전혀 안 잡힌다.
+ *   - 지역명이 REGION_ALIASES/KOREA_CITY_TO_PROVINCE 등에 없으면 어느 현/시도에도
+ *     못 얹히니 콘솔에 경고만 남기고 조용히 넘어간다.
  *   - 서버 지역명 체계가 앞으로 바뀌면(예: enum 도입) 여기 NAME_ALIASES만 고치면 된다.
  *
  * ※ 스냅(사진): 지역 태그가 붙은 내 게시글(posts.region)을 지역별로 묶어, 마우스를 올린
  *   지역 위에 띄운다. 별도 API 없이 템플릿이 #snaps-data 로 내려준 것을 읽는다.
- *   일본 오버뷰(지방)에서는 그 지방에 속한 현들의 스냅을 합쳐서 보여준다.
+ *   오버뷰 단계에서 하위 드릴 지역이 있는 항목(일본 지방, 한국 경북)은 그 하위 지역들의
+ *   스냅을 합쳐서 보여준다(snapsFor).
  *
  * ※ 클릭 버그 교훈: SVG 지역을 hover 시 appendChild로 맨 위로 올리면 실제 마우스 클릭
  *   이벤트가 깨진다. 그래서 활성 지역은 복제본을 최상단 레이어(g-active)에 미리 만들어두고
@@ -52,7 +58,11 @@
         '전라북도': '전북', '전북특별자치도': '전북', '전라남도': '전남',
         '경상북도': '경북', '경상남도': '경남',
         '대구광역시': '대구', '부산광역시': '부산', '광주광역시': '광주',
-        '대전광역시': '대전', '울산광역시': '울산', '제주특별자치도': '제주', '제주도': '제주'
+        '대전광역시': '대전', '울산광역시': '울산', '제주특별자치도': '제주', '제주도': '제주',
+        // v19: 독도는 행정구역상 울릉군 소속이라 지도에서도 별도 지역으로 안 두고 울릉에
+        // 합쳤다(regions.json 참고) - 그래서 "독도"라고 직접 입력된 여행지도 울릉 쪽 통계/
+        // 스냅으로 묶는다.
+        '독도': '울릉'
     };
 
     function tier(v) {
@@ -77,13 +87,18 @@
         return map;
     })();
 
-    /** 이 지역에서 보여줄 스냅들. 일본 오버뷰(지방)면 소속 현들의 스냅을 합친다. */
+    /**
+     * 이 지역에서 보여줄 스냅들. 오버뷰 단계에서 하위 드릴 지역이 있는 항목(일본 지방,
+     * 한국 경북)이면 그 하위 지역들의 스냅을 합친다.
+     * v18 이전엔 일본만 오버뷰/드릴 2단계였어서 country==='japan'으로 하드코딩돼 있었는데,
+     * 경북 드릴다운이 생기면서 한국도 같은 처리가 필요해져 국가 구분 없이 일반화했다.
+     */
     function snapsFor(r) {
-        if (state.level === 'overview' && state.country === 'japan'
-                && DATA.japan.drill && DATA.japan.drill[r.key]) {
+        var drill = DATA[state.country].drill;
+        if (state.level === 'overview' && drill && drill[r.key]) {
             var merged = [];
-            DATA.japan.drill[r.key].forEach(function (prefecture) {
-                var list = snapsByRegion[prefecture.name];
+            drill[r.key].forEach(function (child) {
+                var list = snapsByRegion[child.name];
                 if (list) merged = merged.concat(list);
             });
             return merged;
@@ -107,6 +122,7 @@
     var DATA = null;
     var state = { country: 'japan', level: 'overview', region: null };
     var focused = null;
+    var hiddenPathEl = null; // 포커싱 중 원본을 숨겨둔 <path> - clearFocus 에서 되돌린다.
 
     /** 서버 raw(지역명 -> {trips, days, score})를 정규화한 이름으로 다시 색인한다. */
     function normalizeRaw(raw) {
@@ -135,15 +151,29 @@
         });
     }
 
-    /** 일본 지방(오버뷰) 값은 그 지방에 속한 현들의 합계로 만든다. */
-    function rollUpJapanOverview() {
-        var drill = DATA.japan.drill;
-        DATA.japan.overview.forEach(function (region) {
-            var prefs = drill[region.key];
-            if (!prefs || !prefs.length) { region.trips = 0; region.days = 0; region.score = 0; return; }
+    /**
+     * 오버뷰 항목 중 하위 드릴 지역이 있는 것(일본은 전 지방, 한국은 지금 경북만)은
+     * 그 하위 지역들의 합계를 더해준다(덮어쓰지 않고 더하는 이유: attachStats 가 이미
+     * 시/도 단위 이름으로 직접 매칭해놨을 수도 있어서 - 일본은 오버뷰에 attachStats 를
+     * 아예 안 걸어서 항상 0에서 시작하지만, 한국은 "경북"이라는 시/도 이름으로 직접 태그된
+     * 데이터가 있을 수도 있으니 시/군 합계를 그 위에 얹는다).
+     *
+     * v18 이전엔 한국이 오버뷰 1단계뿐이라 이 함수가 일본 전용이었는데, 경북 드릴다운이
+     * 생기면서 서버가 시/군 단위 지역명("포항"/"경주" 등)도 내려주기 시작했다 - 그런데
+     * 오버뷰의 "경북" 항목은 정확히 "경북"이라는 이름으로만 매칭됐어서(attachStats),
+     * 시/군 단위로 태그된 개별 여행은 상위 지도(오버뷰)에서 전혀 안 잡히고 있었다.
+     */
+    function rollUpOverviewFromDrill(country) {
+        var drill = DATA[country].drill;
+        if (!drill) return;
+        DATA[country].overview.forEach(function (region) {
+            var children = drill[region.key];
+            if (!children || !children.length) return;
             var t = 0, d = 0, s = 0;
-            prefs.forEach(function (p) { t += p.trips || 0; d += p.days || 0; s += p.score || 0; });
-            region.trips = t; region.days = d; region.score = s;
+            children.forEach(function (c) { t += c.trips || 0; d += c.days || 0; s += c.score || 0; });
+            region.trips = (region.trips || 0) + t;
+            region.days = (region.days || 0) + d;
+            region.score = (region.score || 0) + s;
         });
     }
 
@@ -156,14 +186,14 @@
         Object.keys(DATA.japan.drill).forEach(function (key) {
             attachStats(DATA.japan.drill[key], byName, matchedNames);
         });
-        // 한국도 드릴(시/군/구) 데이터가 생기면 색을 칠해야 한다. 지금은 서버가 시/도
-        // 단위 지역명만 내려주므로 전부 0(미방문)으로 붙지만, 이 루프가 없으면 r.trips 등이
-        // undefined로 남아 tier() 비교에서 조용히 깨진다 - 드릴 데이터를 추가할 때마다
-        // 매번 여기 고칠 필요 없게 미리 일반화해둔다.
+        // 한국 드릴(경북 시/군/구) 데이터에도 통계를 얹는다. 개별 여행(v18)부터는 서버가
+        // "포항"/"경주" 같은 시/군 단위 지역명도 내려주므로, 여기서 매칭 안 시켜두면
+        // r.trips 등이 undefined로 남아 tier() 비교에서 조용히 깨진다.
         Object.keys(DATA.korea.drill).forEach(function (key) {
             attachStats(DATA.korea.drill[key], byName, matchedNames);
         });
-        rollUpJapanOverview();
+        rollUpOverviewFromDrill('japan');
+        rollUpOverviewFromDrill('korea');
 
         if (matchedNames.size) {
             console.warn('[여행 지도] 지도에서 찾을 수 없는 지역명(서버 heatmap):', Array.from(matchedNames));
@@ -253,6 +283,12 @@
         [].forEach.call(gL.querySelectorAll('.rlabel.show'), function (el) { el.classList.remove('show'); });
         var lbl = document.getElementById('lbl-' + r.key); if (lbl) lbl.classList.add('show');
 
+        // 확대 복제본(ac)이 있는 지역만 원본을 숨긴다 - 복제본이 그 자리를 "대체"하는
+        // 것처럼 보이게. 복제본이 없는 지역(인셋 등)은 원래대로 흐릿하게만 남는다.
+        if (hiddenPathEl && hiddenPathEl !== pathEl) hiddenPathEl.classList.remove('region-hidden');
+        if (ac) { pathEl.classList.add('region-hidden'); hiddenPathEl = pathEl; }
+        else if (hiddenPathEl === pathEl) { hiddenPathEl = null; }
+
         var suffix = (state.level === 'overview' && r.drillable) ? ' <span style="font-size:12px;color:var(--sash-deep);">· 클릭해서 자세히 보기</span>' : '';
         if (r.trips > 0) {
             var n = Math.max(1, r.days - 1);
@@ -270,6 +306,7 @@
         focused = null; svg.classList.remove('focusing');
         [].forEach.call(gA.querySelectorAll('.active-clone.on'), function (el) { el.classList.remove('on'); });
         [].forEach.call(gL.querySelectorAll('.rlabel.show'), function (el) { el.classList.remove('show'); });
+        if (hiddenPathEl) { hiddenPathEl.classList.remove('region-hidden'); hiddenPathEl = null; }
         var hint = state.level === 'drill'
             ? '현에 마우스를 올리면 그 현의 방문 기록이 떠요'
             : (DATA[state.country].overview.some(function (x) { return x.drillable; })
@@ -309,27 +346,37 @@
         var box = pathEl.getBoundingClientRect(), sb = stage.getBoundingClientRect();
         var cx = box.left - sb.left + box.width / 2, cy = box.top - sb.top + box.height / 2;
         var HALF = 59, rad = Math.max(box.width, box.height) / 2, html = '';
-        if (n >= 5) {
-            // 스냅이 많으면 권역을 빙 둘러 원형 배치(조금 겹쳐도 OK)
-            var R = rad + HALF + 54;
-            for (var i = 0; i < n; i++) {
-                var ang = -Math.PI / 2 + (i / n) * Math.PI * 2;   // 위에서 시작해 시계방향
-                var x = cx + Math.cos(ang) * R - HALF, y = cy + Math.sin(ang) * R - HALF;
-                x = Math.max(6, Math.min(x, sb.width - 118 - 6)); y = Math.max(6, Math.min(y, sb.height - 118 - 6));
-                html += pokeHtml(snaps[i], i, x, y, i * 45);
-            }
+        var R = rad + HALF + 54;
+
+        // 스냅 하나가 차지하는 호 길이. 118px 정사각형 한 변보다 살짝 짧게 잡아서
+        // "조금 겹쳐도 OK"인 촘촘한 간격으로 나란히 채워지게 한다(예전엔 5개 이상이면
+        // 무조건 360도를 n등분해서, 5개처럼 적은 개수인데도 듬성듬성 십자 모양으로
+        // 벌어져 보이는 문제가 있었다).
+        var ITEM_ARC = HALF * 2 * 0.86;
+        var step = ITEM_ARC / R;
+        var fullSpan = n * step;
+
+        // 여유 있는 쪽(왼쪽/오른쪽)을 중심으로 그 방향부터 채운다.
+        var leftRoom = box.left - sb.left, rightRoom = sb.width - (box.right - sb.left);
+        var roomySide = leftRoom >= rightRoom ? Math.PI : 0;
+
+        var startAngle;
+        if (fullSpan >= Math.PI * 2 - 1e-6) {
+            // 촘촘한 간격으로도 한 바퀴를 다 채우거나 넘칠 만큼 많으면, 그때는 완전한
+            // 원으로 고르게 펼친다(위에서 시작해 시계방향).
+            step = Math.PI * 2 / n;
+            startAngle = -Math.PI / 2;
         } else {
-            // 적으면 여유 넓은 한쪽 변을 따라 원호(부챗살)
-            var R2 = rad + HALF + 54;
-            var leftRoom = box.left - sb.left, rightRoom = sb.width - (box.right - sb.left);
-            var center = leftRoom >= rightRoom ? Math.PI : 0;
-            var span = n <= 1 ? 0 : Math.min(2.5, 0.55 * (n - 1));
-            for (var j = 0; j < n; j++) {
-                var a = center - span / 2 + (n <= 1 ? 0 : span * j / (n - 1));
-                var px = cx + Math.cos(a) * R2 - HALF, py = cy + Math.sin(a) * R2 - HALF;
-                px = Math.max(6, Math.min(px, sb.width - 118 - 6)); py = Math.max(6, Math.min(py, sb.height - 118 - 6));
-                html += pokeHtml(snaps[j], j, px, py, j * 55);
-            }
+            // 아직 한 바퀴가 안 찰 만큼 적으면, 여유 있는 방향을 중심으로 그 폭만큼만
+            // 부챗살처럼 채운다 - 간격은 항상 ITEM_ARC로 일정하게 유지된다.
+            startAngle = roomySide - fullSpan / 2;
+        }
+
+        for (var i = 0; i < n; i++) {
+            var ang = startAngle + i * step;
+            var x = cx + Math.cos(ang) * R - HALF, y = cy + Math.sin(ang) * R - HALF;
+            x = Math.max(6, Math.min(x, sb.width - 118 - 6)); y = Math.max(6, Math.min(y, sb.height - 118 - 6));
+            html += pokeHtml(snaps[i], i, x, y, i * 45);
         }
         snapsEl.innerHTML = html; snapsEl.classList.add('show');
     }

@@ -10,15 +10,12 @@ import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.datasa.tanoshimi.domain.entity.PartyEntity;
-import net.datasa.tanoshimi.domain.entity.PartyStatus;
-import net.datasa.tanoshimi.domain.entity.PostEntity;
+import net.datasa.tanoshimi.domain.entity.MyTripEntity;
 import net.datasa.tanoshimi.domain.entity.TitleEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.domain.entity.UserTitleEntity;
 import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.repository.PartyRepository;
-import net.datasa.tanoshimi.repository.PostRepository;
 import net.datasa.tanoshimi.repository.TitleRepository;
 import net.datasa.tanoshimi.repository.UserTitleRepository;
 import org.springframework.stereotype.Service;
@@ -165,46 +162,47 @@ public class TitleService {
             Map.entry("청송", "경북"), Map.entry("영양", "경북"), Map.entry("영덕", "경북"),
             Map.entry("청도", "경북"), Map.entry("고령", "경북"), Map.entry("성주", "경북"),
             Map.entry("칠곡", "경북"), Map.entry("예천", "경북"), Map.entry("봉화", "경북"),
-            Map.entry("울진", "경북"), Map.entry("울릉", "경북"));
+            Map.entry("울진", "경북"), Map.entry("울릉", "경북"), Map.entry("독도", "경북"));
 
     private final TitleRepository titleRepository;
     private final UserTitleRepository userTitleRepository;
     private final PartyMemberRepository partyMemberRepository;
     private final PartyRepository partyRepository;
-    private final PostRepository postRepository;
 
     /**
      * 완료한 여행·파티 활동·매너온도로 칭호를 확인해 부여한다.
+     *
+     * <p><b>v19 변경</b> - parties/posts 를 직접 스캔하던 판정 근거를 "내 여행"(my_trips)
+     * 목록으로 옮겼다. {@code trips} 는 MyPageController 가 MyTripService.listMine 으로
+     * 이미 동기화·조회한 뒤, 그중 {@link net.datasa.tanoshimi.service.MyTripService#isCountable}
+     * 로 걸러낸 "실제로 카운트할" 목록만 넘겨준다 - 파티 여행이라도 연결된 스냅이 한 장도
+     * 없으면 여기 들어오지 않는다(2026-09-01 요청: 파티만 만들고 완료 처리해서 여행 기록을
+     * 조작하는 것을 막기 위함). SOLO 여행은 등록 자체가 근거라 항상 포함된다.
      *
      * <p>이미 가진 칭호는 건너뛰므로 여러 번 호출해도 안전하다. 한 번 딴 칭호는 실적이
      * 줄어도 회수하지 않는다(수집 요소라 뺏기면 기분이 나쁘다).
      */
     @Transactional
-    public void syncTitles(UserEntity user) {
-        List<PartyEntity> completed =
-                partyMemberRepository.findPartiesByUserAndStatus(user, PartyStatus.completed);
-
+    public void syncTitles(UserEntity user, List<MyTripEntity> trips) {
         Map<String, Integer> tripsByRegion = new HashMap<>();
         int festivalTrips = 0;
-        for (PartyEntity party : completed) {
-            String region = normalizeRegion(party.getRegion());
+        for (MyTripEntity trip : trips) {
+            String region = normalizeRegion(trip.getDestination());
             if (region != null) {
                 tripsByRegion.merge(region, 1, Integer::sum);
             }
-            if (STYLE_FESTIVAL.equals(party.getStyleTag())) {
+            if (trip.isParty() && trip.getParty() != null && STYLE_FESTIVAL.equals(trip.getParty().getStyleTag())) {
                 festivalTrips++;
             }
         }
 
-        int soloTrips = mergeSoloTravel(user, tripsByRegion);
-
         Set<String> earned = new HashSet<>();
-        int trips = completed.size() + soloTrips;
+        int totalTrips = trips.size();
         int visitedRegions = tripsByRegion.size();
 
         // 여행 횟수 - 조건을 넘긴 등급을 모두 준다(누적 수집형이라 상위만 주면 하위가 비어 보인다).
         TRIP_COUNT_TITLES.forEach((code, need) -> {
-            if (trips >= need) {
+            if (totalTrips >= need) {
                 earned.add(code);
             }
         });
@@ -293,36 +291,6 @@ public class TitleService {
                 log.info("칭호 부여: userId={}, title={}", user.getId(), code);
             }
         }
-    }
-
-    /**
-     * 개별 여행(파티 없이 혼자 다녀온 여행)을 tripsByRegion 에 합친다.
-     *
-     * <p>TravelHeatmapService.mergeSoloTravel 과 판정 기준(party_id NULL·차단 안 된 글만,
-     * 같은 지역·같은 날은 1회)이 같아야 한다 - 지도 색과 칭호가 "몇 번 다녀왔는지"를 서로
-     * 다르게 말하면 사용자가 혼란스럽다. 다만 이쪽은 normalizeRegion 으로 시/도 단위로 접어서
-     * 합산하기 때문에, 같은 날 경북 안의 서로 다른 시/군(예: 경주·안동)을 따로 찍으면 지도는
-     * 2회로 세고 칭호는 1회로 셀 수 있다 - 흔치 않은 경우라 지금은 감안하고 넘어간다.
-     *
-     * @return 새로 합산된 개별 여행 횟수(파티 횟수와 더해 "N회 여행" 표시에 쓴다)
-     */
-    private int mergeSoloTravel(UserEntity user, Map<String, Integer> tripsByRegion) {
-        List<PostEntity> soloPosts = postRepository.findByUserAndPartyIsNullAndBlindedFalse(user);
-        Set<String> countedDays = new HashSet<>();
-        int soloTrips = 0;
-        for (PostEntity post : soloPosts) {
-            String region = normalizeRegion(post.getRegion());
-            if (region == null || post.getCreatedAt() == null) {
-                continue;
-            }
-            String dayKey = region + "|" + post.getCreatedAt().toLocalDate();
-            if (!countedDays.add(dayKey)) {
-                continue; // 같은 지역, 같은 날 - 이미 셌음
-            }
-            tripsByRegion.merge(region, 1, Integer::sum);
-            soloTrips++;
-        }
-        return soloTrips;
     }
 
     /**
