@@ -306,13 +306,21 @@ public class TitleService {
      *
      * <p>CATEGORY_ORDER 에 없는 카테고리(나중에 추가되거나 category 가 비어 있는 행)는
      * 목록 끝으로 보낸다 - 화면에서 사라지지 않게.
+     *
+     * <p>※ category 가 NULL 인 행을 반드시 견뎌야 한다. v17 마이그레이션을 아직 안 돌린
+     * DB 에는 category 가 NULL 인 구 칭호가 남아 있고, 그 상태로 마이페이지를 열면
+     * 이 정렬에서 터져 화면 전체가 500 이 된다(실제로 그렇게 터졌다).
+     * {@code CATEGORY_ORDER} 는 {@code List.of(...)} 라 불변 리스트이고,
+     * 불변 리스트의 {@code indexOf(null)} 은 -1 이 아니라 NPE 를 던진다.
+     * 그래서 null 은 indexOf 에 넘기지 않고 미리 걸러낸다.
      */
     @Transactional(readOnly = true)
     public List<TitleEntity> allTitlesOrdered() {
         List<TitleEntity> titles = new ArrayList<>(titleRepository.findAll());
         titles.sort(Comparator
                 .comparingInt((TitleEntity title) -> {
-                    int index = CATEGORY_ORDER.indexOf(title.getCategory());
+                    String category = title.getCategory();
+                    int index = (category == null) ? -1 : CATEGORY_ORDER.indexOf(category);
                     return index < 0 ? CATEGORY_ORDER.size() : index;
                 })
                 .thenComparing(TitleEntity::getId));
