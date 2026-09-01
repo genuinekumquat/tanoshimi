@@ -7,6 +7,8 @@ import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.*;
 import org.springframework.data.domain.Page;
+import java.util.List;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,20 @@ public class PostService {
     @Transactional(readOnly = true)
     public Page<PostEntity> myPosts(UserEntity user, Pageable pageable) {
         return postRepository.findByUserOrderByCreatedAtDesc(user, pageable);
+    }
+
+    /**
+     * [⑥ 마이페이지] 지도 스냅용 - 지역 태그가 붙은 내 글만.
+     *
+     * <p>마이페이지 지도에서 지역에 마우스를 올리면 그 지역에서 찍은 사진이 뜨는데,
+     * 그 재료다. 피드(12개)보다 넓게 보되 무한정 넘기지는 않도록 limit 을 둔다.
+     */
+    @Transactional(readOnly = true)
+    public List<PostEntity> regionTaggedPosts(UserEntity user, int limit) {
+        return postRepository.findByUserOrderByCreatedAtDesc(user, PageRequest.of(0, limit))
+                .getContent().stream()
+                .filter(post -> post.getRegion() != null && !post.getRegion().isBlank())
+                .toList();
     }
     
     @Transactional

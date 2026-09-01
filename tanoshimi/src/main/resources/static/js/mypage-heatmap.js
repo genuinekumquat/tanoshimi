@@ -20,9 +20,9 @@
  *     없으면 어느 현/시도에도 못 얹히니 콘솔에 경고만 남기고 조용히 넘어간다.
  *   - 서버 지역명 체계가 앞으로 바뀌면(예: enum 도입) 여기 NAME_ALIASES만 고치면 된다.
  *
- * ※ 스냅(사진) 배치: 목업엔 지역별 스냅 좌표가 있었지만, 실제 스냅/게시글의 지역별 조회
- *   API는 아직 없다(Phase 2, ④ 오채원 담당). 그래서 snapCount()는 항상 0을 반환하고,
- *   showSnaps()는 목업 그대로 남겨뒀다 - 나중에 데이터만 연결하면 바로 동작한다.
+ * ※ 스냅(사진): 지역 태그가 붙은 내 게시글(posts.region)을 지역별로 묶어, 마우스를 올린
+ *   지역 위에 띄운다. 별도 API 없이 템플릿이 #snaps-data 로 내려준 것을 읽는다.
+ *   일본 오버뷰(지방)에서는 그 지방에 속한 현들의 스냅을 합쳐서 보여준다.
  *
  * ※ 클릭 버그 교훈: SVG 지역을 hover 시 appendChild로 맨 위로 올리면 실제 마우스 클릭
  *   이벤트가 깨진다. 그래서 활성 지역은 복제본을 최상단 레이어(g-active)에 미리 만들어두고
@@ -62,8 +62,34 @@
         return TIERS[TIERS.length - 1];
     }
 
-    // 실 스냅 조회 API가 생기기 전까지는 항상 0 (Phase 2에서 posts.region 기반으로 교체).
-    function snapCount() { return 0; }
+    /* 지역명 -> 그 지역에서 찍은 스냅 목록. 템플릿의 #snaps-data 에서 읽는다. */
+    var snapsByRegion = (function () {
+        var map = {};
+        [].forEach.call(document.querySelectorAll('#snaps-data span'), function (el) {
+            var raw = (el.dataset.region || '').trim();
+            if (!raw) return;
+            var name = NAME_ALIASES[raw] || raw;
+            (map[name] = map[name] || []).push({
+                thumb: el.dataset.thumb || '',
+                title: el.dataset.title || ''
+            });
+        });
+        return map;
+    })();
+
+    /** 이 지역에서 보여줄 스냅들. 일본 오버뷰(지방)면 소속 현들의 스냅을 합친다. */
+    function snapsFor(r) {
+        if (state.level === 'overview' && state.country === 'japan'
+                && DATA.japan.drill && DATA.japan.drill[r.key]) {
+            var merged = [];
+            DATA.japan.drill[r.key].forEach(function (prefecture) {
+                var list = snapsByRegion[prefecture.name];
+                if (list) merged = merged.concat(list);
+            });
+            return merged;
+        }
+        return snapsByRegion[r.name] || [];
+    }
 
     var NS = 'http://www.w3.org/2000/svg';
 
@@ -223,8 +249,10 @@
         var suffix = (state.level === 'overview' && r.drillable) ? ' <span style="font-size:12px;color:var(--sash-deep);">· 클릭해서 자세히 보기</span>' : '';
         if (r.trips > 0) {
             var n = Math.max(1, r.days - 1);
+            var sc = snapsFor(r).length;
+            var scTxt = sc > 0 ? (' · 스냅 ' + sc) : '';
             readout.innerHTML = '<span class="pip" style="background:' + tier(r.score).color + '"></span>' +
-                '<span class="msg"><b>' + r.name + '</b> — ' + n + '박 ' + r.days + '일 즐겼습니다!' + suffix + '</span>';
+                '<span class="msg"><b>' + r.name + '</b> — ' + n + '박 ' + r.days + '일 즐겼습니다!' + scTxt + suffix + '</span>';
         } else {
             readout.innerHTML = '<span class="pip" style="background:var(--tier-0)"></span>' +
                 '<span class="msg"><b>' + r.name + '</b> — 아직 다녀오지 않았어요' + suffix + '</span>';
@@ -244,24 +272,47 @@
         hideSnaps();
     }
 
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+    }
+
+    /**
+     * 스냅 하나를 그린다.
+     * thumbnailUrl 은 실제 업로드 경로(/uploads/...)이거나 자리표시 클래스명(ph1~ph4)이다
+     * - 피드(mypage/index.html)가 쓰는 규칙과 같게 맞춘다.
+     */
+    function pokeHtml(snap, i, x, y, delay) {
+        var thumb = snap.thumb || '';
+        var uploaded = thumb.indexOf('/uploads/') === 0;
+        var shade = /^ph[1-4]$/.test(thumb) ? 's' + thumb.charAt(2) : 's' + ((i % 4) + 1);
+        var bg = uploaded ? "background-image:url('" + encodeURI(thumb) + "');" : '';
+        return '<div class="snap-poke ' + shade + '" title="' + esc(snap.title) + '"' +
+            ' style="' + bg + 'left:' + x + 'px;top:' + y + 'px;animation-delay:' + delay + 'ms"></div>';
+    }
+
     function showSnaps(pathEl, r) {
-        var MAXN = 10;
-        var n = Math.min(snapCount(r), MAXN);
+        var MAXN = 10;                                  // 너무 많으면 최신 것만(겹침 허용)
+        var snaps = snapsFor(r);
+        var n = Math.min(snaps.length, MAXN);
         snapsEl.classList.remove('show'); void snapsEl.offsetWidth;
-        if (n === 0) { snapsEl.innerHTML = ''; return; }
+        if (n === 0) { snapsEl.innerHTML = ''; return; }  // 스냅 없으면 포커싱만
 
         var box = pathEl.getBoundingClientRect(), sb = stage.getBoundingClientRect();
         var cx = box.left - sb.left + box.width / 2, cy = box.top - sb.top + box.height / 2;
         var HALF = 59, rad = Math.max(box.width, box.height) / 2, html = '';
         if (n >= 5) {
+            // 스냅이 많으면 권역을 빙 둘러 원형 배치(조금 겹쳐도 OK)
             var R = rad + HALF + 54;
             for (var i = 0; i < n; i++) {
-                var ang = -Math.PI / 2 + (i / n) * Math.PI * 2;
+                var ang = -Math.PI / 2 + (i / n) * Math.PI * 2;   // 위에서 시작해 시계방향
                 var x = cx + Math.cos(ang) * R - HALF, y = cy + Math.sin(ang) * R - HALF;
                 x = Math.max(6, Math.min(x, sb.width - 118 - 6)); y = Math.max(6, Math.min(y, sb.height - 118 - 6));
-                html += '<div class="snap-poke s' + ((i % 4) + 1) + '" style="left:' + x + 'px;top:' + y + 'px;animation-delay:' + (i * 45) + 'ms"></div>';
+                html += pokeHtml(snaps[i], i, x, y, i * 45);
             }
         } else {
+            // 적으면 여유 넓은 한쪽 변을 따라 원호(부챗살)
             var R2 = rad + HALF + 54;
             var leftRoom = box.left - sb.left, rightRoom = sb.width - (box.right - sb.left);
             var center = leftRoom >= rightRoom ? Math.PI : 0;
@@ -270,11 +321,12 @@
                 var a = center - span / 2 + (n <= 1 ? 0 : span * j / (n - 1));
                 var px = cx + Math.cos(a) * R2 - HALF, py = cy + Math.sin(a) * R2 - HALF;
                 px = Math.max(6, Math.min(px, sb.width - 118 - 6)); py = Math.max(6, Math.min(py, sb.height - 118 - 6));
-                html += '<div class="snap-poke s' + ((j % 4) + 1) + '" style="left:' + px + 'px;top:' + py + 'px;animation-delay:' + (j * 55) + 'ms"></div>';
+                html += pokeHtml(snaps[j], j, px, py, j * 55);
             }
         }
         snapsEl.innerHTML = html; snapsEl.classList.add('show');
     }
+
     function hideSnaps() { snapsEl.classList.remove('show'); }
 
     function drillInto(r) {

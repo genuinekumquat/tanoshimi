@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS titles (
     id             BIGINT       NOT NULL AUTO_INCREMENT,
     code           VARCHAR(50)  NOT NULL,
     name           VARCHAR(50)  NOT NULL,
+    category       VARCHAR(30)  NULL COMMENT '칭호 카테고리(표시용). 분류는 code 접두사와 동일',
     condition_desc VARCHAR(200) NULL,
     icon_key       VARCHAR(50)  NULL,
     PRIMARY KEY (id),

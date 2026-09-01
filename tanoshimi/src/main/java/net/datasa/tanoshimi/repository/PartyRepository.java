@@ -2,12 +2,16 @@ package net.datasa.tanoshimi.repository;
 
 import net.datasa.tanoshimi.domain.entity.PartyEntity;
 import net.datasa.tanoshimi.domain.entity.PartyStatus;
+import net.datasa.tanoshimi.domain.entity.UserEntity;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface PartyRepository extends JpaRepository<PartyEntity, Long> {
+    /** [⑥ 마이페이지] '파티리더' 칭호용 - 내가 개설한 파티 수(상태 무관). */
+    long countByOwner(UserEntity owner);
+
     List<PartyEntity> findByStatusAndBlindedFalseOrderByDepartureDateAsc(PartyStatus status);
     org.springframework.data.domain.Page<PartyEntity> findByTitleContainingIgnoreCase(String title, org.springframework.data.domain.Pageable pageable);
     List<PartyEntity> findByRegionAndStatusAndBlindedFalse(String region, PartyStatus status);
