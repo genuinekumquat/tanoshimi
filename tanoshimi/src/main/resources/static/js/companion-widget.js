@@ -14,9 +14,32 @@
     const input = document.getElementById('companion-chat-input');
     const sendBtn = document.getElementById('companion-chat-send');
 
+    
+    const showBotChatCheckbox = document.getElementById('companion-show-bot-chat');
+    if (showBotChatCheckbox) {
+        showBotChatCheckbox.addEventListener('change', () => {
+            const logPanel = document.getElementById('companion-chat-log');
+            if(logPanel) logPanel.innerHTML = '';
+            renderHistory();
+        });
+    }
+
     if (!canvas) return;
 
+
     let live2dModel = null;
+
+    const styleEl = document.createElement("style");
+    styleEl.innerHTML = `
+      @keyframes dangle {
+          0% { transform: scale(var(--vivian-scale, 1)) rotate(-5deg) translateY(0); }
+          100% { transform: scale(var(--vivian-scale, 1)) rotate(5deg) translateY(-10px); }
+      }
+      .dangle-animate {
+          animation: dangle 0.4s infinite alternate ease-in-out;
+      }
+    `;
+    document.head.appendChild(styleEl);
 
     async function initLive2D() {
         try {
@@ -30,7 +53,7 @@
 
             const app = new PIXI.Application({
                 view: canvas, transparent: true, autoStart: true,
-                width: APP_WIDTH, height: APP_HEIGHT,
+                width: APP_WIDTH, height: APP_HEIGHT, preserveDrawingBuffer: true,
                 resolution: Math.max(window.devicePixelRatio || 1, 2) * 2.5,
                 autoDensity: true,
             });
@@ -43,7 +66,9 @@
             model.y = (APP_HEIGHT - model.height);
 
             function updateScale(uiScale) {
-                // 내부 엔진 대신 CSS transform을 사용해 확대/축소하여 캔버스 경계에 잘리는 현상(Clipping) 방지
+                canvas.style.setProperty('--vivian-scale', uiScale);
+                const bubble = document.getElementById('companion-speech-bubble');
+                if (bubble) bubble.style.setProperty('--vivian-scale', uiScale);
                 canvas.style.transform = 'scale(' + uiScale + ')';
                 canvas.style.transformOrigin = 'bottom right';
             }
@@ -88,15 +113,51 @@
                 }
             });
 
+                                    window.isDraggingVivian = false;
+
+                        window.isDraggingVivian = false;
+
+                        window.isDraggingVivian = false;
+
             function makeDraggable(elId, handleId, storageKey) {
                 const el = document.getElementById(elId);
                 const handle = document.getElementById(handleId);
                 if (!el || !handle) return;
                 let isDown = false, startX, startY, startLeft, startTop;
-                
+
+                // For character, we want exact pixel hover detection
+                if (elId === "companion-character-wrap") {
+                    handle.style.pointerEvents = 'none'; // Default to transparent
+                    window.addEventListener('pointermove', (e) => {
+                        if (window.isDraggingVivian) {
+                            handle.style.pointerEvents = 'auto';
+                            return;
+                        }
+
+                        const rect = handle.getBoundingClientRect();
+                        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                            handle.style.pointerEvents = 'none';
+                            return;
+                        }
+
+                        const gl = handle.getContext('webgl2') || handle.getContext('webgl');
+                        if (!gl) return;
+                        
+                        try {
+                            const pixels = new Uint8Array(4);
+                            const px = (e.clientX - rect.left) * (handle.width / rect.width);
+                            const py = (e.clientY - rect.top) * (handle.height / rect.height);
+                            gl.readPixels(px, handle.height - py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                            handle.style.pointerEvents = (pixels[3] === 0) ? 'none' : 'auto';
+                        } catch(err) {}
+                    }, { passive: true });
+                }
+
                 handle.addEventListener('pointerdown', (e) => {
                     if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
                     isDown = true;
+                    if (elId === "companion-character-wrap") window.isDraggingVivian = true;
+                    
                     startX = e.clientX;
                     startY = e.clientY;
                     const rect = el.getBoundingClientRect();
@@ -107,33 +168,48 @@
                     el.style.left = startLeft + 'px';
                     el.style.top = startTop + 'px';
                     handle.style.cursor = 'grabbing';
+                    
+                    if(elId === "companion-character-wrap") {
+                        handle.classList.add("dangle-animate");
+                        handle.style.filter = "drop-shadow(0px 10px 15px rgba(0,0,0,0.4))";
+                        react('shy');
+                    }
                 });
+                
                 window.addEventListener('pointermove', (e) => {
                     if (!isDown) return;
                     e.preventDefault();
                     el.style.left = (startLeft + e.clientX - startX) + 'px';
                     el.style.top = (startTop + e.clientY - startY) + 'px';
                 }, { passive: false });
+                
                 window.addEventListener('pointerup', () => {
+                    if(el.id === "companion-character-wrap") {
+                        handle.classList.remove("dangle-animate");
+                        handle.style.filter = "drop-shadow(0px 4px 6px rgba(0,0,0,0.2))";
+                        react('normal');
+                        if (isDown) window.isDraggingVivian = false;
+                    }
+
                     if (isDown) {
                         isDown = false;
                         handle.style.cursor = 'grab';
-                        localStorage.setItem(storageKey, JSON.stringify({ left: el.style.left, top: el.style.top }));
+                        try {
+                            const rect = el.getBoundingClientRect();
+                            const pos = { left: rect.left, top: rect.top };
+                            localStorage.setItem(storageKey, JSON.stringify(pos));
+                        } catch (e) {}
                     }
                 });
-                
-                try {
-                    let pos = JSON.parse(localStorage.getItem(storageKey));
-                    if (pos && pos.left && pos.top) {
-                        el.style.right = 'auto';
-                        el.style.bottom = 'auto';
-                        el.style.left = pos.left;
-                        el.style.top = pos.top;
-                    }
-                } catch(e) {}
+
+                if (elId === "companion-character-wrap") {
+                    handle.addEventListener('dblclick', (e) => {
+                        react('angry');
+                    });
+                }
             }
 
-            makeDraggable('companion-character-wrap', 'companion-drag-handle', 'companion_pos_char');
+            makeDraggable('companion-character-wrap', 'companion-canvas', 'companion_pos_char');
             makeDraggable('companion-chat-panel', 'companion-chat-drag-handle', 'companion_pos_chat');
             
 
@@ -166,7 +242,7 @@
         return 'normal';
     }
 
-    function react(emotion) {
+        function react(emotion) {
         if (!live2dModel) return;
         const motionByEmotion = { greet: 'tap_body', thinking: 'flick_head', happy: 'tap_body', angry: 'tap_body', sad: 'flick_head', shy: 'tap_body', normal: 'tap_body' };
         try { live2dModel.motion(motionByEmotion[emotion] || 'tap_body'); } catch (e) { }
@@ -176,6 +252,14 @@
             else if (emotion === 'angry') window.currentVivianEmotion = 'Param150';
             else if (emotion === 'thinking') window.currentVivianEmotion = 'Param132';
             else window.currentVivianEmotion = null;
+
+            // 3초 뒤에 원래 표정으로 리셋
+            if (window.vivianEmotionTimeout) clearTimeout(window.vivianEmotionTimeout);
+            if (window.currentVivianEmotion !== null) {
+                window.vivianEmotionTimeout = setTimeout(() => {
+                    window.currentVivianEmotion = null;
+                }, 3000);
+            }
         } catch (e) { console.warn('표정 변경 실패', e); }
     }
     initLive2D();
@@ -196,13 +280,29 @@
     function renderHistory() {
         log.innerHTML = '';
         if (history.length === 0) {
-            appendBubble('bot', '오빠~ 나 비비안이야! 여행 계획 세우는 거 도와줄게, 편하게 물어봐! 🧳');
+            appendBubble('bot', '(당신을 보며 반색하며) 오셨군요. 여행 준비는 제가 도와드릴 테니 신경 쓰지 말고 편하게 말씀하세요.');
             return;
         }
         history.forEach(turn => appendBubble(turn.role === 'user' ? 'user' : 'bot', turn.content));
     }
 
-    function appendBubble(who, text) {
+        function appendBubble(who, text) {
+        if (who === 'bot') {
+            const popup = document.getElementById('companion-speech-bubble');
+            if (popup) {
+                popup.innerText = text;
+                popup.style.display = 'block';
+                if (window.companionSpeechTimeout) clearTimeout(window.companionSpeechTimeout);
+                window.companionSpeechTimeout = setTimeout(() => {
+                    popup.style.display = 'none';
+                }, 12000);
+            }
+            const showCheck = document.getElementById('companion-show-bot-chat');
+            if (showCheck && !showCheck.checked) {
+                return;
+            }
+        }
+
         const div = document.createElement('div');
         div.className = 'companion-msg ' + who;
 
@@ -234,7 +334,11 @@
         panel.style.display = opening ? 'flex' : 'none';
         canvas.style.transition = 'transform 0.3s ease';
         canvas.style.transformOrigin = 'bottom right';
-        canvas.style.transform = opening ? 'scale(0.8)' : 'scale(1.0)';
+        const sc = opening ? 0.8 : (parseFloat(localStorage.getItem('companion_scale') || 1.0));
+        canvas.style.setProperty('--vivian-scale', sc);
+        const bubble = document.getElementById('companion-speech-bubble');
+        if (bubble) bubble.style.setProperty('--vivian-scale', sc);
+        canvas.style.transform = 'scale(' + sc + ')';
         if (opening) {
             renderHistory();
             input.focus();

@@ -97,7 +97,7 @@ public class GeminiChatClient implements CompanionChatClient {
             searchToursFunc.set("parameters", searchToursParams);
             functionDeclarations.add(searchToursFunc);
             
-            functionDeclarationsNode.set("function_declarations", functionDeclarations);
+            functionDeclarationsNode.set("functionDeclarations", functionDeclarations);
             tools.add(functionDeclarationsNode);
 
             body.set("tools", tools);
