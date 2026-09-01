@@ -262,6 +262,19 @@ public class PlannerController {
         
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            // Strip markdown tags if Gemini generated them
+            if (responseText.startsWith("```json")) {
+                responseText = responseText.replace("```json\n", "").replace("```json", "");
+            }
+            if (responseText.startsWith("```")) {
+                responseText = responseText.replace("```\n", "").replace("```", "");
+            }
+            if (responseText.endsWith("```\n")) {
+                responseText = responseText.substring(0, responseText.length() - 4);
+            } else if (responseText.endsWith("```")) {
+                responseText = responseText.substring(0, responseText.length() - 3);
+            }
+            responseText = responseText.trim();
             com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(responseText);
             String briefing = root.path("briefing").asText();
             com.fasterxml.jackson.databind.JsonNode newSched = root.path("newSchedule");

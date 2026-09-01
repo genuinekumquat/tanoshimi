@@ -6,13 +6,13 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Primary;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Slf4j
-@Primary
 @Component
+@ConditionalOnProperty(name = "app.companion.provider", havingValue = "gemini")
 public class RealGeminiClient implements GeminiClient {
 
     private final WebClient webClient = WebClient.builder()
@@ -31,7 +31,7 @@ public class RealGeminiClient implements GeminiClient {
     public String ask(String prompt) {
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("Gemini API key not configured.");
-            return "UNKNOWN";
+            return "{\"briefing\": \"Gemini API key not configured.\", \"newSchedule\": []}";
         }
         try {
             ArrayNode contents = objectMapper.createArrayNode();
@@ -50,12 +50,13 @@ public class RealGeminiClient implements GeminiClient {
             // Higher temperature for variance requested by user
             ObjectNode generationConfig = objectMapper.createObjectNode();
             generationConfig.put("temperature", 0.8);
+            generationConfig.put("response_mime_type", "application/json");
             body.set("generationConfig", generationConfig);
 
             // Google Search Grounding to fetch internet tourist data
             ArrayNode tools = objectMapper.createArrayNode();
             ObjectNode googleSearchTool = objectMapper.createObjectNode();
-            googleSearchTool.set("google_search", objectMapper.createObjectNode());
+            googleSearchTool.set("googleSearch", objectMapper.createObjectNode());
             tools.add(googleSearchTool);
             body.set("tools", tools);
 
@@ -71,7 +72,10 @@ public class RealGeminiClient implements GeminiClient {
             return extractText(response);
         } catch (Exception e) {
             log.error("Gemini Real API call failed", e);
-            return "UNKNOWN";
+            String errMsg = e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ?
+                ((org.springframework.web.reactive.function.client.WebClientResponseException) e).getResponseBodyAsString().replace(""", "'").replace("\n", " ") :
+                e.getMessage().replace(""", "'");
+            return "{\"briefing\": \"API 오류: " + errMsg + "\", \"newSchedule\": []}";
         }
     }
 
