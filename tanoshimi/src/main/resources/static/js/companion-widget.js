@@ -332,13 +332,14 @@
     function togglePanel() {
         const opening = panel.style.display === 'none' || !panel.style.display;
         panel.style.display = opening ? 'flex' : 'none';
-        canvas.style.transition = 'transform 0.3s ease';
-        canvas.style.transformOrigin = 'bottom right';
-        const sc = opening ? 0.8 : (parseFloat(localStorage.getItem('companion_scale') || 1.0));
+        
+        // We no longer force scale to 0.8 when opening. Just apply the saved scale.
+        const sc = parseFloat(localStorage.getItem('companion_scale') || 1.0);
         canvas.style.setProperty('--vivian-scale', sc);
         const bubble = document.getElementById('companion-speech-bubble');
         if (bubble) bubble.style.setProperty('--vivian-scale', sc);
         canvas.style.transform = 'scale(' + sc + ')';
+        
         if (opening) {
             renderHistory();
             input.focus();
