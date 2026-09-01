@@ -249,7 +249,7 @@ public class PlannerController {
                     (item.startMinute() + item.durationMinute()) % 60);
             boolean isFixed = "package_default".equals(item.source());
             prompt.append(String.format("- %d일차 | 시간: %s | 제목: %s | 고정여부: %b | id: %d | source: %s\n",
-                    item.dayIndex(), time, item.title(), isFixed, item.id(), item.source()));
+                    item.dayIndex(), time, item.title() + " (Memo:" + item.memo() + ")", isFixed, item.id(), item.source()));
         }
         
         String responseText = geminiClient.ask(prompt.toString());
@@ -299,7 +299,7 @@ public class PlannerController {
                             node.path("durationMinute").asInt(),
                             aid,
                             node.path("title").asText(),
-                            node.path("memo").isNull() ? null : node.path("memo").asText()
+                            node.path("memo").isNull() ? null : node.path("memo").asText(), node.path("color").isNull() ? null : node.path("color").asText()
                     );
                     plannerService.addItem(scheduleId, user, req);
                 }

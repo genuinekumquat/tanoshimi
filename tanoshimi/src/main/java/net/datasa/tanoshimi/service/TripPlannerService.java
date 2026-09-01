@@ -90,14 +90,15 @@ public class TripPlannerService {
         return itemRepository.findByScheduleOrderByDayIndexAscStartMinuteAsc(schedule).stream()
                 .map(i -> new ScheduleItemView(
                         i.getId(), i.getDayIndex(), i.getStartMinute(), i.getDurationMinute(),
-                        i.getSource().name(), i.getTitle(), i.getMemo(), i.getPriceKrw(), i.getPriceJpy(),
+                        i.getSource().name(), i.getTitle(), i.getMemo(), i.getColor(), i.getPriceKrw(), i.getPriceJpy(),
                         i.getAddedBy() != null ? i.getAddedBy().getId() : null,
                         i.getAddedBy() != null ? i.getAddedBy().getName() : "Unknown"))
                 .toList();
     }
 
     @Transactional
-    public Long addItem(TripScheduleEntity schedule, UserEntity user, ScheduleItemRequest req) {
+    public Long addItem(Long scheduleId, UserEntity user, ScheduleItemRequest req) {
+        TripScheduleEntity schedule = scheduleRepository.findById(scheduleId).orElseThrow(() -> new net.datasa.tanoshimi.exception.BusinessException(net.datasa.tanoshimi.exception.ErrorCode.SCHEDULE_NOT_FOUND));
         lockService.assertCanEdit(schedule, user.getId()); // [v16] 편집권 보유자만 추가 가능
         boolean isCustom = req.activityId() == null;
         
@@ -122,6 +123,7 @@ public class TripPlannerService {
                 .activity(activity)
                 .title(title == null || title.isBlank() ? "이름없는 일정" : title)
                 .memo(req.memo())
+                .color(req.color())
                 .priceKrw(priceKrw)
                 .priceJpy(priceJpy)
                 .addedBy(user)
@@ -152,46 +154,11 @@ public class TripPlannerService {
 
     @Transactional
     public void submitForPayment(TripScheduleEntity schedule) {
-
-        List<TripScheduleItemEntity> items = itemRepository.findByScheduleOrderByDayIndexAscStartMinuteAsc(schedule);
-        int totalKrw = items.stream().filter(i -> i.getSource() == ScheduleItemSource.activity)
-                .mapToInt(TripScheduleItemEntity::getPriceKrw).sum();
-        int totalJpy = items.stream().filter(i -> i.getSource() == ScheduleItemSource.activity)
-                .mapToInt(TripScheduleItemEntity::getPriceJpy).sum();
-
-        PartyEntity party = resolveParty(schedule);
-        List<UserEntity> members = resolveMembers(schedule, party);
-
-        long krwPayerCount = members.stream().filter(m -> m.getNationality() != Nationality.JP).count();
-        long jpyPayerCount = members.size() - krwPayerCount;
-
-        int krwShare = krwPayerCount == 0 ? 0 : totalKrw / (int) krwPayerCount;
-        int krwRemainder = krwPayerCount == 0 ? 0 : totalKrw % (int) krwPayerCount;
-        int jpyShare = jpyPayerCount == 0 ? 0 : totalJpy / (int) jpyPayerCount;
-        int jpyRemainder = jpyPayerCount == 0 ? 0 : totalJpy % (int) jpyPayerCount;
-
-        boolean krwRemainderGiven = false;
-        boolean jpyRemainderGiven = false;
-
-        for (UserEntity member : members) {
-            boolean isJpy = member.getNationality() == Nationality.JP;
-            int share = isJpy ? jpyShare : krwShare;
-            int amount = share;
-
-            if (!isJpy && krwRemainder > 0 && !krwRemainderGiven) {
-                amount += krwRemainder;
-                krwRemainderGiven = true;
-            } else if (isJpy && jpyRemainder > 0 && !jpyRemainderGiven) {
-                amount += jpyRemainder;
-                jpyRemainderGiven = true;
-            }
-
-            if (amount > 0) {
-                paymentRepository.save(new TripSchedulePaymentEntity(
-                        schedule, member, isJpy ? Currency.JPY : Currency.KRW, amount));
-            }
+        if (!schedule.isDraft()) {
+            throw new net.datasa.tanoshimi.exception.BusinessException(net.datasa.tanoshimi.exception.ErrorCode.INVALID_INPUT, "이미 제출 완료된 시간표입니다.");
         }
-        schedule.submit();
+        schedule.submit();  // Optional: logical transition
+        schedule.confirm(); // Directly confirm without payment
         scheduleRepository.save(schedule);
     }
 

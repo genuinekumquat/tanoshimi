@@ -48,6 +48,9 @@ public class TripScheduleItemEntity {
     @Column(length = 500)
     private String memo;
 
+    @Column(length = 20)
+    private String color;
+
     @Column(name = "price_krw")
     private Integer priceKrw;
 
@@ -61,7 +64,7 @@ public class TripScheduleItemEntity {
     @Builder
     public TripScheduleItemEntity(TripScheduleEntity schedule, ActivityEntity activity, byte dayIndex,
                                   short startMinute, short durationMinute, ScheduleItemSource source,
-                                  String title, String memo, Integer priceKrw, Integer priceJpy, UserEntity addedBy) {
+                                  String title, String memo, String color, Integer priceKrw, Integer priceJpy, UserEntity addedBy) {
         this.schedule = schedule;
         this.activity = activity;
         this.dayIndex = dayIndex;
@@ -79,6 +82,7 @@ public class TripScheduleItemEntity {
             this.title = title;
         }
         this.memo = memo;
+        this.color = color;
         this.priceKrw = priceKrw;
         this.priceJpy = priceJpy;
         this.addedBy = addedBy;
@@ -93,7 +97,8 @@ public class TripScheduleItemEntity {
         }
     }
 
-    public void rename(String title, String memo) {
+    public void rename(String title, String memo, String color) {
+        this.color = color;
         if (title != null && !title.trim().isEmpty()) {
             this.title = title.trim();
         }
