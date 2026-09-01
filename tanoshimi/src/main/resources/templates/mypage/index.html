@@ -52,12 +52,19 @@
     /* ===================== 프로필 카드 ===================== */
     .profile{ position:relative; padding:26px 26px 24px; display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap; overflow:hidden; }
 
-    .title-badge{
-      position:absolute; top:18px; right:22px; font-family:'Jua',sans-serif; font-size:12px; color:var(--sash-deep);
-      border:2px dashed var(--sash); border-radius:999px; padding:6px 15px; transform:rotate(-2deg);
-      background:rgba(255,255,255,.6); display:flex; align-items:center; gap:6px; white-space:nowrap;
+    /* 이름 줄: 이름 + 대표 칭호 칩 + 매너온도. 예전엔 칭호가 카드 우상단에 기울어진
+       점선 배지로 떠 있었는데, 매너온도와 자리가 겹쳐서 목업대로 이름 옆 칩으로 옮겼다. */
+    .pname-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .title-chip{
+      display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--sash-deep);
+      border:1.5px solid var(--sash); border-radius:999px; padding:4px 12px;
+      background:rgba(224,121,63,.08); font-family:'Gowun Dodum',sans-serif; font-weight:700; white-space:nowrap;
     }
-    .title-badge .ic{ font-size:13px; }
+    .manner{ display:inline-flex; align-items:center; gap:7px; font-size:13px; margin-left:auto; }
+    .manner .deg{ color:var(--warm); font-weight:700; }
+    .manner .bar{ width:66px; height:6px; background:rgba(0,0,0,.08); border-radius:3px; overflow:hidden; }
+    .manner .bar i{ display:block; height:100%; background:var(--warm); }
+    .prow{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
 
     .photo-wrap{ position:relative; width:118px; height:118px; flex:none; }
     .photo-wrap .ph{
@@ -73,8 +80,9 @@
     .photo-edit:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
 
     .profile-info{ flex:1; min-width:220px; padding-top:2px; }
-    .profile-name{ font-family:'Jua',sans-serif; font-size:19px; color:var(--forest-deep); display:flex; align-items:center; gap:8px; }
-    .profile-stats{ display:flex; gap:16px; margin:10px 0 12px; font-size:12.5px; color:var(--ink-soft); flex-wrap:wrap; }
+    .profile-name{ font-family:'Jua',sans-serif; font-size:19px; color:var(--forest-deep); display:flex; align-items:baseline; gap:5px; }
+    .profile-name .nim{ font-size:12px; color:var(--ink-soft); font-family:'Gowun Dodum',sans-serif; }
+    .profile-stats{ display:flex; gap:16px; margin:12px 0; font-size:12.5px; color:var(--ink-soft); flex-wrap:wrap; }
     .profile-stats b{ color:var(--forest-deep); font-family:'Jua',sans-serif; font-size:14px; margin-right:3px; }
 
     /* 여행 거리(집 기준 왕복 누적) */
@@ -89,18 +97,12 @@
     .home-btn b{ color:var(--forest-deep); }
 
     .intro-box{ position:relative; }
-    .intro-box .lbl{ font-size:11.5px; font-weight:700; color:var(--ink-soft); margin-bottom:5px; display:flex; align-items:center; gap:6px; }
     .intro-text{ font-size:13px; color:var(--ink); background:var(--parchment); border:1px solid var(--line); border-radius:10px; padding:11px 13px; white-space:pre-line; }
     .intro-textarea{
       width:100%; min-height:76px; resize:vertical; font-family:inherit; font-size:13px; color:var(--ink);
       background:var(--card); border:1.5px solid var(--sash); border-radius:10px; padding:11px 13px; outline:none; display:none;
     }
     .intro-actions{ display:none; gap:8px; margin-top:8px; }
-    .edit-intro-btn{
-      width:26px; height:26px; border-radius:8px; border:1px solid var(--line); background:var(--parchment);
-      color:var(--forest-deep); font-size:12px; cursor:pointer; flex:none;
-    }
-    .edit-intro-btn:hover{ border-color:var(--sash); color:var(--sash-deep); }
 
     input[type=file]{ display:none; }
 
@@ -308,7 +310,7 @@
 
     @media (max-width:640px){
       .feed-grid{ grid-template-columns:repeat(2,1fr); }
-      .title-badge{ position:static; margin-bottom:12px; align-self:flex-start; }
+      .manner{ margin-left:0; }
       .profile{ flex-direction:column; }
       .map-back{ top:110px; left:20px; }
       .rep-edit{ margin-left:0; }
@@ -341,9 +343,6 @@
 
     <!-- ================= 프로필 ================= -->
     <section class="profile card">
-      <span class="title-badge"><span class="ic">🏷️</span><span id="title-text"
-            th:text="'여행 칭호 · ' + (${myTitle} != null ? ${myTitle.name} : '아직 없음')">여행 칭호 · 새내기 탐험가</span></span>
-
       <div class="photo-wrap" id="avatar-wrap" style="cursor:pointer;">
         <div class="ph" id="avatar-fallback" th:text="${#strings.substring(me.name,0,1)}" style="display:flex;"></div>
         <img class="ph" th:if="${me.profileImageUrl}" th:src="@{${me.profileImageUrl}}" id="avatar-img"
@@ -354,16 +353,18 @@
       </div>
 
       <div class="profile-info">
-        <div class="profile-name">
-          <span th:text="${me.name}">유자차</span>
-          <span style="font-size:12px;color:var(--ink-soft);font-family:'Gowun Dodum',sans-serif;">님</span>
-          <span style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-size:13px; font-family:'Gowun Dodum',sans-serif;">
-              <span style="color:#ff8a00; font-weight:bold;" th:text="${me.mannerTemp} + '°C'">36.5°C</span>
-              <div style="width:60px; height:6px; background:#eee; border-radius:3px; overflow:hidden;">
-                 <!-- mannerScore(중복 필드) 대신 mannerTemp 사용. MannerTempService에서 0~50 범위로 확정되어 /50*100로 반영함. -->
-                 <div th:style="'height:100%; background:#ff8a00; width:' + (${me.mannerTemp}/50*100) + '%;'"></div>
-              </div>
-            </span>
+        <div class="pname-row">
+          <span class="profile-name">
+            <span th:text="${me.name}">유자차</span><span class="nim">님</span>
+          </span>
+          <!-- 대표 칭호. 칭호 관리에서 대표를 바꾸면 mypage-titles.js 가 #title-text 를 갱신한다. -->
+          <span class="title-chip"><span>🏷️</span><span id="title-text"
+                th:text="${myTitle} != null ? ${myTitle.name} : '칭호 없음'">숙련된 여행자</span></span>
+          <!-- mannerScore(중복 필드) 대신 mannerTemp 사용. MannerTempService에서 0~50 범위로 확정되어 /50*100로 반영함. -->
+          <span class="manner">
+            <span class="deg" th:text="${#numbers.formatDecimal(me.mannerTemp,1,1)} + '°C'">36.5°C</span>
+            <span class="bar"><i th:style="'width:' + (${me.mannerTemp}/50*100) + '%;'"></i></span>
+          </span>
         </div>
 
         <!-- 여행 거리: 방문 횟수는 서버 히트맵 집계, 집(출발지)은 아직 DB 컬럼이 없어
@@ -373,20 +374,19 @@
           <button type="button" class="home-btn" id="home-btn">🏠 집: <b id="home-name">서울</b> · 변경</button>
         </div>
 
+        <!-- 목업과 같은 2줄 구성. 매너온도는 위 이름 줄의 게이지로 보여주므로 여기서 뺐다. -->
         <div class="profile-stats">
           <span><b th:text="${totalTrips}">0</b>회 여행</span>
           <span><b th:text="${visitedRegions}">0</b>곳 방문</span>
-          <span><b id="stat-parties" th:text="${#lists.size(myParties)}">0</b>번 파티 참가</span>
-          <span>매너온도 <b th:text="${me.mannerTemp}">36.5</b></span>
-          <span>팔로워 <b th:text="${followerCount}">0</b></span>
-          <span>팔로잉 <b th:text="${followingCount}">0</b></span>
+          <span><b id="stat-parties" th:text="${#lists.size(myParties)}">0</b>회 파티참가</span>
+        </div>
+        <div class="profile-stats" style="margin-top:-8px;">
+          <span><b th:text="${myPosts.totalElements}">0</b> 스냅</span>
+          <span><b th:text="${followerCount}">0</b> 팔로워</span>
+          <span><b th:text="${followingCount}">0</b> 팔로잉</span>
         </div>
 
         <div class="intro-box">
-          <div class="lbl">
-            <span>📝 자기소개</span>
-            <button class="edit-intro-btn" id="btn-intro" title="자기소개 수정" aria-label="자기소개 수정">✍</button>
-          </div>
           <p class="intro-text" id="intro-text" th:text="${me.intro}">방문자님 환영합니다!</p>
           <textarea class="intro-textarea" id="intro-textarea" maxlength="300"></textarea>
           <div class="intro-actions" id="intro-actions">
@@ -394,28 +394,13 @@
             <button class="btn btn-ghost" id="btn-intro-cancel">취소</button>
           </div>
         </div>
-        <a th:href="@{/messages}" class="btn" style="background:#fff; border:1px solid var(--line); white-space:nowrap; margin-top: 14px;">💬 쪽지함</a>    </div>
-    </section>
 
-    <!-- ================= 칭호 ================= -->
-    <div class="sec-head">
-      <h2>🏅 내 칭호</h2>
-      <span class="note">여행을 완료하면 자동으로 획득합니다</span>
-      <button type="button" class="more-btn" id="btn-titles-more">더보기 ›</button>
-    </div>
-
-    <section class="card" style="padding:18px 22px;">
-      <div th:if="${#lists.isEmpty(myTitles)}" style="color:var(--ink-soft); font-size:13px;">
-        아직 획득한 칭호가 없습니다. 첫 여행을 완료해 보세요.
-      </div>
-      <!-- 획득한 칭호만 실선 칩으로. 미획득 칭호는 "더보기"의 칭호 관리 뷰에서 잠금 카드로 보여준다.
-           mypage-titles.js 가 이 칩들의 data-* 를 읽어 보유 목록을 만든다. -->
-      <div class="titles" id="mypage-titles">
-        <span th:each="t : ${myTitles}" class="tchip"
-              th:attr="data-name=${t.name},data-cond=${t.conditionDesc}"
-              th:title="${t.conditionDesc}">
-          <span>🏷️</span><b th:text="${t.name}">칭호</b>
-        </span>
+        <!-- #btn-intro 는 mypage-profile.js 가 자기소개 편집기를 여는 데 쓰는 id 라서 유지.
+             예전엔 자기소개 라벨 옆 작은 연필이었는데 목업대로 버튼으로 올렸다. -->
+        <div class="prow">
+          <button type="button" class="btn btn-ghost" id="btn-intro">✍ 프로필 수정</button>
+          <a th:href="@{/messages}" class="btn btn-ghost">💬 쪽지함(DM)</a>
+        </div>
       </div>
     </section>
 
@@ -457,6 +442,28 @@
       </p>
 
       <div class="snaps" id="snaps"></div>
+    </section>
+
+    <!-- ================= 칭호 ================= -->
+    <div class="sec-head">
+      <h2>🏅 내 칭호</h2>
+      <span class="note">여행을 완료하면 자동으로 획득합니다</span>
+      <button type="button" class="more-btn" id="btn-titles-more">더보기 ›</button>
+    </div>
+
+    <section class="card" style="padding:18px 22px;">
+      <div th:if="${#lists.isEmpty(myTitles)}" style="color:var(--ink-soft); font-size:13px;">
+        아직 획득한 칭호가 없습니다. 첫 여행을 완료해 보세요.
+      </div>
+      <!-- 획득한 칭호만 실선 칩으로. 미획득 칭호는 "더보기"의 칭호 관리 뷰에서 잠금 카드로 보여준다.
+           mypage-titles.js 가 이 칩들의 data-* 를 읽어 보유 목록을 만든다. -->
+      <div class="titles" id="mypage-titles">
+        <span th:each="t : ${myTitles}" class="tchip"
+              th:attr="data-name=${t.name},data-cond=${t.conditionDesc}"
+              th:title="${t.conditionDesc}">
+          <span>🏷️</span><b th:text="${t.name}">칭호</b>
+        </span>
+      </div>
     </section>
 
     <!-- ================= 피드 ================= -->

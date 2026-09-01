@@ -347,9 +347,9 @@
             rep = pending;
             modal.classList.remove('show');
             renderRepCard(); renderTGrid();
-            // 프로필 상단 배지도 같이 갱신
+            // 프로필 이름 옆 대표 칭호 칩도 같이 갱신(🏷️ 는 형제 span 이라 이름만 넣는다)
             var chip = document.getElementById('title-text');
-            if (chip && rep) chip.textContent = '여행 칭호 · ' + rep.name;
+            if (chip && rep) chip.textContent = rep.name;
             // TODO(Phase 2): 대표 칭호 저장 API 연결. 지금은 새로고침하면 서버 값으로 돌아간다.
             toast('대표 칭호를 바꿨어요 (저장 기능은 준비 중이에요)');
         });
