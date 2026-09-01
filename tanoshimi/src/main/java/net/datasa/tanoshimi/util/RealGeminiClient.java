@@ -73,8 +73,8 @@ public class RealGeminiClient implements GeminiClient {
         } catch (Exception e) {
             log.error("Gemini Real API call failed", e);
             String errMsg = e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ?
-                ((org.springframework.web.reactive.function.client.WebClientResponseException) e).getResponseBodyAsString().replace(""", "'").replace("\n", " ") :
-                e.getMessage().replace(""", "'");
+                ((org.springframework.web.reactive.function.client.WebClientResponseException) e).getResponseBodyAsString().replace("\"", "'").replace("\n", " ") :
+                e.getMessage().replace("\"", "'");
             return "{\"briefing\": \"API 오류: " + errMsg + "\", \"newSchedule\": []}";
         }
     }
