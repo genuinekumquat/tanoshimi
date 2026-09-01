@@ -181,7 +181,6 @@ public class GeminiChatClient implements CompanionChatClient {
             log.error("Gemini API 호출 실패: " + errMsg, e);
             return "디버그 안됨: " + errMsg;
         }
-        return "어라, 지금 통신이 잘 안 되네... 잠시 후 다시 말 걸어줄래? 📡";
     }
 
     /**
