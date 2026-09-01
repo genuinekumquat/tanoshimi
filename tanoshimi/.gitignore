@@ -7,3 +7,4 @@ src/main/resources/application-local.yml
 .DS_Store
 Thumbs.db
 boot.log
+*.py
