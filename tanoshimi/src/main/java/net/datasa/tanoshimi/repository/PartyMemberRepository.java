@@ -18,6 +18,9 @@ public interface PartyMemberRepository extends JpaRepository<PartyMemberEntity, 
     List<PartyMemberEntity> findByParty(PartyEntity party);
     long countByParty(PartyEntity party);
 
+    /** [⑥ 마이페이지] '프로참석러' 칭호용 - 내가 속한 파티 수(개설한 것 포함). */
+    long countByUser(UserEntity user);
+
     /**
      * "내 파티" 목록 화면(mypage/index.html, party/my-parties.html)에서 m.party.title 처럼
      * 연관 엔티티 필드를 바로 찍어 쓰기 때문에, open-in-view:false 인 상태로 렌더링 시점에

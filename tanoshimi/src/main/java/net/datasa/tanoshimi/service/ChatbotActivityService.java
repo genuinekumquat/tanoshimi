@@ -124,8 +124,8 @@ public class ChatbotActivityService {
             if (aiResponse == null || aiResponse.isBlank()) {
                 throw new IllegalStateException("API 응답 없음");
             }
-            
-            String cleanResponse = aiResponse.trim().toUpperCase();
+			
+			String cleanResponse = aiResponse.trim().toLowerCase();
             activity.cacheVenueType(VenueType.valueOf(cleanResponse));
             activityRepository.save(activity);
         } catch (IllegalArgumentException e) {

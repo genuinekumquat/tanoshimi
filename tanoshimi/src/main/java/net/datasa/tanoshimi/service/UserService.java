@@ -30,7 +30,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final PhoneVerificationService phoneVerificationService;
-    private final TitleService titleService;
 
     @Transactional(readOnly = true)
     public boolean isEmailAvailable(String email) {
@@ -50,9 +49,9 @@ public class UserService {
                 req.email(), passwordEncoder.encode(req.password()), req.name(), req.phone(),
                 Gender.valueOf(req.gender()), req.birthDate(), Nationality.valueOf(req.nationality()));
 
-        Long userId = saveWithUniqueGuard(user);
-        titleService.awardNewbie(user);
-        return userId;
+        // v17: 가입 직후 주던 NEWBIE 칭호가 없어졌다. 38종 체계에는 '가입만 하면 받는'
+        // 칭호가 없고(가장 낮은 T1 도 '여행 1회'), 칭호는 마이페이지에서 실적을 보고 부여된다.
+        return saveWithUniqueGuard(user);
     }
 
     @Transactional
@@ -73,7 +72,6 @@ public class UserService {
                 pending.provider(), pending.socialId());
 
         saveWithUniqueGuard(user);
-        titleService.awardNewbie(user);
         return user;
     }
 
