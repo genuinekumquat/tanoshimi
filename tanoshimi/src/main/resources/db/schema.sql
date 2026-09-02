@@ -56,6 +56,25 @@ CREATE TABLE IF NOT EXISTS phone_verifications (
     PRIMARY KEY (id),
     KEY idx_pv_phone_purpose (phone, purpose, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- 회원가입 본인인증은 이제 email_verifications 로 전환(알리고 사업자등록번호 이슈).
+-- 이 테이블은 change_phone 등 phone 자체를 검증해야 하는 목적으로 남겨둠(현재 미사용).
+
+-- ---------------------------------------------------------------------
+-- 2-1. email_verifications (이메일 본인인증 - 회원가입용)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS email_verifications (
+    id            BIGINT       NOT NULL AUTO_INCREMENT,
+    email         VARCHAR(255) NOT NULL,
+    code_hash     VARCHAR(255) NOT NULL,
+    purpose       ENUM('signup','find_password','change_phone') NOT NULL,
+    expires_at    DATETIME     NOT NULL,
+    attempt_count INT          NOT NULL DEFAULT 0,
+    verified_at   DATETIME     NULL,
+    used_at       DATETIME     NULL,
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_ev_email_purpose (email, purpose, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
 -- 3. titles / user_titles (칭호 시스템)

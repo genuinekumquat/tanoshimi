@@ -21,7 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
-    private final DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
+    // SecurityConfig 가 빈으로 등록해준 것을 주입받는다 - 예전엔 필드에서 직접 new 해서
+    // 테스트에서 delegate.loadUser()(실제 HTTP 호출)를 mock으로 바꿔치기할 방법이 없었다.
+    private final DefaultOAuth2UserService delegate;
     private final UserRepository userRepository;
     private final HttpSession httpSession;
 
