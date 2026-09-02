@@ -20,7 +20,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
-public class SecurityConfig {
+public class  SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final CustomOAuth2UserService oAuth2UserService;
@@ -46,7 +46,8 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/css/**", "/js/**", "/images/**", "/assets/**", "/vendor/**", "/favicon.ico", "/uploads/**").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/images/**", "/assets/**", "/vendor/**", "/favicon.ico", "/uploads/**", "/model/**").permitAll()
+                        .requestMatchers("/api/companion/chat").permitAll()
                         .requestMatchers("/", "/login", "/logout", "/signup", "/signup/**",
                                 "/api/auth/**", "/api/verification/**",
                                 "/oauth2/**", "/login/oauth2/**", "/error", "/error/**").permitAll()
@@ -90,11 +91,16 @@ public class SecurityConfig {
                         .frameOptions(frame -> frame.deny())
                         // Fix for CSP script blocking by allowing external CDNs in script-src
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
-                                "default-src 'self'; img-src 'self' data: https:; " +
+                                "default-src 'self'; media-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: https:; " +
                                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com; " +
                                 "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com https://cdnjs.cloudflare.com; " +
-                                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
-                                "connect-src 'self' ws: wss:; frame-ancestors 'none'"))
+                                // 'unsafe-eval' 필요: pixi.js 가 초기화 시 셰이더 정밀도 체크를 new Function() 으로
+                                // 수행해서(systemCheck), 이게 없으면 Live2D 캐릭터 렌더링이 "Current environment
+                                // does not allow unsafe-eval" 에러로 조용히 실패한다(채팅 UI는 정상 동작해서 못 알아채기 쉬움).
+                                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cubism.live2d.com; " +
+                                // [신규] 여행 도우미 마스코트 위젯 - Live2D 모델(json/텍스처/모션)을 jsdelivr 에서
+                                // fetch/XHR 로 불러오므로 connect-src 에도 같은 CDN 을 허용해야 한다.
+                                "connect-src 'self' ws: wss: https://cdn.jsdelivr.net; frame-ancestors 'none'"))
                 )
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/ws/**"))
                 .userDetailsService(userDetailsService);

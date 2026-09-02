@@ -43,6 +43,7 @@ public class RecommendationController {
         String imageUrl = null;
         if (file != null && !file.isEmpty()) {
             imageUrl = fileStorageService.saveImage(file);
+            fileStorageService.markActive(imageUrl);
         } else {
             // 인터넷을 통한 자동 기본값
             imageUrl = "https://loremflickr.com/400/400/travel," + title;

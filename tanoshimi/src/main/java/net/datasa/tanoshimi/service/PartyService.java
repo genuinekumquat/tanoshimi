@@ -32,6 +32,7 @@ public class PartyService {
     private final TripScheduleRepository tripScheduleRepository;
     private final NotificationService notificationService;
     private final MannerTempService mannerTempService;
+    private final FileStorageService fileStorageService;
 
     @Transactional
     public Long createParty(UserEntity owner, PartyCreateRequest req) {
@@ -55,6 +56,7 @@ public class PartyService {
                 .thumbnailUrl(req.thumbnailUrl())
                 .build();
         partyRepository.save(party);
+        fileStorageService.markActive(req.thumbnailUrl());
 
         partyMemberRepository.save(new PartyMemberEntity(party, owner, PartyMemberRole.owner));
 
@@ -102,6 +104,7 @@ public class PartyService {
         );
         if (req.thumbnailUrl() != null && !req.thumbnailUrl().isBlank()) {
             party.changeThumbnail(req.thumbnailUrl());
+            fileStorageService.markActive(req.thumbnailUrl());
         }
     }
 

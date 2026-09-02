@@ -29,8 +29,10 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    // v17(칭호 v17 개편)에서 TitleService 는 UserService 밖으로 빠졌다(가입만 하면 받는
+    // 칭호가 없어져서) - main과 합치며 그 결정을 그대로 따르고, phoneVerificationService만
+    // 이 브랜치의 목적대로 emailVerificationService 로 바꾼다.
     private final EmailVerificationService emailVerificationService;
-    private final TitleService titleService;
 
     @Transactional(readOnly = true)
     public boolean isEmailAvailable(String email) {
@@ -51,9 +53,9 @@ public class UserService {
                 req.email(), passwordEncoder.encode(req.password()), req.name(), req.phone(),
                 Gender.valueOf(req.gender()), req.birthDate(), Nationality.valueOf(req.nationality()));
 
-        Long userId = saveWithUniqueGuard(user);
-        titleService.awardNewbie(user);
-        return userId;
+        // v17: 가입 직후 주던 NEWBIE 칭호가 없어졌다. 38종 체계에는 '가입만 하면 받는'
+        // 칭호가 없고(가장 낮은 T1 도 '여행 1회'), 칭호는 마이페이지에서 실적을 보고 부여된다.
+        return saveWithUniqueGuard(user);
     }
 
     @Transactional
@@ -76,7 +78,6 @@ public class UserService {
                 pending.provider(), pending.socialId());
 
         saveWithUniqueGuard(user);
-        titleService.awardNewbie(user);
         return user;
     }
 

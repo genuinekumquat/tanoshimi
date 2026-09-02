@@ -86,21 +86,31 @@
 
       <div class="party-grid" id="party-grid">
         <a class="party-card card" th:each="party, iter : ${parties}" th:href="@{'/party-board/' + ${party.id}}">
-          <div class="thumb" style="position:relative; height:168px; background:var(--parchment-deep);">
+          <div class="thumb" style="position:relative; height:168px; background:var(--parchment-deep);"
+               th:with="today=${T(java.time.LocalDate).now()}, isRecruitable=${party.status.name() == 'recruiting' and party.departureDate.isAfter(today)}">
             <div th:class="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'ph1 ph' : (party.thumbnailUrl ?: 'ph1') + ' ph'}"
                  style="position:absolute; inset:0;"
                  th:styleappend="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'background-image:url(' + party.thumbnailUrl + '); background-size:cover; background-position:center;' : ''}"></div>
-                 
+
             <div style="position:absolute; top:10px; left:10px; display:flex; gap:6px; flex-wrap:wrap;">
               <span class="chip chip-region" style="background:var(--sky); color:#1c3a44;" th:text="'📍 ' + ${party.region}">지역</span>
-              <span class="chip" th:text="${party.status.name() == 'recruiting'} ? #{party.status.recruiting} : #{party.status.closed}"
-                    th:style="${party.status.name() == 'recruiting'} ? 'background:var(--forest);color:#fff;' : 'background:#8a7a63;color:#fff;'">상태</span>
+              <!-- '모집중'은 status==recruiting 뿐 아니라 출발일이 오늘보다 뒤일 때만 뜬다 - 출발 당일부터는
+                   신청 자체를 막기로 했으므로(PartyApplicationService.apply) 화면 문구도 그 기준을 따라야
+                   실제 신청 가능 여부와 어긋나지 않는다. status 는 스케줄러가 여행 종료 후에나 바꿔주므로
+                   출발 당일~여행 중엔 DB상 status 는 여전히 recruiting 이어도 '모집종료'로 보여준다. -->
+              <span class="chip" th:text="${isRecruitable} ? #{party.status.recruiting} : #{party.status.closed}"
+                    th:style="${isRecruitable} ? 'background:var(--forest);color:#fff;' : 'background:#8a7a63;color:#fff;'">상태</span>
             </div>
 
-            <!-- 디데이 -->
+            <!-- 디데이. '종료'는 날짜 계산(endDate=departureDate+durationDays) 대신 party.status가
+                 completed 인지로만 판정한다 - PartyCompletionScheduler가 매일 00:30에 endDate 경과
+                 파티를 completed 로 바꿔주는데, 만약 날짜만 보고 계산하면 자정~00:30 사이 30분 동안
+                 "아직 completed 는 아닌데 날짜상으론 종료"인 상태가 생겨 위 모집상태 칩과 다시 모순될
+                 수 있다. status를 그대로 신뢰하면 두 뱃지가 항상 같은 정보(같은 status)를 기준으로
+                 삼게 되어 이 레이스도 원천 차단된다. 출발일만 지나고 아직 completed 전인 파티는
+                 '여행중'으로 표시한다. -->
             <span style="position:absolute; top:10px; right:10px; font-family:'Jua',sans-serif; font-size:12px; color:#fff; background:var(--sash); border-radius:6px; padding:3px 9px; box-shadow:0 2px 4px rgba(0,0,0,.15);"
-                  th:with="today=${T(java.time.LocalDate).now()}"
-                  th:text="${party.departureDate.isEqual(today) ? 'D-DAY' : (party.departureDate.isAfter(today) ? 'D-' + T(java.time.temporal.ChronoUnit).DAYS.between(today, party.departureDate) : '종료')}">D-7</span>
+                  th:text="${party.departureDate.isEqual(today) ? 'D-DAY' : (party.departureDate.isAfter(today) ? 'D-' + T(java.time.temporal.ChronoUnit).DAYS.between(today, party.departureDate) : (party.status.name() == 'completed' ? '종료' : '여행중'))}">D-7</span>
             <!-- report button -->
             <span style="position:absolute; bottom:10px; right:10px; z-index:10;" sec:authorize="isAuthenticated()">
               <span th:attr="data-report-type='party',data-report-id=${party.id},data-report-label=${party.title}" style="font-size:11px; padding:3px 6px; background:rgba(255,255,255,0.9); border:1px solid #ffcccc; color:red; border-radius:4px; font-weight:bold; cursor:pointer;">🚨 신고</span>
@@ -172,5 +182,6 @@
       }
   })();
 </script>
+<div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

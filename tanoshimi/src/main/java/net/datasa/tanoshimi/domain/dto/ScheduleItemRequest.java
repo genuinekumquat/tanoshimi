@@ -15,6 +15,7 @@ public record ScheduleItemRequest(
         @Min(1) int durationMinute,
         Long activityId,          // null 이면 custom(빈 칸)
         String title,             // custom 일 때 사용자가 직접 입력
-        String memo
+        String memo,
+        String color
 ) {
 }

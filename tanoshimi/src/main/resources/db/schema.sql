@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS titles (
     id             BIGINT       NOT NULL AUTO_INCREMENT,
     code           VARCHAR(50)  NOT NULL,
     name           VARCHAR(50)  NOT NULL,
+    category       VARCHAR(30)  NULL COMMENT '칭호 카테고리(표시용). 분류는 code 접두사와 동일',
     condition_desc VARCHAR(200) NULL,
     icon_key       VARCHAR(50)  NULL,
     PRIMARY KEY (id),
@@ -267,8 +268,8 @@ CREATE TABLE IF NOT EXISTS trip_schedules (
     id             BIGINT   NOT NULL AUTO_INCREMENT,
     party_id       BIGINT   NULL,
     reservation_id BIGINT   NULL,
-       status         ENUM('draft','submitted','confirmed') NOT NULL DEFAULT 'draft',
-    locked_by_user_id BIGINT NOT NULL COMMENT '[v16] 현재 편집권을 가진 파티원. 파티 생성 시 방장(owner_user_id)으로 초기화, 편집권 회수 시에도 NULL이 아닌 방장 ID로 복귀(앱 코드에서 명시적으로 세팅 - DEFAULT로 다른 컬럼 참조 불가)',
+    status         ENUM('draft','submitted','confirmed') NOT NULL DEFAULT 'draft',
+    locked_by_user_id BIGINT NULL COMMENT '[v16] 현재 편집권을 가진 파티원. NULL이면 전원 읽기전용(자유편집 아님 - lock 도입 취지 유지)',
     last_saved_at  DATETIME NULL COMMENT '[v16] 마지막 저장(자동/수동) 시각 - 화면 상단 표시용',
     submitted_at   DATETIME NULL,
     confirmed_at   DATETIME NULL,
@@ -342,12 +343,36 @@ CREATE TABLE IF NOT EXISTS trip_schedule_votes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
+-- 14-1. my_trips ("내 여행" - v19 신규. 여행 횟수/지역 집계의 단일 근거)
+--   담당: 김민규(⑥ 마이페이지). MyTripEntity 클래스 주석 참고.
+--   source=PARTY 는 파티 완료 시 자동 생성(수정/삭제 불가), SOLO 는 사용자가 직접 등록.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS my_trips (
+    id           BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id      BIGINT       NOT NULL,
+    source       ENUM('SOLO','PARTY') NOT NULL DEFAULT 'SOLO',
+    party_id     BIGINT       NULL COMMENT 'source=PARTY일 때만. 같은 파티 중복 등록 방지 근거',
+    title        VARCHAR(200) NOT NULL,
+    destination  VARCHAR(100) NOT NULL COMMENT '여행지(자유 입력 - 위치태그 선택 아님)',
+    start_date   DATE         NOT NULL,
+    end_date     DATE         NOT NULL,
+    memo         VARCHAR(500) NULL,
+    created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_my_trips_user_party (user_id, party_id),
+    CONSTRAINT fk_my_trips_user FOREIGN KEY (user_id) REFERENCES users(id),
+    CONSTRAINT fk_my_trips_party FOREIGN KEY (party_id) REFERENCES parties(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
 -- 15. posts (여행 게시판 글 / 마이페이지 피드)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS posts (
     id            BIGINT       NOT NULL AUTO_INCREMENT,
     user_id       BIGINT       NOT NULL,
     party_id      BIGINT       NULL COMMENT '어떤 여행/파티에 대한 인증글인지(선택)',
+    trip_id       BIGINT       NULL COMMENT '[v19] 이 스냅이 딸린 내 여행(선택) - 집계에는 관여 안 함',
     title         VARCHAR(200) NOT NULL,
     content       TEXT         NOT NULL,
     region        VARCHAR(50)  NULL,
@@ -357,7 +382,8 @@ CREATE TABLE IF NOT EXISTS posts (
     updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     CONSTRAINT fk_post_user FOREIGN KEY (user_id) REFERENCES users(id),
-    CONSTRAINT fk_post_party FOREIGN KEY (party_id) REFERENCES parties(id)
+    CONSTRAINT fk_post_party FOREIGN KEY (party_id) REFERENCES parties(id),
+    CONSTRAINT fk_post_trip FOREIGN KEY (trip_id) REFERENCES my_trips(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS post_likes (
@@ -531,4 +557,22 @@ CREATE TABLE IF NOT EXISTS user_profile_theme (
     PRIMARY KEY (id),
     UNIQUE KEY uk_upt_user (user_id),
     CONSTRAINT fk_upt_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 24. user_blocks [v16 신규] (유저 차단, TNSM-96)
+-- 차단 여부는 이 테이블에 대한 조회(EXISTS)로 그때그때 판단한다.
+-- chat_rooms 등에 별도 상태 플래그를 두지 않는다 (docs/user_blocks_design_decisions.txt 참고).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_blocks (
+    id          BIGINT   NOT NULL AUTO_INCREMENT,
+    blocker_id  BIGINT   NOT NULL COMMENT '차단 하는 사람',
+    blocked_id  BIGINT   NOT NULL COMMENT '차단 당하는 사람',
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_block_pair (blocker_id, blocked_id),
+    KEY idx_block_blocked (blocked_id),
+    CONSTRAINT fk_block_blocker FOREIGN KEY (blocker_id) REFERENCES users(id),
+    CONSTRAINT fk_block_blocked FOREIGN KEY (blocked_id) REFERENCES users(id),
+    CONSTRAINT ck_block_not_self CHECK (blocker_id <> blocked_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

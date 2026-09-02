@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{fragments/layout :: head('지역 스냅 | 타노시미')}"></th:block>
+  <style>
+    :root{
+      --parchment:#f3e8cf; --parchment-deep:#e8dab3; --card:#fffcf4;
+      --forest:#4b6b4a; --forest-deep:#33472f; --sash:#e0793f; --sash-deep:#b85c2b;
+      --gold:#d9a441; --sky:#8fb9c9; --ink:#3a2e22; --ink-soft:#6b5c46; --rope:#c9b58b; --line:#d8c69a;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background:radial-gradient(ellipse at top left, rgba(255,255,255,.35), transparent 55%), var(--parchment);
+      color:var(--ink); font-family:'Gowun Dodum','Apple SD Gothic Neo',sans-serif; line-height:1.6;
+    }
+    h1,h2,h3{ font-family:'Jua','Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
+    a{ color:var(--forest-deep); text-decoration:none; }
+    .wrap{ max-width:980px; margin:0 auto; padding:26px 22px 90px; }
+    .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; }
+
+    .tm-head{ display:flex; align-items:center; gap:12px; margin-bottom:6px; flex-wrap:wrap; }
+    .back-btn{
+      display:inline-block; font-size:13px; color:var(--forest-deep); background:var(--card); border:1.5px solid var(--line);
+      border-radius:10px; padding:8px 13px; cursor:pointer; font-family:'Gowun Dodum',sans-serif; font-weight:700;
+    }
+    .back-btn:hover{ border-color:var(--sash); color:var(--sash-deep); }
+    .sub{ font-size:12.5px; color:var(--ink-soft); margin:0 0 20px 2px; }
+
+    /* 그리드/타일 규칙은 마이페이지 피드(mypage/index.html .feed-grid)와 같게 맞춘다 -
+       같은 "내 스냅"을 보여주는 화면이라 생김새가 달라질 이유가 없다. */
+    .feed-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    .feed-item{
+      position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; display:block; cursor:pointer;
+      border:1px solid var(--line); transition:transform .15s, box-shadow .15s;
+    }
+    .feed-item:hover{ transform:translateY(-2px); box-shadow:0 8px 18px rgba(59,44,20,.16); }
+    .feed-item .ph{ position:absolute; inset:0; }
+    .ph.ph1{ background:linear-gradient(135deg,var(--sky),#c7dfe6); }
+    .ph.ph2{ background:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
+    .ph.ph3{ background:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
+    .ph.ph4{ background:linear-gradient(135deg,#e3b7a0,#d99a86); }
+    .feed-item .cap{
+      position:absolute; left:0; right:0; bottom:0; padding:8px 9px 7px; font-size:11px; color:#fff;
+      background:linear-gradient(to top, rgba(30,22,14,.78), transparent);
+    }
+    .feed-item .region-tag{
+      position:absolute; top:7px; left:7px; font-size:10px; font-weight:700; color:#fff;
+      background:rgba(30,22,14,.55); border-radius:999px; padding:2px 8px;
+    }
+    .feed-item:hover .ph{ filter:brightness(.85); }
+    .feed-item:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+
+    .empty{
+      text-align:center; color:var(--ink-soft); font-size:13.5px; padding:44px 20px; line-height:1.9;
+    }
+    .empty b{ color:var(--forest-deep); font-family:'Jua',sans-serif; }
+
+    @media (max-width:640px){ .feed-grid{ grid-template-columns:repeat(2,1fr); } }
+    @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
+  </style>
+</head>
+<body>
+
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="wrap">
+
+  <!-- [v21 신규] 지도에서 지역을 클릭하면 오는 화면. 그 지역 태그가 붙은 내 스냅만 모아
+       보여주고, 타일을 누르면 그 게시글로 간다(마이페이지 피드와 같은 규칙). -->
+  <div class="tm-head">
+    <a th:href="@{/mypage}" class="back-btn">‹ 마이페이지</a>
+    <h1 style="font-size:22px;">📍 <span th:text="${region}">지역</span> 스냅</h1>
+  </div>
+  <p class="sub">
+    <b th:text="${#lists.size(snaps)}">0</b>장 · 스냅을 누르면 해당 게시글로 이동합니다.
+  </p>
+
+  <div class="feed-grid" th:if="${not #lists.isEmpty(snaps)}">
+    <a th:each="post : ${snaps}" class="feed-item" th:href="@{'/board/' + ${post.id}}" aria-label="게시글 열기">
+      <div th:class="${'ph ' + ((post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')) ? 'ph1' : (post.thumbnailUrl ?: 'ph1'))}"></div>
+      <img th:if="${post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')}"
+           th:src="@{${post.thumbnailUrl}}" class="ph" alt="" onerror="this.style.display='none';"
+           style="width:100%; height:100%; object-fit:cover;">
+
+      <span class="region-tag" th:if="${post.region != null and !post.region.isEmpty()}">📍 <th:block th:text="${post.region}"></th:block></span>
+      <span class="cap" th:text="${post.title}">제목</span>
+    </a>
+  </div>
+
+  <div class="card empty" th:if="${#lists.isEmpty(snaps)}">
+    아직 <b th:text="${region}">이 지역</b>에서 올린 스냅이 없어요.<br>
+    글쓰기에서 지역을 <b th:text="${region}">이 지역</b>으로 태그해 사진을 올리면 여기에 모입니다.
+  </div>
+
+</main>
+
+</body>
+</html>

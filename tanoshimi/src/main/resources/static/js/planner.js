@@ -1,6 +1,90 @@
+
+    function showEditModal(initialTitle, initialMemo, initialColor, callback) {
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0'; overlay.style.left = '0';
+        overlay.style.width = '100vw'; overlay.style.height = '100vh';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        overlay.style.display = 'flex';
+        overlay.style.justifyContent = 'center';
+        overlay.style.alignItems = 'center';
+        overlay.style.zIndex = '99999';
+        
+        const modal = document.createElement('div');
+        modal.style.background = '#fff';
+        modal.style.padding = '24px';
+        modal.style.borderRadius = '12px';
+        modal.style.width = '320px';
+        modal.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+        
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = '일정 정보 입력';
+        titleEl.style.marginTop = '0';
+        titleEl.style.marginBottom = '16px';
+        
+        const tLabel = document.createElement('label');
+        tLabel.textContent = '제목';
+        tLabel.style.display = 'block'; tLabel.style.fontSize = '12px';
+        const tInput = document.createElement('input');
+        tInput.type = 'text'; tInput.value = initialTitle || '';
+        tInput.style.width = '100%'; tInput.style.marginBottom = '12px';
+        tInput.style.padding = '8px'; tInput.style.boxSizing = 'border-box';
+        
+        const mLabel = document.createElement('label');
+        mLabel.textContent = '내용 (메모)';
+        mLabel.style.display = 'block'; mLabel.style.fontSize = '12px';
+        const mInput = document.createElement('textarea');
+        mInput.value = initialMemo || '';
+        mInput.style.width = '100%'; mInput.style.marginBottom = '12px';
+        mInput.style.height = '60px';
+        mInput.style.padding = '8px'; mInput.style.boxSizing = 'border-box';
+        
+        const cLabel = document.createElement('label');
+        cLabel.textContent = '글자색';
+        cLabel.style.display = 'block'; cLabel.style.fontSize = '12px';
+        const cInput = document.createElement('input');
+        cInput.type = 'color'; cInput.value = initialColor || '#4b6b4a';
+        cInput.style.width = '100%'; cInput.style.marginBottom = '20px';
+        cInput.style.height = '36px';
+        
+        const btnDiv = document.createElement('div');
+        btnDiv.style.display = 'flex'; btnDiv.style.justifyContent = 'flex-end'; btnDiv.style.gap = '8px';
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '취소';
+        cancelBtn.style.padding = '6px 12px';
+        cancelBtn.onclick = () => document.body.removeChild(overlay);
+        
+        const okBtn = document.createElement('button');
+        okBtn.textContent = '확인';
+        okBtn.style.padding = '6px 12px';
+        okBtn.style.background = 'var(--forest)';
+        okBtn.style.color = '#fff';
+        okBtn.style.border = 'none';
+        okBtn.style.borderRadius = '4px';
+        okBtn.onclick = () => {
+            document.body.removeChild(overlay);
+            callback(tInput.value.trim(), mInput.value.trim(), cInput.value);
+        };
+        
+        btnDiv.appendChild(cancelBtn);
+        btnDiv.appendChild(okBtn);
+        
+        modal.appendChild(titleEl);
+        modal.appendChild(tLabel);
+        modal.appendChild(tInput);
+        modal.appendChild(mLabel);
+        modal.appendChild(mInput);
+        modal.appendChild(cLabel);
+        modal.appendChild(cInput);
+        modal.appendChild(btnDiv);
+        
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    }
 (function () {
     const SLOT_MIN = 30;         // 30 min slots
-    const SLOT_H = 22;           // px per slot
+    const SLOT_H = 110;           // px per slot
 
     // DAYS and SLOTS depend on schedule
     const START_HOUR = 6;
@@ -20,7 +104,8 @@
         const total = START_HOUR * 60 + slot * SLOT_MIN;
         const h = Math.floor(total / 60);
         const m = total % 60;
-        return `${h}:${m.toString().padStart(2, '0')}`;
+        const tStr = `${h}:${m.toString().padStart(2, '0')}`;
+        return m === 0 ? `<strong>${tStr}</strong>` : `<span style="font-weight:normal;opacity:0.8;">${tStr}</span>`;
     }
 
     const gridHead = document.getElementById('grid-head');
@@ -99,8 +184,10 @@
                 el.classList.add('act');
             }
 
+            let memoHtml = item.memo ? `<div class="m" style="font-size:10px; opacity:0.85; margin-top:1px; line-height:1.2; word-break:keep-all;">${escapeHtml(item.memo)}</div>` : '';
             el.innerHTML = `
-              <div class="t">${escapeHtml(item.title)}</div>
+              <div class="t" style="color: ${item.color || 'var(--custom-text-color, #4b6b4a)'}; font-weight: 700;">${escapeHtml(item.title)}</div>
+              ${memoHtml}
               <div class="bg"></div>
               ${item.source !== 'package_default' ? '<div class="del">X</div>' : ''}
               ${item.source !== 'package_default' ? '<div class="grip"></div>' : ''}
@@ -119,6 +206,28 @@
 
                 const grip = el.querySelector('.grip');
                 if (grip) grip.addEventListener('pointerdown', (e) => startResize(e, item, el, startSlot, lenSlot));
+            }
+            
+            // Allow edit for blocks
+            if (item.source !== 'package_default' && (typeof IS_LOCK_HOLDER === 'undefined' || IS_LOCK_HOLDER)) {
+                el.addEventListener('dblclick', async (e) => {
+                    e.stopPropagation();
+                    showEditModal(item.title, item.memo, item.color || '#4b6b4a', async (newTitle, newMemo, newColor) => {
+                        if (newTitle !== '') {
+                            await window.api.delete(`/api/planner/items/${item.id}`);
+                            await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                                dayIndex: item.dayIndex,
+                                startMinute: item.startMinute,
+                                durationMinute: item.durationMinute,
+                                activityId: null,
+                                title: newTitle,
+                                memo: newMemo,
+                                color: newColor
+                            });
+                            reload();
+                        }
+                    });
+                });
             }
         });
 
@@ -178,11 +287,14 @@
         const rawSlot = Math.round((e.clientY - col.getBoundingClientRect().top) / SLOT_H);
         const startMinute = START_HOUR * 60 + Math.max(0, rawSlot) * SLOT_MIN;
 
-        if (data.kind === 'recommend') {
-            await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
-                dayIndex: day, startMinute, durationMinute: data.durationMin,
-                activityId: data.activityId, title: null, memo: null
+        if (data.kind === 'recommend' || data.kind === 'custom') {
+            const parsedDuration = parseInt(data.durationMin, 10);
+            const finalDuration = (!isNaN(parsedDuration) && parsedDuration > 0) ? parsedDuration : 60;
+            const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                dayIndex: day, startMinute, durationMinute: finalDuration,
+                activityId: data.activityId || null, title: data.title || '새 일정', memo: null
             });
+            if (!res.success && res.message) alert(res.message);
         } else if (data.id) {
             const existing = items.find(i => i.id === data.id);
             if (!existing) return;
@@ -230,12 +342,18 @@
             const card = document.createElement('div');
             card.className = 'rec-card';
             card.draggable = true;
-            card.dataset.payload = JSON.stringify({ kind:'recommend', activityId:item.id, durationMin:item.durationMin });
+            card.dataset.payload = JSON.stringify({ 
+                kind: item.kind || 'recommend', 
+                activityId: item.activityId || null, 
+                title: item.title,
+                durationMin: item.durationMin 
+            });
+            const priceText = item.priceKrw ? ` \${item.priceKrw.toLocaleString()}` : '';
             card.innerHTML = `
               <span class="sw" style="background:var(--cat-festival)"></span>
               <span class="info">
                 <span class="t">${escapeHtml(item.title)}</span>
-                <span class="m">${item.durationMin}분 소요 \\${item.priceKrw.toLocaleString()}</span>
+                <span class="m">${item.durationMin}분 소요${priceText}</span>
               </span>
               <button class="put" title="계획표에 추가">+</button>`;
 
@@ -243,12 +361,13 @@
                 e.dataTransfer.setData('text/plain', card.dataset.payload);
             });
             card.querySelector('.put').addEventListener('click', async () => {
-                await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
-                    dayIndex: 1, startMinute: 12*60, durationMinute: item.durationMin,
-                    activityId: item.id, title: null, memo: null
-                });
-                await reload();
-            });
+                  const finalDuration = (!isNaN(parseInt(item.durationMin)) && parseInt(item.durationMin) > 0) ? parseInt(item.durationMin) : 60;
+                  const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                      dayIndex: 1, startMinute: 12*60, durationMinute: finalDuration,
+                      activityId: item.activityId || null, title: item.title || '새 일정', memo: item.description || null
+                  });
+                  if(!res.success && res.message) { alert(res.message); } else { await reload(); }
+              });
             wrap.appendChild(card);
         });
         chat.appendChild(wrap);
@@ -338,6 +457,64 @@
         });
     }
 
+    const cp = document.getElementById('custom-slot-color');
+    if (cp) {
+        cp.value = localStorage.getItem('custom-slot-color') || '#ffa500';
+        document.documentElement.style.setProperty('--custom-slot-color', cp.value);
+        cp.addEventListener('input', e => {
+            localStorage.setItem('custom-slot-color', e.target.value);
+            document.documentElement.style.setProperty('--custom-slot-color', e.target.value);
+        });
+    }
+
+    
+    document.getElementById('btn-add')?.addEventListener('click', () => {
+        if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
+        showEditModal('', '', '#4b6b4a', async (newTitle, newMemo, newColor) => {
+            if (newTitle !== '') {
+                await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                    dayIndex: 0,
+                    startMinute: 600, // default 10:00 AM
+                    durationMinute: 60,
+                    activityId: null,
+                    title: newTitle,
+                    memo: newMemo,
+                    color: newColor
+                });
+                reload();
+            }
+        });
+    });
+
+    document.getElementById('btn-clear')?.addEventListener('click', async () => {
+        if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
+        if (confirm('자동 일정을 제외한 모든 커스텀/추천 일정을 지웁니다. 초기화하시겠습니까?')) {
+            // we delete everything non-fixed
+            for (const item of items) {
+                if (item.source !== 'package_default') {
+                    await window.api.delete(`/api/planner/items/${item.id}`);
+                }
+            }
+            reload();
+        }
+    });
+
+        const ctc = document.getElementById('custom-text-color');
+    if (ctc) {
+        ctc.value = localStorage.getItem('custom-text-color') || '#4b6b4a';
+        document.documentElement.style.setProperty('--custom-text-color', ctc.value);
+        ctc.addEventListener('input', e => {
+            localStorage.setItem('custom-text-color', e.target.value);
+            document.documentElement.style.setProperty('--custom-text-color', e.target.value);
+            // Also override the inline style of all blocks if they were using the global one
+            document.querySelectorAll('.block .t').forEach(el => {
+                if (!el.style.color || el.style.color === 'inherited' || el.style.color === '') {
+                    el.style.color = e.target.value;
+                }
+            });
+        });
+    }
+
     buildGrid();
     reload();
     connectRealtime();
@@ -348,10 +525,43 @@
         alert(r.message);
         if (r.success) location.reload();
     });
-    
-    document.getElementById('btn-pay')?.addEventListener('click', async () => {
-        const r = await window.api.post(`/api/planner/${SCHEDULE_ID}/pay`, {});
-        alert(r.message);
+
+    document.getElementById('btn-ai-validate')?.addEventListener('click', async () => {
+        const modeElem = document.getElementById('transit-mode');
+        const mode = modeElem && modeElem.value === 'car' ? '자동차' : '대중교통';
+        const btn = document.getElementById('btn-ai-validate');
+        const oldText = btn.textContent;
+        btn.textContent = '검증 중...';
+        btn.disabled = true;
+
+        const vBubble = document.getElementById('companion-speech-bubble');
+
+        try {
+            if (vBubble) {
+                if (window.companionTimeout) clearTimeout(window.companionTimeout);
+                vBubble.innerText = `${mode} 기준으로 일정을 검증하고 있어요...`;
+                vBubble.style.display = 'block';
+            }
+            const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/ai-validate?mode=${encodeURIComponent(mode)}`, {});
+            if (res.success) {
+                if (vBubble) {
+                    vBubble.innerText = res.data.briefing;
+                    if (window.companionTimeout) clearTimeout(window.companionTimeout);
+                }
+                await reload();
+            } else {
+                if (vBubble) {
+                    vBubble.innerText = '검증에 실패했습니다. ' + (res.message || '');
+                }
+            }
+        } catch (e) {
+            if (vBubble) {
+                vBubble.innerText = '오류가 발생했습니다.';
+            }
+        } finally {
+            btn.textContent = oldText;
+            btn.disabled = false;
+        }
     });
 
 })();

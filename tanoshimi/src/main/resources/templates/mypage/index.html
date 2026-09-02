@@ -7,13 +7,18 @@
       --parchment:#f3e8cf; --parchment-deep:#e8dab3; --card:#fffcf4;
       --forest:#4b6b4a; --forest-deep:#33472f; --sash:#e0793f; --sash-deep:#b85c2b;
       --gold:#d9a441; --sky:#8fb9c9; --ink:#3a2e22; --ink-soft:#6b5c46; --rope:#c9b58b; --line:#d8c69a;
+      --warm:#ff8a00; --map-line:#33302a;
 
-      /* 방문 횟수 색 단계 */
-      --tier-0:#8fb9c9;   /* 0회 — 하늘 */
-      --tier-1:#3d6fd8;   /* 1~5회 — 파랑 */
-      --tier-2:#d9a441;   /* 6~8회 — 노랑 */
-      --tier-3:#e0793f;   /* 9~11회 — 주황 */
-      --tier-4:#b8503b;   /* 12회 이상 — 빨강 */
+      /* 여행 지수 색 단계.
+         단계 경계(1 / 8 / 16 / 26점)는 TravelHeatmapService 와 mypage-heatmap.js 의 TIERS 가
+         함께 쓰는 값이라 셋 중 하나만 고치면 안 된다. 지수 = 완료 여행 1건당 3점 + 1일당 1점.
+         지도를 점 마커에서 면(지역 경계) 칠하기로 바꾸면서, 안 가본 땅이 바다처럼 보이지
+         않도록 0단계를 하늘색에서 빈 땅 색으로 바꿨다. */
+      --tier-0:#e3e8dd;   /* 0점 — 아직 안 가봄 */
+      --tier-1:#a8c6d6;   /* 1~7점 — 가끔 */
+      --tier-2:#e6c463;   /* 8~15점 — 여러 번 */
+      --tier-3:#dd8b46;   /* 16~25점 — 자주 */
+      --tier-4:#c25235;   /* 26점 이상 — 단골 */
     }
     *{ box-sizing:border-box; }
     body{
@@ -47,12 +52,19 @@
     /* ===================== 프로필 카드 ===================== */
     .profile{ position:relative; padding:26px 26px 24px; display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap; overflow:hidden; }
 
-    .title-badge{
-      position:absolute; top:18px; right:22px; font-family:'Jua',sans-serif; font-size:12px; color:var(--sash-deep);
-      border:2px dashed var(--sash); border-radius:999px; padding:6px 15px; transform:rotate(-2deg);
-      background:rgba(255,255,255,.6); display:flex; align-items:center; gap:6px; white-space:nowrap;
+    /* 이름 줄: 이름 + 대표 칭호 칩 + 매너온도. 예전엔 칭호가 카드 우상단에 기울어진
+       점선 배지로 떠 있었는데, 매너온도와 자리가 겹쳐서 목업대로 이름 옆 칩으로 옮겼다. */
+    .pname-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .title-chip{
+      display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--sash-deep);
+      border:1.5px solid var(--sash); border-radius:999px; padding:4px 12px;
+      background:rgba(224,121,63,.08); font-family:'Gowun Dodum',sans-serif; font-weight:700; white-space:nowrap;
     }
-    .title-badge .ic{ font-size:13px; }
+    .manner{ display:inline-flex; align-items:center; gap:7px; font-size:13px; margin-left:auto; }
+    .manner .deg{ color:var(--warm); font-weight:700; }
+    .manner .bar{ width:66px; height:6px; background:rgba(0,0,0,.08); border-radius:3px; overflow:hidden; }
+    .manner .bar i{ display:block; height:100%; background:var(--warm); }
+    .prow{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
 
     .photo-wrap{ position:relative; width:118px; height:118px; flex:none; }
     .photo-wrap .ph{
@@ -68,38 +80,59 @@
     .photo-edit:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
 
     .profile-info{ flex:1; min-width:220px; padding-top:2px; }
-    .profile-name{ font-family:'Jua',sans-serif; font-size:19px; color:var(--forest-deep); display:flex; align-items:center; gap:8px; }
-    .profile-stats{ display:flex; gap:16px; margin:10px 0 12px; font-size:12.5px; color:var(--ink-soft); flex-wrap:wrap; }
+    .profile-name{ font-family:'Jua',sans-serif; font-size:19px; color:var(--forest-deep); display:flex; align-items:baseline; gap:5px; }
+    .profile-name .nim{ font-size:12px; color:var(--ink-soft); font-family:'Gowun Dodum',sans-serif; }
+    .profile-stats{ display:flex; gap:16px; margin:12px 0; font-size:12.5px; color:var(--ink-soft); flex-wrap:wrap; }
     .profile-stats b{ color:var(--forest-deep); font-family:'Jua',sans-serif; font-size:14px; margin-right:3px; }
 
+    /* 여행 거리(집 기준 왕복 누적) */
+    .dist-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0 2px; }
+    .dist{ font-size:13px; color:var(--sky); font-weight:700; }
+    .dist b{ color:var(--forest-deep); font-family:'Jua',sans-serif; font-size:15px; }
+    .home-btn{
+      font-size:11.5px; color:var(--ink-soft); background:var(--parchment); border:1px solid var(--line);
+      border-radius:999px; padding:4px 11px; cursor:pointer; font-family:'Gowun Dodum',sans-serif;
+    }
+    .home-btn:hover{ border-color:var(--sash); color:var(--sash-deep); }
+    .home-btn b{ color:var(--forest-deep); }
+
     .intro-box{ position:relative; }
-    .intro-box .lbl{ font-size:11.5px; font-weight:700; color:var(--ink-soft); margin-bottom:5px; display:flex; align-items:center; gap:6px; }
     .intro-text{ font-size:13px; color:var(--ink); background:var(--parchment); border:1px solid var(--line); border-radius:10px; padding:11px 13px; white-space:pre-line; }
     .intro-textarea{
       width:100%; min-height:76px; resize:vertical; font-family:inherit; font-size:13px; color:var(--ink);
       background:var(--card); border:1.5px solid var(--sash); border-radius:10px; padding:11px 13px; outline:none; display:none;
     }
     .intro-actions{ display:none; gap:8px; margin-top:8px; }
-    .edit-intro-btn{
-      width:26px; height:26px; border-radius:8px; border:1px solid var(--line); background:var(--parchment);
-      color:var(--forest-deep); font-size:12px; cursor:pointer; flex:none;
-    }
-    .edit-intro-btn:hover{ border-color:var(--sash); color:var(--sash-deep); }
 
     input[type=file]{ display:none; }
 
-    /* ===================== 지도 섹션 ===================== */
+    /* ===================== 칭호 ===================== */
     .sec-head{ display:flex; align-items:baseline; gap:10px; margin:34px 0 12px; flex-wrap:wrap; }
     .sec-head h2{ font-size:18px; }
     .sec-head .note{ font-size:12px; color:var(--ink-soft); }
 
-    .map-card{ padding:22px 24px; user-select: none; -webkit-user-select: none; }
-
-    .map-toggle{
-      position:relative; display:inline-flex; margin:0 auto 20px; background:var(--parchment-deep);
-      border-radius:999px; padding:4px; gap:2px; left:50%; transform:translateX(-50%);
+    .titles{ display:flex; flex-wrap:wrap; gap:10px; }
+    /* 획득한 칭호는 실선 칩. (미획득은 칭호 관리 뷰의 잠금 카드에서만 보여준다) */
+    .tchip{
+      display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:999px;
+      border:1.5px solid var(--sash); background:rgba(224,121,63,.08); font-size:12.5px; color:var(--sash-deep);
     }
-    .map-toggle-wrap{ text-align:center; }
+    .tchip b{ font-family:'Jua',sans-serif; }
+    .more-btn{
+      margin-left:auto; font-size:12px; color:var(--forest-deep); background:none; border:none; cursor:pointer;
+      font-family:'Gowun Dodum',sans-serif; font-weight:700; display:inline-flex; align-items:center; gap:3px;
+      padding:4px 6px; border-radius:8px;
+    }
+    .more-btn:hover{ color:var(--sash-deep); }
+
+    /* ===================== 지도 섹션 ===================== */
+    .map-card{ position:relative; padding:22px 24px; overflow:hidden; user-select:none; -webkit-user-select:none; }
+
+    .map-toolbar{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+    .map-toggle{
+      position:relative; display:inline-flex; background:var(--parchment-deep);
+      border-radius:999px; padding:4px; gap:2px;
+    }
     .map-toggle .toggle-thumb{
       position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px);
       background:var(--forest); border-radius:999px; transition:transform .38s cubic-bezier(.22,1,.36,1); z-index:0;
@@ -107,36 +140,214 @@
     }
     .map-toggle.kr-active .toggle-thumb{ transform:translateX(100%); }
     .toggle-btn{
-      position:relative; z-index:1; border:none; background:none; padding:10px 26px;
+      position:relative; z-index:1; border:none; background:none; padding:10px 24px;
       font-family:'Gowun Dodum',sans-serif; font-weight:700; font-size:13.5px; color:var(--ink-soft);
       cursor:pointer; border-radius:999px; transition:color .25s; white-space:nowrap;
     }
     .toggle-btn.on{ color:#fff; }
 
-    .map-single{ display:flex; justify-content:center; }
-    .map-frame{ position:relative; width:100%; max-width:560px; margin:0 auto; }
-    .map-photo{ width:100%; display:block; pointer-events:none; }
-    .map-frame svg{ position:absolute; inset:0; width:100%; height:100%; }
-    #map-kr{ position:static; width:100%; max-width:400px; height:auto; aspect-ratio:100/140; background:var(--parchment); border-radius:12px; }
-    .region{ stroke:var(--ink); stroke-width:1.4; cursor:pointer; transition:opacity .12s, filter .12s; outline:none; }
-    .region:hover{ filter:brightness(1.08); stroke-width:2.2; }
-    .region:focus { outline:none; }
-    .region:focus-visible{ outline:3px solid var(--forest-deep); outline-offset:1px; }
-    .region-label{ fill:#fff; font-family:'Jua',sans-serif; text-anchor:middle; pointer-events:none; paint-order:stroke; stroke:rgba(0,0,0,.25); stroke-width:0.6; }
+    .map-stat{ font-size:12.5px; color:var(--ink-soft); }
+    .map-stat b{ color:var(--forest-deep); font-family:'Jua',sans-serif; font-size:15px; }
+    .map-crumb{ font-size:12.5px; color:var(--ink-soft); }
+    .map-crumb b{ color:var(--forest-deep); font-family:'Jua',sans-serif; }
 
-    .region-hotspot{ fill:rgba(255,255,255,0); stroke:none; cursor:pointer; outline:none; }
-    .region-hotspot:hover{ fill:rgba(224,121,63,.16); }
-    .region-hotspot:focus { outline:none; }
-    .region-hotspot:focus-visible{ outline:2px solid var(--forest-deep); }
-    .region-dot{ pointer-events:none; stroke:#fff; stroke-width:0.6; }
+    .map-back{
+      position:absolute; top:64px; left:26px; z-index:7; font-family:'Gowun Dodum',sans-serif; font-weight:700;
+      font-size:12.5px; color:var(--forest-deep); background:var(--card); border:1.5px solid var(--line);
+      border-radius:999px; padding:7px 14px; cursor:pointer; box-shadow:0 2px 8px rgba(40,30,15,.12);
+      display:inline-flex; align-items:center; gap:5px;
+    }
+    .map-back:hover{ border-color:var(--sash); color:var(--sash-deep); }
+
+    svg.map{
+      width:100%; max-width:840px; height:auto; margin:0 auto; display:block;
+      background:var(--card); border-radius:12px; transition:opacity .2s ease;
+    }
+    svg.map.swapping{ opacity:0; }
+
+    /* 지역(면). 색은 mypage-heatmap.js 가 지수에 따라 fill 로 직접 넣는다. */
+    /* ⚠️ 여기서 fill 을 선언하면 안 된다 - mypage-heatmap.js 가 draw() 마다 각 path에
+       fill="var(--tier-N)" 속성(setAttribute)으로 색을 직접 넣는데, SVG presentation
+       attribute는 CSS 캐스케이드에서 가장 낮은 우선순위라 매칭되는 CSS 규칙이 하나라도
+       있으면 항상 그쪽이 이긴다. 예전에 여기 `fill:var(--tier-0);`가 있어서 방문 횟수와
+       무관하게 모든 지역이 항상 미방문 색으로만 보이던 버그가 있었다(원 목업에도 같은
+       버그가 있었음) - Playwright로 getComputedStyle 을 실제로 찍어보고 잡았다. */
+    .region{
+      stroke:var(--map-line); stroke-width:.9; cursor:pointer;
+      transform-box:fill-box; transform-origin:center;
+      transition:opacity .4s ease, filter .4s ease, transform .5s cubic-bezier(.3,.85,.35,1); outline:none;
+    }
+    .region:focus-visible{ stroke:var(--forest-deep); stroke-width:1.8; }
+    svg.map.focusing .region{ opacity:.72; }
+    /* 포커싱된 지역의 "원래 크기" 원본은 완전히 숨긴다(opacity:0) - 확대된 복제본
+       (.active-clone)이 그 자리를 "대체"하는 것처럼 보이게 하기 위함이다.
+       이게 없으면 확대된 복제본 뒤로 흐릿해진 원본 크기 도형이 계속 비쳐서, 특히
+       오목한 해안선 모양에서 확대본이 원본을 다 못 가려 지저분하게(이중으로) 보였다.
+       인셋(예: 울릉/독도)처럼 active-clone 이 아예 없는 지역은 JS 에서 이 클래스를
+       안 붙이므로 그냥 계속 흐릿하게만 보인다(정상). */
+    svg.map.focusing .region.region-hidden{ opacity:0; }
+    /* 활성 지역은 최상단 레이어(g-active)의 복제본으로 표시한다. hover 때 appendChild 로
+       맨 위로 올리면 클릭 이벤트가 깨져서, 복제본을 미리 만들어두고 표시만 토글한다. */
+    .active-clone{
+      pointer-events:none; opacity:0; transform-box:fill-box; transform-origin:center;
+      transition:opacity .4s ease, transform .5s cubic-bezier(.3,.85,.35,1);
+      stroke:var(--map-line); stroke-width:1.5;
+    }
+    .active-clone.on{ opacity:1; transform:scale(1.34); }
+    .rlabel{
+      font-family:'Jua',sans-serif; fill:var(--ink); pointer-events:none; paint-order:stroke;
+      stroke:var(--card); stroke-width:2.8px; stroke-linejoin:round; text-anchor:middle;
+      opacity:0; transition:opacity .4s ease;
+    }
+    .rlabel.show{ opacity:1; }
+    .inset-frame{ fill:none; stroke:var(--line); stroke-width:1.4; stroke-dasharray:5 4; }
+    .inset-cap{ font-family:'Gowun Dodum',sans-serif; font-weight:700; fill:var(--ink-soft); text-anchor:middle; }
+
+    .readout{ display:flex; align-items:center; gap:10px; min-height:28px; margin:14px 4px 0; font-size:14.5px; color:var(--ink-soft); }
+    .readout .pip{ width:12px; height:12px; border-radius:3px; flex:none; border:1px solid rgba(0,0,0,.12); }
+    .readout .msg b{ color:var(--forest-deep); font-family:'Jua',sans-serif; }
 
     .legend{ display:flex; justify-content:center; gap:14px; flex-wrap:wrap; margin-top:18px; padding-top:16px; border-top:1px dashed var(--line); font-size:11.5px; color:var(--ink-soft); }
     .legend .sw{ width:12px; height:12px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:-2px; border:1px solid rgba(0,0,0,.15); }
 
-    .region-tip{
-      text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:12px; min-height:18px;
+    /* 스냅 말풍선. mypage-heatmap.js 가 지역에 커서를 올릴 때 그 지역 사진을 뿌린다.
+       바깥 <a.snap-poke> = 위치 + 등장 애니메이션 + 클릭(게시글로 이동),
+       안쪽 <span.snap-in> = 실제로 보이는 사진 타일 + 확대(hover).
+       확대를 안쪽에 거는 이유: 바깥은 pokeIn 애니메이션이 animation-fill-mode:forwards 로
+       transform 을 계속 붙들고 있어서, 같은 요소에 :hover transform 을 걸면 애니메이션이
+       이겨버린다(!important 없이는). 안쪽만 키우면 클릭 영역(바깥 118px)이 그대로라
+       커서가 확대 경계에서 들락날락하며 깜빡이는 문제도 없다. */
+    .snaps{ position:absolute; inset:0; pointer-events:none; z-index:6; }
+    .snap-poke{
+      position:absolute; display:block; width:118px; height:118px;
+      opacity:0; transform:scale(.4); visibility:hidden; z-index:1;
     }
-    .region-tip b{ color:var(--forest-deep); }
+    /* pointer-events 는 .show 일 때만 켠다 - 숨겨진 스냅이 지도 클릭을 가로채지 않게. */
+    .snaps.show .snap-poke{
+      animation:pokeIn .42s cubic-bezier(.34,1.56,.64,1) forwards;
+      pointer-events:auto; cursor:pointer;
+    }
+    /* 커서를 올린 스냅만 다른 스냅 위로 올라온다(겹쳐도 안 가려지게). */
+    .snaps.show .snap-poke:hover,
+    .snaps.show .snap-poke:focus-visible{ z-index:9; outline:none; }
+    /* visibility 를 키프레임에서 켜는 이유: animation-delay(순차 등장) 동안에는 어떤
+       키프레임도 적용되지 않으므로, 아직 안 보이는 스냅이 클릭 영역만 차지하는 걸 막는다. */
+    @keyframes pokeIn{
+      from{ visibility:visible; opacity:0; transform:scale(.4); }
+      to{ visibility:visible; opacity:1; transform:scale(1); }
+    }
+    .snap-in{
+      position:absolute; inset:0; border-radius:14px; border:4px solid var(--card);
+      box-shadow:0 8px 20px rgba(40,30,15,.24); background-size:cover; background-position:center;
+      transition:transform .18s cubic-bezier(.34,1.4,.64,1), box-shadow .18s ease, border-color .18s ease;
+    }
+    .snap-poke:hover .snap-in,
+    .snap-poke:focus-visible .snap-in{
+      transform:scale(1.16); box-shadow:0 15px 32px rgba(40,30,15,.36); border-color:var(--gold);
+    }
+    .snap-in.s1{ background-color:#c7dfe6; background-image:linear-gradient(135deg,var(--sky),#c7dfe6); }
+    .snap-in.s2{ background-color:var(--parchment-deep); background-image:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
+    .snap-in.s3{ background-color:#a9c7a1; background-image:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
+    .snap-in.s4{ background-color:#d99a86; background-image:linear-gradient(135deg,#e3b7a0,#d99a86); }
+
+    /* ===================== 칭호 관리 뷰 ===================== */
+    .tm-head{ display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+    .back-btn{
+      font-size:13px; color:var(--forest-deep); background:var(--card); border:1.5px solid var(--line);
+      border-radius:10px; padding:8px 13px; cursor:pointer; font-family:'Gowun Dodum',sans-serif; font-weight:700;
+    }
+    .back-btn:hover{ border-color:var(--sash); color:var(--sash-deep); }
+    .rep-card{ display:flex; align-items:center; gap:18px; padding:22px 24px; margin-bottom:22px; flex-wrap:wrap; }
+    .rep-badge{
+      width:76px; height:76px; flex:none; border-radius:20px; background:rgba(224,121,63,.1);
+      border:2px solid var(--sash); display:flex; align-items:center; justify-content:center; font-size:38px;
+    }
+    .rep-info .lbl{ font-size:11.5px; color:var(--ink-soft); letter-spacing:.04em; }
+    .rep-info .rep-name{ font-family:'Jua',sans-serif; font-size:22px; color:var(--forest-deep); margin:3px 0 2px; }
+    .rep-info .rep-cond{ font-size:12.5px; color:var(--ink-soft); }
+    .rep-edit{ margin-left:auto; }
+
+    .tgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; }
+    .tcat{
+      grid-column:1/-1; display:flex; align-items:baseline; gap:10px; margin:14px 2px 2px;
+      font-family:'Jua',sans-serif; font-size:15px; color:var(--forest-deep);
+      border-bottom:1.5px dashed var(--line); padding-bottom:6px;
+    }
+    .tcat:first-child{ margin-top:0; }
+    .tcat-count{ font-size:11px; color:var(--ink-soft); margin-left:auto; font-family:'Gowun Dodum',sans-serif; }
+    .tcard{
+      position:relative; padding:16px 14px; border-radius:14px; border:1px solid var(--line); background:var(--card);
+      text-align:center; transition:transform .15s, box-shadow .15s;
+    }
+    .tcard.owned{ border-color:var(--sash); background:rgba(224,121,63,.06); }
+    .tcard.owned:hover{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(59,44,20,.12); }
+    .tcard.rep{ outline:2.5px solid var(--gold); outline-offset:1px; }
+    .tcard.locked{ opacity:.55; filter:grayscale(1); background:var(--parchment-deep); border-style:dashed; cursor:help; }
+    .tcard.locked .tc-ic{ opacity:.5; }
+    .tcard .tc-ic{ font-size:30px; }
+    .tcard .tc-name{ font-family:'Jua',sans-serif; font-size:14px; color:var(--forest-deep); margin-top:6px; }
+    .tcard.locked .tc-name{ color:var(--ink-soft); }
+    .tcard .tc-badge{ position:absolute; top:8px; right:8px; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; }
+    .tcard .tc-badge.on{ background:var(--gold); color:#fff; }
+    .tcard .tc-lock{
+      position:absolute; top:7px; right:7px; font-size:10px; font-weight:700; color:var(--ink-soft);
+      background:rgba(0,0,0,.06); border-radius:999px; padding:2px 7px; display:inline-flex; align-items:center; gap:3px;
+    }
+    .tc-tip{
+      position:fixed; z-index:60; background:var(--forest-deep); color:#fff; font-size:11.5px; padding:6px 11px;
+      border-radius:8px; pointer-events:none; opacity:0; transform:translateY(4px); transition:.15s;
+      max-width:200px; text-align:center;
+    }
+    .tc-tip.show{ opacity:1; transform:translateY(0); }
+
+    /* ===================== 내 여행 (v19 신규) ===================== */
+    .trip-list{ display:flex; flex-direction:column; gap:10px; }
+    .trip-card{
+      display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:12px;
+      border:1px solid var(--line); background:var(--parchment);
+    }
+    .trip-card .trip-main{ flex:1; min-width:0; }
+    .trip-card .trip-title{ font-family:'Jua',sans-serif; font-size:14.5px; color:var(--forest-deep); }
+    .trip-card .trip-sub{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
+    .trip-card .trip-memo{ font-size:12px; color:var(--ink-soft); margin-top:6px; white-space:pre-line; }
+    .trip-badge{
+      flex:none; font-size:10.5px; font-weight:700; color:var(--sash-deep); background:rgba(224,121,63,.1);
+      border:1px solid var(--sash); border-radius:999px; padding:3px 10px; white-space:nowrap;
+    }
+    /* [v19-4 신규] 파티 완료로 등록됐지만 아직 연결된 스냅이 없어 여행 횟수에 반영되지
+       않는 상태 - 색을 다르게 줘서 "등록은 됐지만 아직 카운트는 안 됐다"를 구분한다. */
+    .trip-badge.pending{
+      color:var(--ink-soft); background:rgba(107,92,70,.08); border-color:var(--line);
+    }
+    /* [v20-7 신규] 직접 등록(SOLO) 배지 - /mypage/mytrip 카드와 같은 색상 규칙(forest 계열). */
+    .trip-badge.manual{
+      color:var(--forest-deep); background:rgba(75,107,74,.1); border-color:var(--forest);
+    }
+    .trip-actions{ display:flex; gap:6px; flex:none; }
+    .trip-actions button{
+      font-size:11.5px; border:1.5px solid var(--line); background:var(--card); color:var(--ink-soft);
+      border-radius:8px; padding:6px 11px; cursor:pointer; font-family:'Gowun Dodum',sans-serif; font-weight:700;
+    }
+    .trip-actions button:hover{ border-color:var(--sash); color:var(--sash-deep); }
+    .trip-field-label{ display:block; font-size:12px; font-weight:700; margin-top:10px; margin-bottom:4px; color:var(--ink-soft); }
+    .trip-input{ width:100%; padding:9px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; }
+
+    /* ===================== 모달(대표 칭호 / 집 주소) ===================== */
+    .modal{ position:fixed; inset:0; background:rgba(30,22,14,.42); display:none; align-items:center; justify-content:center; z-index:80; padding:20px; }
+    .modal.show{ display:flex; }
+    .modal-panel{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; width:min(460px,100%); box-shadow:0 20px 50px rgba(30,22,14,.3); }
+    .modal-panel h3{ font-family:'Jua',sans-serif; color:var(--forest-deep); margin:0 0 4px; font-size:18px; }
+    .modal-panel .m-sub{ font-size:12.5px; color:var(--ink-soft); margin-bottom:16px; }
+    .m-list{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px; max-height:320px; overflow-y:auto; }
+    .m-opt{
+      display:flex; align-items:center; gap:9px; padding:11px 13px; border-radius:12px; border:1.5px solid var(--line);
+      background:var(--parchment); cursor:pointer; transition:.12s;
+    }
+    .m-opt:hover{ border-color:var(--sash); }
+    .m-opt.sel{ border-color:var(--sash); background:rgba(224,121,63,.1); box-shadow:0 0 0 2px rgba(224,121,63,.15); }
+    .m-opt .mo-ic{ font-size:22px; }
+    .m-opt .mo-name{ font-family:'Jua',sans-serif; font-size:13.5px; color:var(--forest-deep); }
+    .m-actions{ display:flex; gap:9px; justify-content:flex-end; }
 
     /* ===================== 피드 섹션 ===================== */
     .feed-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
@@ -163,7 +374,7 @@
     .toast{
       position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
       background:var(--forest-deep); color:#fff; font-size:13px; padding:10px 18px; border-radius:999px;
-      box-shadow:0 6px 16px rgba(59,44,20,.3); opacity:0; pointer-events:none; transition:.25s; z-index:50;
+      box-shadow:0 6px 16px rgba(59,44,20,.3); opacity:0; pointer-events:none; transition:.25s; z-index:90;
     }
     .toast.on{ opacity:1; transform:translateX(-50%) translateY(0); }
 
@@ -171,10 +382,12 @@
 
     @media (max-width:640px){
       .feed-grid{ grid-template-columns:repeat(2,1fr); }
-      .title-badge{ position:static; margin-bottom:12px; align-self:flex-start; }
+      .manner{ margin-left:0; }
       .profile{ flex-direction:column; }
+      .map-back{ top:110px; left:20px; }
+      .rep-edit{ margin-left:0; }
     }
-    @media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
+    @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
   </style>
 </head>
 <body>
@@ -182,140 +395,243 @@
 <header th:replace="~{fragments/layout :: header}"></header>
 
 <main class="wrap">
-  <div class="page-head">
-    <h1>마이페이지</h1>
-    <p class="sub">프로필을 관리하고, 나의 여행 발자취를 지도와 피드로 확인하세요.</p>
-  </div>
-  <div class="trail"><span class="dot"></span><span class="ln"></span><span class="dot"></span><span class="ln"></span><span class="dot"></span></div>
 
-  <!-- ================= 프로필 ================= -->
-  <section class="profile card">
-    <span class="title-badge"><span class="ic">🏷️</span><span id="title-text"
-          th:text="'여행 칭호 · ' + (${myTitle} != null ? ${myTitle.name} : '아직 없음')">여행 칭호 · 새내기 탐험가</span></span>
+  <!-- ================================================================
+       마이페이지 본문. [v20] 칭호 관리(/mypage/titles), 내 여행 전체(/mypage/mytrip)는
+       각각 실제 URL이 있는 별도 페이지로 분리했다 - 예전에는 이 안에서 JS로 뷰만 감추고
+       보여줬는데, 주소가 항상 /mypage라 뒤로가기를 누르면 그 화면이 아니라 브라우저
+       히스토리상 그 전 페이지로 나가버리는 문제가 있었다.
+       ================================================================ -->
+  <div id="view-mypage">
 
-    <div class="photo-wrap" id="avatar-wrap" style="cursor:pointer;">
-      <div class="ph" id="avatar-fallback" th:text="${#strings.substring(me.name,0,1)}" style="display:flex;"></div>
-      <img class="ph" th:if="${me.profileImageUrl}" th:src="@{${me.profileImageUrl}}" id="avatar-img"
-           onerror="this.style.display='none';"
-           style="position:absolute; inset:0; background-image:none; color:transparent; object-fit:cover; display:block;">
-      <button type="button" class="photo-edit" title="사진 변경" aria-label="프로필 사진 변경">📷</button>
-      <input type="file" id="avatar-input" accept="image/png,image/jpeg,image/gif,image/webp">
+    <!-- 서버 값 중 스크립트가 필요한 것들. 엔티티를 통째로 JS 로 직렬화하지 않고
+         data-* 속성으로만 넘긴다(mypage-titles.js 의 여행 거리 계산이 읽는다). -->
+    <span id="mypage-meta" hidden
+          th:attr="data-user-key=${me.name},data-rep-title=${myTitle != null ? myTitle.name : ''}"></span>
+
+    <div class="page-head">
+      <h1>마이페이지</h1>
+      <p class="sub">프로필을 관리하고, 나의 여행 발자취를 지도와 피드로 확인하세요.</p>
     </div>
+    <div class="trail"><span class="dot"></span><span class="ln"></span><span class="dot"></span><span class="ln"></span><span class="dot"></span></div>
 
-    <div class="profile-info">
-      <div class="profile-name">
-        <span th:text="${me.name}">유자차</span>
-        <span style="font-size:12px;color:var(--ink-soft);font-family:'Gowun Dodum',sans-serif;">님</span>
-        <span style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-size:13px; font-family:'Gowun Dodum',sans-serif;">
-            <span style="color:#ff8a00; font-weight:bold;" th:text="${me.mannerTemp} + '°C'">36.5°C</span>
-            <div style="width:60px; height:6px; background:#eee; border-radius:3px; overflow:hidden;">
-               <!-- mannerScore(중복 필드) 대신 mannerTemp 사용. MannerTempService에서 0~50 범위로 확정되어 /50*100로 반영함. -->
-               <div th:style="'height:100%; background:#ff8a00; width:' + (${me.mannerTemp}/50*100) + '%;'"></div>
-            </div>
+    <!-- ================= 프로필 ================= -->
+    <section class="profile card">
+      <div class="photo-wrap" id="avatar-wrap" style="cursor:pointer;">
+        <div class="ph" id="avatar-fallback" th:text="${#strings.substring(me.name,0,1)}" style="display:flex;"></div>
+        <img class="ph" th:if="${me.profileImageUrl}" th:src="@{${me.profileImageUrl}}" id="avatar-img"
+             onerror="this.style.display='none';"
+             style="position:absolute; inset:0; background-image:none; color:transparent; object-fit:cover; display:block;">
+        <button type="button" class="photo-edit" title="사진 변경" aria-label="프로필 사진 변경">📷</button>
+        <input type="file" id="avatar-input" accept="image/png,image/jpeg,image/gif,image/webp">
+      </div>
+
+      <div class="profile-info">
+        <div class="pname-row">
+          <span class="profile-name">
+            <span th:text="${me.name}">유자차</span><span class="nim">님</span>
           </span>
-      </div>
-
-      <div class="profile-stats">
-        <span><b id="stat-visits">0</b>회 여행</span>
-        <span><b id="stat-regions">0</b>곳 방문</span>
-        <span><b id="stat-parties" th:text="${#lists.size(myParties)}">0</b>번 파티 참가</span>
-        <span>매너온도 <b th:text="${me.mannerTemp}">36.5</b></span>
-        <span>팔로워 <b th:text="${followerCount}">0</b></span>
-        <span>팔로잉 <b th:text="${followingCount}">0</b></span>
-      </div>
-
-      <div class="intro-box">
-        <div class="lbl">
-          <span>📝 자기소개</span>
-          <button class="edit-intro-btn" id="btn-intro" title="자기소개 수정" aria-label="자기소개 수정">✍</button>
+          <!-- 대표 칭호. 아이콘도 그 칭호의 icon_key 를 쓴다(예전엔 🏷️로 고정돼 있어서
+               실제 대표 칭호 아이콘과 안 맞았음 - 칭호 관리에서 대표를 바꾸면
+               mypage-titles.js 가 #title-icon/#title-text 둘 다 갱신한다). -->
+          <span class="title-chip"><span id="title-icon"
+                th:text="${myTitle} != null ? ${myTitle.iconKey} : '🏷️'">🏷️</span><span id="title-text"
+                th:text="${myTitle} != null ? ${myTitle.name} : '칭호 없음'">숙련된 여행자</span></span>
+          <!-- mannerScore(중복 필드) 대신 mannerTemp 사용. MannerTempService에서 0~50 범위로 확정되어 /50*100로 반영함. -->
+          <span class="manner">
+            <span class="deg" th:text="${#numbers.formatDecimal(me.mannerTemp,1,1)} + '°C'">36.5°C</span>
+            <span class="bar"><i th:style="'width:' + (${me.mannerTemp}/50*100) + '%;'"></i></span>
+          </span>
         </div>
-        <p class="intro-text" id="intro-text" th:text="${me.intro}">방문자님 환영합니다!</p>
-        <textarea class="intro-textarea" id="intro-textarea" maxlength="120"></textarea>
-        <div class="intro-actions" id="intro-actions">
-          <button class="btn btn-forest" id="btn-intro-save">저장</button>
-          <button class="btn btn-ghost" id="btn-intro-cancel">취소</button>
+
+        <!-- 여행 거리: 방문 횟수는 서버 히트맵 집계, 집(출발지)은 아직 DB 컬럼이 없어
+             브라우저에 임시 저장한다(users.home_lat/lng = Phase 2). -->
+        <div class="dist-row">
+          <span class="dist">🧭 지금까지 <b id="dist-km">0</b>km 여행했어요!</span>
+          <button type="button" class="home-btn" id="home-btn">🏠 집: <b id="home-name">서울</b> · 변경</button>
+        </div>
+
+        <!-- 목업과 같은 2줄 구성. 매너온도는 위 이름 줄의 게이지로 보여주므로 여기서 뺐다. -->
+        <div class="profile-stats">
+          <span><b th:text="${totalTrips}">0</b>회 여행</span>
+          <span><b th:text="${visitedRegions}">0</b>곳 방문</span>
+          <span><b id="stat-parties" th:text="${#lists.size(myParties)}">0</b>회 파티참가</span>
+        </div>
+        <div class="profile-stats" style="margin-top:-8px;">
+          <span><b th:text="${myPosts.totalElements}">0</b> 스냅</span>
+          <span><b th:text="${followerCount}">0</b> 팔로워</span>
+          <span><b th:text="${followingCount}">0</b> 팔로잉</span>
+        </div>
+
+        <div class="intro-box">
+          <p class="intro-text" id="intro-text" th:text="${me.intro}">방문자님 환영합니다!</p>
+          <textarea class="intro-textarea" id="intro-textarea" maxlength="300"></textarea>
+          <div class="intro-actions" id="intro-actions">
+            <button class="btn btn-forest" id="btn-intro-save">저장</button>
+            <button class="btn btn-ghost" id="btn-intro-cancel">취소</button>
+          </div>
+        </div>
+
+        <!-- #btn-intro 는 mypage-profile.js 가 자기소개 편집기를 여는 데 쓰는 id 라서 유지.
+             예전엔 자기소개 라벨 옆 작은 연필이었는데 목업대로 버튼으로 올렸다. -->
+        <div class="prow">
+          <button type="button" class="btn btn-ghost" id="btn-intro">✍ 프로필 수정</button>
+          <a th:href="@{/messages}" class="btn btn-ghost">💬 쪽지함(DM)</a>
         </div>
       </div>
-      <a th:href="@{/messages}" class="btn" style="background:#fff; border:1px solid var(--line); white-space:nowrap; margin-top: 14px;">💬 쪽지함</a>    </div>
-  </section>
+    </section>
 
-  <!-- ================= 지도 ================= -->
-  <div class="sec-head">
-    <h2>🗺️ 나의 여행 지도</h2>
-    <span class="note">지역을 눌러 방문 횟수를 확인하세요</span>
-  </div>
+    <!-- ================= 지도 ================= -->
+    <div class="sec-head">
+      <h2>🗺️ 나의 여행 지도</h2>
+      <span class="note">색이 진할수록 자주 다녀온 지역입니다. 지역권을 클릭하면 그 안의 현이, 그 아래 지역을 클릭하면 그 지역 스냅 모아보기가 열려요. 스냅을 클릭하면 해당 게시글로 이동합니다.</span>
+    </div>
 
-  <section class="map-card card">
-    <div class="map-toggle-wrap">
-      <div class="map-toggle" id="map-toggle">
-        <span class="toggle-thumb"></span>
-        <button type="button" class="toggle-btn on" id="btn-map-jp" data-map="jp">🇯🇵 일본</button>
-        <button type="button" class="toggle-btn" id="btn-map-kr" data-map="kr">🇰🇷 한국</button>
+    <section class="map-card card" id="stage">
+      <div class="map-toolbar">
+        <div class="map-toggle" id="map-toggle">
+          <span class="toggle-thumb"></span>
+          <button type="button" class="toggle-btn on" id="btn-map-jp" data-map="jp">🇯🇵 일본</button>
+          <button type="button" class="toggle-btn" id="btn-map-kr" data-map="kr">🇰🇷 한국</button>
+        </div>
+        <div class="map-stat" id="map-stat"></div>
+      </div>
+
+      <button type="button" class="map-back" id="map-back" hidden>‹ 전체 지도</button>
+
+      <!-- 지역 경계(d)는 /assets/geo/regions.json 에서 받아 mypage-heatmap.js 가 그린다.
+           g-active 는 확대된 활성 지역 복제본 전용 레이어(클릭 이벤트 보호). -->
+      <svg class="map" id="map" role="img" aria-label="나의 여행 지도">
+        <g id="g-deco"></g><g id="g-paths"></g><g id="g-active"></g><g id="g-labels"></g>
+      </svg>
+
+      <div class="readout" id="readout"></div>
+
+      <div class="legend" id="legend">
+        <span><i class="sw" style="background:var(--tier-0)"></i>아직 안 가봄</span>
+        <span><i class="sw" style="background:var(--tier-1)"></i>가끔</span>
+        <span><i class="sw" style="background:var(--tier-2)"></i>여러 번</span>
+        <span><i class="sw" style="background:var(--tier-3)"></i>자주</span>
+        <span><i class="sw" style="background:var(--tier-4)"></i>단골</span>
+      </div>
+      <p style="text-align:center; font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">
+        완료한 여행 횟수와 여행일수를 함께 반영해 색을 칠합니다.
+      </p>
+
+      <!-- 지역별 스냅 재료. 지역 태그(posts.region)가 붙은 내 글만 넘긴다.
+           mypage-heatmap.js 가 지역명으로 묶어 두고, 지도에서 마우스를 올린 지역의
+           사진을 그 위에 띄운다. -->
+      <div id="snaps-data" hidden>
+        <span th:each="p : ${snapPosts}"
+              th:attr="data-id=${p.id},data-region=${p.region},data-thumb=${p.thumbnailUrl},data-title=${p.title}"></span>
+      </div>
+
+      <div class="snaps" id="snaps"></div>
+    </section>
+
+    <!-- ================= 내 여행 =================
+         [v19 신규] 여행 횟수/지도색/칭호 판정의 단일 근거. 파티를 완료하면 자동으로
+         한 줄이 추가되고(수정·삭제 불가 - 파티 완료 자체가 이미 검증된 여행 증거라서),
+         혼자 다녀온 여행은 여기서 직접 추가·수정·삭제한다. 스냅을 몇 장 올리든 여기 등록된
+         "여행" 개수 자체는 그대로라, 예전처럼 사진을 여러 장 올렸다고 여행 횟수가
+         뻥튀기되지 않는다.
+         [v20 변경] 마이페이지 본문에는 최근 5개만 읽기 전용으로 미리보고, 전체 목록·추가·
+         수정·삭제·스냅 연결은 /mypage/mytrip 별도 페이지에서 한다(칭호 관리와 같은 이유 -
+         뒤로가기가 실제 URL 기준으로 동작하게). 그래서 여기는 mypage-trips.js 없이 서버가
+         바로 카드를 그린다(다른 미리보기 섹션들 - 피드, 내 파티 - 과 같은 방식). -->
+    <div class="sec-head" style="justify-content:space-between;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <h2>🧳 내 여행</h2>
+        <span class="note">여기 등록된 여행 수가 그대로 "N번의 여행"·칭호 판정 근거가 됩니다.</span>
+      </div>
+      <a th:href="@{/mypage/mytrip}" class="more-btn">더보기 ›</a>
+    </div>
+
+    <section class="card" style="padding:16px 18px;">
+      <div class="trip-list">
+        <div class="trip-card" th:each="t : ${myTripPreview}">
+          <div class="trip-main">
+            <div class="trip-title" th:text="${t.title}">여행</div>
+            <div class="trip-sub">📍 <span th:text="${t.destination}">지역</span> ·
+              <span th:text="${t.startDate}">2026-01-01</span> ~ <span th:text="${t.endDate}">2026-01-01</span> ·
+              <span th:text="${t.days <= 1 ? '당일치기' : (t.days - 1) + '박 ' + t.days + '일'}">당일치기</span></div>
+            <div class="trip-memo" th:if="${t.memo != null and !#strings.isEmpty(t.memo)}" th:text="${t.memo}">메모</div>
+          </div>
+          <span class="trip-badge manual" th:if="${t.manageable}">✍️ 직접 등록</span>
+          <span class="trip-badge" th:if="${!t.manageable and t.counted}">🎒 파티 완료로 자동 등록</span>
+          <span class="trip-badge pending" th:if="${!t.manageable and !t.counted}">📸 스냅 인증 대기</span>
+        </div>
+      </div>
+      <p style="color:var(--ink-soft); font-size:13px; margin:4px 2px 0;" th:if="${#lists.isEmpty(myTripPreview)}">
+        아직 등록한 여행이 없습니다. "더보기"에서 다녀온 여행을 남겨보세요.
+      </p>
+      <p style="color:var(--ink-soft); font-size:12px; margin:10px 2px 0;" th:if="${myTripTotal > myTripPreview.size()}">
+        전체 <span th:text="${myTripTotal}">0</span>개 중 최근 <span th:text="${myTripPreview.size()}">5</span>개만 표시 중이에요.
+      </p>
+    </section>
+
+    <!-- ================= 칭호 ================= -->
+    <div class="sec-head">
+      <h2>🏅 내 칭호</h2>
+      <span class="note">여행을 완료하면 자동으로 획득합니다</span>
+      <a th:href="@{/mypage/titles}" class="more-btn">더보기 ›</a>
+    </div>
+
+    <section class="card" style="padding:18px 22px;">
+      <div th:if="${#lists.isEmpty(myTitles)}" style="color:var(--ink-soft); font-size:13px;">
+        아직 획득한 칭호가 없습니다. 첫 여행을 완료해 보세요.
+      </div>
+      <!-- 획득한 칭호만 실선 칩으로. 미획득 칭호는 "더보기"의 칭호 관리 뷰에서 잠금 카드로 보여준다. -->
+      <div class="titles" id="mypage-titles">
+        <span th:each="t : ${myTitles}" class="tchip" th:title="${t.conditionDesc}">
+          <span th:text="${t.iconKey}">🏷️</span><b th:text="${t.name}">칭호</b>
+        </span>
+      </div>
+    </section>
+
+    <!-- ================= 피드 ================= -->
+    <div class="sec-head" style="justify-content:space-between;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <h2>📸 여행 인증 피드</h2>
+        <span class="note">사진을 누르면 해당 게시글로 이동합니다. 여기서 써도 여행게시판에 함께 등록됩니다.</span>
+      </div>
+      <button type="button" id="btn-write" class="btn btn-sash">✏️ 글쓰기</button>
+    </div>
+
+    <div class="feed-grid" id="feed-grid">
+      <a th:each="post : ${myPosts.content}" class="feed-item" th:href="@{'/board/' + ${post.id}}" aria-label="게시글 열기">
+        <div th:class="${'ph ' + ((post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')) ? 'ph1' : (post.thumbnailUrl ?: 'ph1'))}"></div>
+        <img th:if="${post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')}"
+             th:src="@{${post.thumbnailUrl}}" class="ph" onerror="this.style.display='none';" style="width:100%; height:100%; object-fit:cover;">
+
+        <span class="region-tag" th:if="${post.region != null and !post.region.isEmpty()}">📍 <th:block th:text="${post.region}"></th:block></span>
+        <span class="cap" th:text="${post.title}">제목</span>
+      </a>
+      <div th:if="${#lists.isEmpty(myPosts.content)}" style="grid-column:1/-1; text-align:center; color:var(--ink-soft); padding:30px; font-size:13px; background:var(--card); border:1px solid var(--line); border-radius:10px;">
+        아직 작성한 글이 없습니다.
       </div>
     </div>
 
-    <div class="map-single">
-      <div class="map-frame" id="frame-jp">
-        <img th:src="@{/assets/japan_map.png}" alt="일본 지도 삽화" class="map-photo">
-        <svg id="map-jp" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="일본 지역별 방문 지도"></svg>
-      </div>
-      <div class="map-frame" id="frame-kr" style="display:none;">
-        <svg id="map-kr" viewBox="0 0 100 140" role="img" aria-label="한국 지역별 방문 지도"></svg>
-      </div>
+    <!-- ================= 내 파티 (From Original Template) ================= -->
+    <div class="sec-head">
+      <h2>🎒 내 파티</h2>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px;">
+      <a th:each="m : ${myParties}" class="card" th:href="@{'/party-board/' + ${m.party.id} + '/room'}"
+         style="display:flex; gap:12px; padding:14px; align-items:center; text-decoration:none; color:inherit; transition:transform 0.15s; cursor:pointer;"
+         onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div style="position:relative; width:52px; height:52px; border-radius:10px; flex:none; overflow:hidden;">
+          <div th:class="${(m.party.thumbnailUrl != null and #strings.startsWith(m.party.thumbnailUrl,'/uploads/')) ? 'ph1' : (m.party.thumbnailUrl ?: 'ph1')}"
+               style="position:absolute; inset:0;"></div>
+          <img th:if="${m.party.thumbnailUrl != null and #strings.startsWith(m.party.thumbnailUrl,'/uploads/')}"
+               th:src="@{${m.party.thumbnailUrl}}" onerror="this.style.display='none';"
+               style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+        </div>
+        <span style="font-size:14px; font-weight:700; color:var(--forest-deep);" th:text="${m.party.title}">파티명</span>
+      </a>
     </div>
 
-    <p class="region-tip" id="region-tip">지역을 눌러보세요</p>
-
-    <div class="legend">
-      <span><i class="sw" style="background:var(--tier-0)"></i>0회</span>
-      <span><i class="sw" style="background:var(--tier-1)"></i>1~5회</span>
-      <span><i class="sw" style="background:var(--tier-2)"></i>6~8회</span>
-      <span><i class="sw" style="background:var(--tier-3)"></i>9~11회</span>
-      <span><i class="sw" style="background:var(--tier-4)"></i>12회 이상</span>
-    </div>
-  </section>
-
-  <!-- ================= 피드 ================= -->
-  <div class="sec-head" style="justify-content:space-between;">
-    <div style="display:flex; align-items:baseline; gap:10px;">
-      <h2>📸 여행 인증 피드</h2>
-      <span class="note">사진을 누르면 해당 게시글로 이동합니다. 여기서 써도 여행게시판에 함께 등록됩니다.</span>
-    </div>
-    <button type="button" id="btn-write" class="btn btn-sash">✏️ 글쓰기</button>
-  </div>
-
-  <div class="feed-grid" id="feed-grid">
-    <a th:each="post : ${myPosts.content}" class="feed-item" th:href="@{'/board/' + ${post.id}}" aria-label="게시글 열기">
-      <div th:class="${'ph ' + ((post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')) ? 'ph1' : (post.thumbnailUrl ?: 'ph1'))}"></div>
-      <img th:if="${post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')}"
-           th:src="@{${post.thumbnailUrl}}" class="ph" onerror="this.style.display='none';" style="width:100%; height:100%; object-fit:cover;">
-
-      <span class="region-tag" th:if="${post.region != null and !post.region.isEmpty()}">📍 <th:block th:text="${post.region}"></th:block></span>
-      <span class="cap" th:text="${post.title}">제목</span>
-    </a>
-    <div th:if="${#lists.isEmpty(myPosts.content)}" style="grid-column:1/-1; text-align:center; color:var(--ink-soft); padding:30px; font-size:13px; background:var(--card); border:1px solid var(--line); border-radius:10px;">
-      아직 작성한 글이 없습니다.
-    </div>
-  </div>
-
-  <!-- ================= 내 파티 (From Original Template) ================= -->
-  <div class="sec-head">
-    <h2>🎒 내 파티</h2>
-  </div>
-  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px;">
-    <a th:each="m : ${myParties}" class="card" th:href="@{'/party-board/' + ${m.party.id} + '/room'}"
-       style="display:flex; gap:12px; padding:14px; align-items:center; text-decoration:none; color:inherit; transition:transform 0.15s; cursor:pointer;"
-       onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-      <div style="position:relative; width:52px; height:52px; border-radius:10px; flex:none; overflow:hidden;">
-        <div th:class="${(m.party.thumbnailUrl != null and #strings.startsWith(m.party.thumbnailUrl,'/uploads/')) ? 'ph1' : (m.party.thumbnailUrl ?: 'ph1')}"
-             style="position:absolute; inset:0;"></div>
-        <img th:if="${m.party.thumbnailUrl != null and #strings.startsWith(m.party.thumbnailUrl,'/uploads/')}"
-             th:src="@{${m.party.thumbnailUrl}}" onerror="this.style.display='none';"
-             style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
-      </div>
-      <span style="font-size:14px; font-weight:700; color:var(--forest-deep);" th:text="${m.party.title}">파티명</span>
-    </a>
-  </div>
+  </div><!-- /#view-mypage -->
 
 </main>
 
@@ -325,6 +641,19 @@
       <h2 style="font-size:17px; margin-bottom:14px;">📝 글쓰기</h2>
       <input type="text" id="w-title" placeholder="제목" style="width:100%; padding:9px; margin-bottom:8px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
       <textarea id="w-content" placeholder="내용을 입력하세요" style="width:100%; min-height:120px; padding:9px; border:1px solid var(--line); border-radius:8px; font-family:inherit; resize:vertical;"></textarea>
+      <!-- [v19 신규] "내 여행" 중 하나를 고르면 region 이 그 여행의 여행지로 자동 채워진다
+           (post-write.js). 여행 횟수 집계에는 영향 없음 - my_trips 자체가 근거라 사진을
+           몇 장 올리든 상관없다. [v20-3 신규] "스냅 인증 대기"(파티 완료로 등록됐지만 아직
+           연결된 스냅이 없는) 여행은 옵션 텍스트에 표시해 둔다 - 여기서 그 여행을 골라 스냅을
+           올리는 게 원래 의도한 정방향 플로우(여행 등록 → 글쓰기에서 선택 → 자동 연결)라,
+           어떤 여행이 아직 "증거"가 필요한지 바로 보이면 굳이 "내 여행" 페이지의 소급
+           "스냅 연결" 버튼까지 안 가도 된다. -->
+      <select id="w-trip" style="width:100%; padding:9px; margin-top:8px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
+        <option value="">여행 선택 안 함(지역 직접 입력)</option>
+        <option th:each="t : ${myTripViews}" th:value="${t.id}"
+                th:text="${t.title + ' · ' + t.destination + ((!t.manageable and !t.counted) ? ' (📸 인증 대기)' : '')}"
+                th:attr="data-destination=${t.destination}"></option>
+      </select>
       <input type="text" id="w-region" placeholder="지역(선택)" style="width:100%; padding:9px; margin-top:8px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
       <label style="display:block; font-size:12px; font-weight:700; margin-top:10px; margin-bottom:4px; color:var(--ink-soft);">사진 (선택, 없으면 기본 이미지)</label>
       <input type="file" id="w-thumbnail" accept="image/png,image/jpeg,image/gif,image/webp" style="width:100%; font-size:12.5px;">
@@ -336,156 +665,38 @@
     </div>
   </div>
 
+  <!-- 대표 칭호 설정 모달, "내 여행" 추가/수정 모달은 [v20] 각각 /mypage/titles,
+       /mypage/mytrip 페이지로 옮겨졌다. -->
+
+  <!-- 집(출발지) 설정 모달 -->
+  <div class="modal" id="home-modal">
+    <div class="modal-panel">
+      <h3>집 주소 설정</h3>
+      <p class="m-sub">집(출발지)을 기준으로 지금까지 여행한 총 거리를 계산합니다.</p>
+      <div class="m-list" id="home-list"></div>
+      <div class="m-actions">
+        <button type="button" class="btn btn-ghost" id="home-cancel">취소</button>
+        <button type="button" class="btn btn-forest" id="home-confirm">확인</button>
+      </div>
+    </div>
+  </div>
+
+<div class="tc-tip" id="tc-tip"></div>
 <div class="toast" id="toast"></div>
 
-<!-- Original Scripts -->
+<!-- CSRF 토큰을 붙이는 공용 fetch 래퍼(window.api). 아래 스크립트들이 의존하므로 먼저 로드한다. -->
+<script th:src="@{/js/csrf.js}"></script>
+
+<!-- 서버(TravelHeatmapService)가 계산한 지역별 집계를 화면으로 넘긴다. -->
+<script th:inline="javascript">
+  window.MYPAGE_HEATMAP = /*[[${heatmap}]]*/ { regions: {}, totalTrips: 0, visitedRegions: 0 };
+</script>
+
+<script th:src="@{/js/mypage-heatmap.js}"></script>
+<script th:src="@{/js/mypage-titles.js}"></script>
+<script th:src="@{/js/mypage-profile.js}"></script>
 <script th:src="@{/js/post-write.js}" defer></script>
 <script th:src="@{/js/avatar-upload.js}" defer></script>
-<script th:src="@{/assets/map-data.js}"></script>
 
-<!-- Mockup UI Scripts & Map Binding -->
-<script th:inline="javascript">
-  // 1. 자기소개 에디터 (UI Only)
-  const introText = document.getElementById('intro-text');
-  const introArea = document.getElementById('intro-textarea');
-  const introActions = document.getElementById('intro-actions');
-
-  document.getElementById('btn-intro').addEventListener('click', () => {
-    introArea.value = introText.textContent.trim();
-    introText.style.display = 'none';
-    introArea.style.display = 'block';
-    introActions.style.display = 'flex';
-    introArea.focus();
-  });
-  document.getElementById('btn-intro-save').addEventListener('click', () => {
-    introText.textContent = introArea.value.trim() || '아직 자기소개가 없습니다.';
-    introText.style.display = 'block';
-    introArea.style.display = 'none';
-    introActions.style.display = 'none';
-    toast('자기소개를 수정했어요');
-  });
-  document.getElementById('btn-intro-cancel').addEventListener('click', () => {
-    introText.style.display = 'block';
-    introArea.style.display = 'none';
-    introActions.style.display = 'none';
-  });
-
-  // 2. 지도 및 방문 횟수 통계 연동
-  const regionVisits = /*[[${regionVisits}]]*/ {};
-
-  if (typeof KOREA_REGIONS !== 'undefined') {
-    Object.keys(KOREA_REGIONS).forEach(k => {
-      KOREA_REGIONS[k].visits = regionVisits[k] || 0;
-    });
-  }
-  if (typeof JAPAN_REGIONS !== 'undefined') {
-    Object.keys(JAPAN_REGIONS).forEach(k => {
-      JAPAN_REGIONS[k].visits = regionVisits[k] || 0;
-    });
-  }
-
-  const allRegionVisits = [
-    ...(typeof KOREA_REGIONS !== 'undefined' ? Object.values(KOREA_REGIONS).map(r => r.visits) : []),
-    ...(typeof JAPAN_REGIONS !== 'undefined' ? Object.values(JAPAN_REGIONS).map(r => r.visits) : [])
-  ];
-  const totalVisits = allRegionVisits.reduce((s, v) => s + v, 0);
-  const visitedRegions = allRegionVisits.filter(v => v > 0).length;
-
-  document.getElementById('stat-visits').textContent = totalVisits;
-  document.getElementById('stat-regions').textContent = visitedRegions;
-
-  // 칭호는 이제 서버에서 실제 titles/user_titles 테이블 값으로 렌더링한다(위 th:text 참고).
-  // 여기서 다시 덮어쓰면 서버 값이 무시되니, 방문횟수 기반 JS 계산은 더 이상 하지 않는다.
-
-  // 한국 지도 렌더링
-  function drawKoreaMap(){
-    const svg = document.getElementById('map-kr');
-    if (!svg || typeof KOREA_REGIONS === 'undefined') return;
-    const ids = Object.keys(KOREA_REGIONS);
-
-    svg.innerHTML = ids.map(id => {
-      const r = KOREA_REGIONS[id];
-      const tierColor = typeof tierColorForVisits === 'function' ? tierColorForVisits(r.visits) : '#d2e3ed';
-      return `<path class="region" id="kr-${id}" d="${r.d}" fill="${tierColor}"
-                    tabindex="0" role="button" aria-label="${r.name} 방문 ${r.visits}회"></path>`;
-    }).join('') + ids.map(id => {
-      const r = KOREA_REGIONS[id];
-      return `<text class="region-label" x="${r.cx}" y="${r.cy}" font-size="4">${r.name}</text>`;
-    }).join('');
-
-    ids.forEach(id => {
-      const r = KOREA_REGIONS[id];
-      const el = document.getElementById(`kr-${id}`);
-      const show = () => {
-        const tierLabel = typeof tierLabelForVisits === 'function' ? tierLabelForVisits(r.visits) : (r.visits + '회');
-        document.getElementById('region-tip').innerHTML =
-          `<b>${r.name}</b> — ${tierLabel} 방문`;
-      };
-      el.addEventListener('click', show);
-      el.addEventListener('keydown', e => { if (e.key === 'Enter') show(); });
-      el.addEventListener('mouseenter', show);
-    });
-  }
-
-  // 일본 지도 렌더링
-  function drawJapanMap(){
-    const svg = document.getElementById('map-jp');
-    if (!svg || typeof JAPAN_REGIONS === 'undefined') return;
-    const ids = Object.keys(JAPAN_REGIONS);
-
-    const polyToPoints = poly => poly.map(([x, y]) => `${x},${y}`).join(' ');
-
-    svg.innerHTML =
-      ids.map(id => {
-        const r = JAPAN_REGIONS[id];
-        return `<polygon class="region-hotspot" id="jp-${id}" points="${polyToPoints(r.poly)}"
-                       tabindex="0" role="button" aria-label="${r.name} 방문 ${r.visits}회"></polygon>`;
-      }).join('') +
-      ids.map(id => {
-        const r = JAPAN_REGIONS[id];
-        const tierColor = typeof tierColorForVisits === 'function' ? tierColorForVisits(r.visits) : '#d2e3ed';
-        return `<circle class="region-dot" cx="${r.cx}" cy="${r.cy}" r="1.15" fill="${tierColor}"></circle>`;
-      }).join('');
-
-    ids.forEach(id => {
-      const r = JAPAN_REGIONS[id];
-      const el = document.getElementById(`jp-${id}`);
-      const show = () => {
-        const tierLabel = typeof tierLabelForVisits === 'function' ? tierLabelForVisits(r.visits) : (r.visits + '회');
-        document.getElementById('region-tip').innerHTML =
-          `<b>${r.name}</b> — ${tierLabel} 방문`;
-      };
-      el.addEventListener('click', show);
-      el.addEventListener('keydown', e => { if (e.key === 'Enter') show(); });
-      el.addEventListener('mouseenter', show);
-    });
-  }
-
-  drawKoreaMap();
-  drawJapanMap();
-
-  function setMapMode(mode){
-    const toggle = document.getElementById('map-toggle');
-    toggle.classList.toggle('kr-active', mode === 'kr');
-    document.getElementById('btn-map-jp').classList.toggle('on', mode === 'jp');
-    document.getElementById('btn-map-kr').classList.toggle('on', mode === 'kr');
-    document.getElementById('frame-jp').style.display = mode === 'jp' ? '' : 'none';
-    document.getElementById('frame-kr').style.display = mode === 'kr' ? '' : 'none';
-    document.getElementById('region-tip').textContent = '지역을 눌러보세요';
-  }
-  document.getElementById('btn-map-jp')?.addEventListener('click', () => setMapMode('jp'));
-  document.getElementById('btn-map-kr')?.addEventListener('click', () => setMapMode('kr'));
-
-  // Toast
-  let toastTimer;
-  function toast(msg){
-    const t = document.getElementById('toast');
-    if (!t) return;
-    t.textContent = msg;
-    t.classList.add('on');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('on'), 1800);
-  }
-</script>
 </body>
 </html>

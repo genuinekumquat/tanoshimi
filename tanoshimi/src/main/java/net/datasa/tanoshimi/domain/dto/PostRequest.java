@@ -9,6 +9,8 @@ public record PostRequest(
         @NotBlank String content,
         String region,
         String thumbnailUrl,
-        Long partyId
+        Long partyId,
+        /** [v19 신규] 마이페이지 글쓰기에서 "내 여행"을 선택했을 때만 채워진다 - PostService.write 참고. */
+        Long tripId
 ) {
 }

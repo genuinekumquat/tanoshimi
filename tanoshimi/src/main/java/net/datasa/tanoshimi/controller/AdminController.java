@@ -170,6 +170,7 @@ public class AdminController {
             banner.setTargetUrl(targetUrl);
             banner.setSortOrder(currentBanners.size());
             bannerRepository.save(banner);
+            fileStorageService.markActive(url);
         }
         return "redirect:/admin/banners";
     }
