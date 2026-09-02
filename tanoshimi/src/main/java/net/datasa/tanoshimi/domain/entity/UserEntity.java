@@ -46,6 +46,18 @@ public class UserEntity {
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword;
 
+    /**
+     * 비밀번호 재발급으로 발급된 임시 비밀번호. 발급 즉시 password 컬럼을 덮어쓰지 않고
+     * 여기 별도로 보관한다 - 그래야 사용자가 재발급을 요청해놓고도 원래 비밀번호로 계속
+     * 로그인할 수 있다. 실제로 이 임시 비밀번호로 로그인에 성공하는 순간에만
+     * promoteTemporaryPassword() 로 password 에 승격된다(TempPasswordAuthenticationProvider).
+     */
+    @Column(name = "pending_temp_password_hash", length = 255)
+    private String pendingTempPasswordHash;
+
+    @Column(name = "pending_temp_password_expires_at")
+    private LocalDateTime pendingTempPasswordExpiresAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private Gender gender;
@@ -178,12 +190,35 @@ public class UserEntity {
     public void changePassword(String encoded) {
         this.password = encoded;
         this.mustChangePassword = false;
+        this.pendingTempPasswordHash = null;
+        this.pendingTempPasswordExpiresAt = null;
     }
 
-    /** 비밀번호 재발급 - 임시 비밀번호로 교체하고 다음 로그인 때 변경을 강제한다. */
-    public void issueTemporaryPassword(String encodedTempPassword) {
-        this.password = encodedTempPassword;
+    /**
+     * 비밀번호 재발급 - 실제 password 는 그대로 두고 임시 비밀번호를 대기 상태로만 걸어둔다.
+     * 원래 비밀번호는 이 시점에도 계속 로그인에 쓸 수 있다.
+     */
+    public void issueTemporaryPassword(String encodedTempPassword, LocalDateTime expiresAt) {
+        this.pendingTempPasswordHash = encodedTempPassword;
+        this.pendingTempPasswordExpiresAt = expiresAt;
+    }
+
+    public boolean hasValidPendingTempPassword() {
+        return pendingTempPasswordHash != null && pendingTempPasswordExpiresAt != null
+                && LocalDateTime.now().isBefore(pendingTempPasswordExpiresAt);
+    }
+
+    /**
+     * 대기 중인 임시 비밀번호로 실제 로그인에 성공한 순간에만 호출된다
+     * (TempPasswordAuthenticationProvider.additionalAuthenticationChecks).
+     * 이때 비로소 password 에 반영되고 강제 변경 플래그가 켜진다 - 한 번 쓰면 재사용 못 하게
+     * 대기 필드는 비운다.
+     */
+    public void promoteTemporaryPassword() {
+        this.password = this.pendingTempPasswordHash;
         this.mustChangePassword = true;
+        this.pendingTempPasswordHash = null;
+        this.pendingTempPasswordExpiresAt = null;
     }
 
     public void changeProfile(String name, String intro, String profileImageUrl) {

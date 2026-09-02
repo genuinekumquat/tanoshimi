@@ -2,6 +2,7 @@ package net.datasa.tanoshimi.service;
 
 import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Base64;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class UserService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String TEMP_PASSWORD_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
     private static final String TEMP_PASSWORD_DIGITS = "23456789";
+    private static final long TEMP_PASSWORD_TTL_MINUTES = 30;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -85,9 +87,11 @@ public class UserService {
     }
 
     /**
-     * 비밀번호 재발급 - 이메일 입력 -> 임시 비밀번호를 생성해 이메일로 보내고, 다음 로그인 때
-     * 강제로 비밀번호를 바꾸게 만든다(팀 논의로 확정한 워크플로우). 소셜 전용 계정은 애초에
-     * 로그인 불가능한 랜덤 해시만 갖고 있어 이 절차 대상이 아니다.
+     * 비밀번호 재발급 - 이메일 입력 -> 임시 비밀번호를 생성해 이메일로 보낸다. 실제 password는
+     * 이 시점엔 바꾸지 않는다 - 원래 비밀번호를 계속 쓸 수도 있고, 이메일로 받은 임시
+     * 비밀번호로 로그인할 수도 있게 두고, 실제로 임시 비밀번호로 로그인에 성공하는 순간에만
+     * password 로 승격되고 강제 변경이 걸린다(TempPasswordAuthenticationProvider 참고).
+     * 소셜 전용 계정은 애초에 로그인 불가능한 랜덤 해시만 갖고 있어 이 절차 대상이 아니다.
      */
     @Transactional
     public void issueTemporaryPassword(String rawEmail) {
@@ -98,7 +102,7 @@ public class UserService {
         }
 
         String tempPassword = generateTemporaryPassword();
-        user.issueTemporaryPassword(passwordEncoder.encode(tempPassword));
+        user.issueTemporaryPassword(passwordEncoder.encode(tempPassword), LocalDateTime.now().plusMinutes(TEMP_PASSWORD_TTL_MINUTES));
         emailSender.sendTemporaryPassword(email, tempPassword);
     }
 
