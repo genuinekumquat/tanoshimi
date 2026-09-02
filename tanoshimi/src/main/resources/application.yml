@@ -68,16 +68,15 @@ spring:
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             scope: [name, email]
 
-          # v16 제안서 기준 소셜 로그인은 Google·Naver만 사용 (LINE 제외).
-          # 코드/설정은 지우지 않고 주석 처리만 해둠 - 팀 논의로 재도입되면 주석만 해제하면 됨.
-          # # line:
-          #   client-id: ${LINE_CLIENT_ID:}
-          #   client-secret: ${LINE_CLIENT_SECRET:}
-          #   client-name: LINE
-          #   authorization-grant-type: authorization_code
-          #   redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-          #   scope: [openid, profile, email]
-          #   client-authentication-method: client_secret_post
+          # 일본인 사용자를 위해 재도입(Day 5) - v16 제안서에서는 제외됐었음.
+          line:
+            client-id: ${LINE_CLIENT_ID:}
+            client-secret: ${LINE_CLIENT_SECRET:}
+            client-name: LINE
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: [openid, profile, email]
+            client-authentication-method: client_secret_post
 
         provider:
           naver:
@@ -86,11 +85,14 @@ spring:
             user-info-uri: https://openapi.naver.com/v1/nid/me
             user-name-attribute: response
 
-          # # line:
-          #   authorization-uri: https://access.line.me/oauth2/v2.1/authorize
-          #   token-uri: https://api.line.me/oauth2/v2.1/token
-          #   user-info-uri: https://api.line.me/oauth2/v2.1/userinfo
-          #   user-name-attribute: sub
+          line:
+            authorization-uri: https://access.line.me/oauth2/v2.1/authorize
+            token-uri: https://api.line.me/oauth2/v2.1/token
+            # LINE의 OIDC UserInfo 엔드포인트 - LINE 전용 프로필 API(/v2/profile)와 달리
+            # sub/name/picture/email 를 구글과 같은 최상위 형태로 내려준다(OAuthAttributes 참고).
+            # email 은 LINE 비즈니스 계정의 이메일 권한 심사가 통과해야만 내려온다.
+            user-info-uri: https://api.line.me/oauth2/v2.1/userinfo
+            user-name-attribute: sub
 
 server:
   port: 8080

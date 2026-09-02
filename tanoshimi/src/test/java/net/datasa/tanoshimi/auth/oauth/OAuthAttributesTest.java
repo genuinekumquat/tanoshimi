@@ -8,9 +8,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 구글/네이버가 내려주는 사용자 정보 형태가 서로 달라서(구글은 최상위, 네이버는 response로 한 번
- * 감싸서 옴) 이 변환기가 그 차이를 정확히 흡수하는지가 핵심이다. LINE은 v16에서 제외됐으므로
- * 검증 대상이 아니다(주석 처리된 case 그대로 유지).
+ * 구글/네이버/라인이 내려주는 사용자 정보 형태가 서로 달라서(구글·라인은 최상위, 네이버는
+ * response로 한 번 감싸서 옴) 이 변환기가 그 차이를 정확히 흡수하는지가 핵심이다.
  */
 class OAuthAttributesTest {
 
@@ -72,11 +71,29 @@ class OAuthAttributesTest {
     }
 
     @Test
-    void line은_v16에서_제외되어_지원하지_않는_provider로_취급된다() {
-        Map<String, Object> attributes = Map.of("sub", "line-uid-1", "name", "유자차");
+    void 라인_속성은_구글처럼_최상위에서_바로_꺼낸다() {
+        Map<String, Object> attributes = Map.of(
+                "sub", "line-uid-1",
+                "email", "  User@Test.com ",
+                "name", "유자차");
 
-        assertThatThrownBy(() -> OAuthAttributes.of("line", attributes))
-                .isInstanceOf(IllegalArgumentException.class);
+        OAuthAttributes result = OAuthAttributes.of("line", attributes);
+
+        assertThat(result.provider()).isEqualTo("line");
+        assertThat(result.socialId()).isEqualTo("line-uid-1");
+        assertThat(result.email()).isEqualTo("user@test.com");
+        assertThat(result.name()).isEqualTo("유자차");
+    }
+
+    @Test
+    void 라인은_이메일_심사_전이면_email이_없어도_예외없이_null로_넘어간다() {
+        // LINE은 이메일 권한 심사를 통과하지 못한 채널이면 email 스코프를 요청해도 아예
+        // 내려주지 않는다 - 이 경우도 예외 없이 null 로 넘어가야 화면에서 직접 입력받을 수 있다.
+        Map<String, Object> attributes = Map.of("sub", "line-uid-2", "name", "유자차");
+
+        OAuthAttributes result = OAuthAttributes.of("line", attributes);
+
+        assertThat(result.email()).isNull();
     }
 
     @Test

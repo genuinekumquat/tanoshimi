@@ -174,4 +174,44 @@ class CustomOAuth2UserServiceTest {
 
         assertThat(result).isInstanceOf(CustomUserDetails.class);
     }
+
+    @Test
+    void 라인은_이메일_스코프_심사_전이면_email없이_pending정보를_저장한다() {
+        // LINE 채널이 이메일 권한 심사를 통과하지 못했으면 email 자체가 안 내려온다 -
+        // 이 경우도 회원가입 유도(signup-social, needEmailInput=true)로 정상 진행돼야 한다.
+        ClientRegistration registration = ClientRegistration.withRegistrationId("line")
+                .clientId("client-id")
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+                .authorizationGrantType(org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+                .authorizationUri("https://access.line.me/oauth2/v2.1/authorize")
+                .tokenUri("https://api.line.me/oauth2/v2.1/token")
+                .userInfoUri("https://api.line.me/oauth2/v2.1/userinfo")
+                .userNameAttributeName("sub")
+                .clientName("LINE")
+                .build();
+        OAuth2AccessToken accessToken = new OAuth2AccessToken(
+                OAuth2AccessToken.TokenType.BEARER, "dummy-token", Instant.now(), Instant.now().plusSeconds(3600));
+        Map<String, Object> attributes = Map.of("sub", "line-uid-1", "name", "유자차");
+        OAuth2User rawUser = new DefaultOAuth2User(
+                List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")),
+                attributes, "sub");
+        when(delegate.loadUser(any())).thenReturn(rawUser);
+        OAuth2UserRequest request = new OAuth2UserRequest(registration, accessToken);
+
+        when(userRepository.findBySocialProviderAndSocialId("line", "line-uid-1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.loadUser(request))
+                .isInstanceOf(OAuth2AuthenticationException.class)
+                .extracting(e -> ((OAuth2AuthenticationException) e).getError().getErrorCode())
+                .isEqualTo(SocialErrorCodes.SIGNUP_REQUIRED);
+
+        org.mockito.ArgumentCaptor<PendingSocialSignup> captor = org.mockito.ArgumentCaptor.forClass(PendingSocialSignup.class);
+        org.mockito.Mockito.verify(httpSession).setAttribute(org.mockito.ArgumentMatchers.eq(PendingSocialSignup.SESSION_KEY), captor.capture());
+        assertThat(captor.getValue().provider()).isEqualTo("line");
+        assertThat(captor.getValue().socialId()).isEqualTo("line-uid-1");
+        assertThat(captor.getValue().email()).isNull();
+        // userRepository.existsByEmail 은 email이 null이면 호출될 필요가 없다(CustomOAuth2UserService 참고).
+        org.mockito.Mockito.verify(userRepository, org.mockito.Mockito.never()).existsByEmail(any());
+    }
 }
