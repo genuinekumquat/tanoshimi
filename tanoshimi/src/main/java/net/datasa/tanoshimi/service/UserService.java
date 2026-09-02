@@ -29,7 +29,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final PhoneVerificationService phoneVerificationService;
+    private final EmailVerificationService emailVerificationService;
     private final TitleService titleService;
 
     @Transactional(readOnly = true)
@@ -44,7 +44,8 @@ public class UserService {
         if (userRepository.existsByEmail(req.email())) throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         if (userRepository.existsByPhone(req.phone())) throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
 
-        phoneVerificationService.consumeVerified(req.phone(), VerificationPurpose.signup);
+        // 알리고 등 SMS API가 사업자등록번호 없이는 실사용이 어려워 본인인증 채널을 이메일로 전환.
+        emailVerificationService.consumeVerified(req.email(), VerificationPurpose.signup);
 
         UserEntity user = UserEntity.createLocal(
                 req.email(), passwordEncoder.encode(req.password()), req.name(), req.phone(),
@@ -65,7 +66,7 @@ public class UserService {
         if (userRepository.existsByEmail(email)) throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         if (userRepository.existsByPhone(req.phone())) throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
 
-        phoneVerificationService.consumeVerified(req.phone(), VerificationPurpose.signup);
+        emailVerificationService.consumeVerified(email, VerificationPurpose.signup);
 
         UserEntity user = UserEntity.createSocial(
                 email, unusablePasswordHash(), req.name(), req.phone(),

@@ -9,14 +9,15 @@ public enum ErrorCode {
     UNDERAGE(HttpStatus.BAD_REQUEST, "만 14세 이상만 가입할 수 있습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."),
 
-    // 휴대폰 인증
+    // 본인인증 (휴대폰/이메일 공용 - PhoneVerificationService, EmailVerificationService 둘 다 사용)
     VERIFICATION_NOT_FOUND(HttpStatus.BAD_REQUEST, "인증 요청 내역이 없습니다."),
     VERIFICATION_EXPIRED(HttpStatus.BAD_REQUEST, "인증번호 유효시간이 지났습니다."),
     VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "인증번호가 일치하지 않습니다."),
     VERIFICATION_ATTEMPT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "인증 시도 횟수를 초과했습니다."),
-    VERIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "휴대폰 인증을 먼저 완료해 주세요."),
+    VERIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "본인인증을 먼저 완료해 주세요."),
     VERIFICATION_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "잠시 후 다시 요청해 주세요."),
     VERIFICATION_DAILY_LIMIT(HttpStatus.TOO_MANY_REQUESTS, "하루 인증 요청 횟수를 초과했습니다."),
+    EMAIL_SEND_FAILED(HttpStatus.BAD_GATEWAY, "인증 메일 발송에 실패했습니다. 잠시 후 다시 시도해 주세요."),
 
     // 소셜
     SOCIAL_SESSION_EXPIRED(HttpStatus.BAD_REQUEST, "소셜 로그인 정보가 만료되었습니다."),
