@@ -12,4 +12,9 @@ public class LogEmailSender implements EmailSender {
     public void sendVerificationCode(String email, String code) {
         log.info("[개발용 이메일] 수신주소={} 인증번호={}", email, code);
     }
+
+    @Override
+    public void sendTemporaryPassword(String email, String tempPassword) {
+        log.info("[개발용 이메일] 수신주소={} 임시비밀번호={}", email, tempPassword);
+    }
 }

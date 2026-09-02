@@ -48,7 +48,7 @@ public class  SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/assets/**", "/vendor/**", "/favicon.ico", "/uploads/**", "/model/**").permitAll()
                         .requestMatchers("/api/companion/chat").permitAll()
-                        .requestMatchers("/", "/login", "/logout", "/signup", "/signup/**",
+                        .requestMatchers("/", "/login", "/logout", "/signup", "/signup/**", "/find-password",
                                 "/api/auth/**", "/api/verification/**",
                                 "/oauth2/**", "/login/oauth2/**", "/error", "/error/**").permitAll()
                         .requestMatchers("/party-board/create").authenticated()
