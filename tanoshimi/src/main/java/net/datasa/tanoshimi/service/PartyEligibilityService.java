@@ -1,5 +1,6 @@
 package net.datasa.tanoshimi.service;
 
+import java.time.LocalDate;
 import net.datasa.tanoshimi.domain.entity.*;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +17,15 @@ public class PartyEligibilityService {
 
     public EligibilityResult check(PartyEntity party, UserEntity user) {
         if (user.isAdmin()) return EligibilityResult.ok();
+
+        // 모집 마감/출발일 경과 - "출발 당일부터는 신규 신청을 받지 않는다"는 팀 결정에 따라,
+        // status==recruiting 이어도 출발일이 오늘이거나 이미 지났으면 신청을 막는다.
+        // status 자체는 PartyCompletionScheduler가 여행 종료일(출발일+여행일수) 경과 후에나
+        // completed 로 바꾸므로, 이 체크가 없으면 출발~여행 종료 사이 파티에도 신청이 들어간다.
+        if (party.getStatus() != PartyStatus.recruiting || !party.getDepartureDate().isAfter(LocalDate.now())) {
+            return EligibilityResult.rejected("party.apply.disabled.closed");
+        }
+
         if (party.getGenderRestriction() == GenderRestriction.male_only && user.getGender() != Gender.male) {
             return EligibilityResult.rejected("party.apply.disabled.gender");
         }

@@ -16,6 +16,7 @@ import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.UserRepository;
 import net.datasa.tanoshimi.util.UsernamePolicy;
 import net.datasa.tanoshimi.domain.entity.VerificationPurpose;
+import net.datasa.tanoshimi.util.EmailSender;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,10 +28,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final String TEMP_PASSWORD_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
+    private static final String TEMP_PASSWORD_DIGITS = "23456789";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final PhoneVerificationService phoneVerificationService;
+    // v17(칭호 v17 개편)에서 TitleService 는 UserService 밖으로 빠졌다(가입만 하면 받는
+    // 칭호가 없어져서) - main과 합치며 그 결정을 그대로 따르고, phoneVerificationService만
+    // 이 브랜치의 목적대로 emailVerificationService 로 바꾼다.
+    private final EmailVerificationService emailVerificationService;
+    private final EmailSender emailSender;
 
     @Transactional(readOnly = true)
     public boolean isEmailAvailable(String email) {
@@ -80,7 +87,8 @@ public class UserService {
         if (userRepository.existsByPhone(req.phone())) throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
         requireAvailableUsername(req.username());
 
-        phoneVerificationService.consumeVerified(req.phone(), VerificationPurpose.signup);
+        // 알리고 등 SMS API가 사업자등록번호 없이는 실사용이 어려워 본인인증 채널을 이메일로 전환.
+        emailVerificationService.consumeVerified(req.email(), VerificationPurpose.signup);
 
         UserEntity user = UserEntity.createLocal(
                 req.email(), req.username(), passwordEncoder.encode(req.password()), req.name(), req.phone(),
@@ -102,7 +110,9 @@ public class UserService {
         if (userRepository.existsByPhone(req.phone())) throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
         requireAvailableUsername(req.username());
 
-        phoneVerificationService.consumeVerified(req.phone(), VerificationPurpose.signup);
+        // 소셜 로그인 자체가 이미 신뢰할 수 있는 인증 수단이라, 이메일을 provider가 줬든
+        // (구글/네이버) 사용자가 직접 입력했든(LINE) 별도의 이메일 인증코드는 요구하지 않는다.
+        // 로컬(이메일/비밀번호) 가입에만 이메일 인증이 필요하다 - signup() 참고.
 
         UserEntity user = UserEntity.createSocial(
                 email, req.username(), unusablePasswordHash(), req.name(), req.phone(),
@@ -111,6 +121,47 @@ public class UserService {
 
         saveWithUniqueGuard(user);
         return user;
+    }
+
+    /**
+     * 비밀번호 재발급 - 이메일 입력 -> 임시 비밀번호를 생성해 즉시 password 에 반영하고
+     * 이메일로 보낸다(팀 논의로 확정한 워크플로우: 발급 즉시 기존 비밀번호를 무효화).
+     * 다음 로그인 때 강제로 비밀번호를 바꾸게 만든다. 소셜 전용 계정은 애초에 로그인
+     * 불가능한 랜덤 해시만 갖고 있어 이 절차 대상이 아니다.
+     */
+    @Transactional
+    public void issueTemporaryPassword(String rawEmail) {
+        String email = rawEmail == null ? null : rawEmail.trim().toLowerCase();
+        UserEntity user = userRepository.findByEmail(email).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (user.isSocialAccount()) {
+            throw new BusinessException(ErrorCode.SOCIAL_ACCOUNT_NO_PASSWORD);
+        }
+
+        String tempPassword = generateTemporaryPassword();
+        user.issueTemporaryPassword(passwordEncoder.encode(tempPassword));
+        emailSender.sendTemporaryPassword(email, tempPassword);
+    }
+
+    /** 현재 비밀번호 확인 후 새 비밀번호로 교체한다. 자발적 변경과 강제 변경(임시 비밀번호 이후) 공용. */
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        UserEntity user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BusinessException(ErrorCode.CURRENT_PASSWORD_MISMATCH);
+        }
+        user.changePassword(passwordEncoder.encode(newPassword));
+    }
+
+    /** 10자 - 문자/숫자를 섞어 PasswordPolicy를 항상 만족시키고, 헷갈리기 쉬운 0/O/1/I/l 은 제외한다. */
+    private String generateTemporaryPassword() {
+        char[] chars = new char[10];
+        for (int i = 0; i < 6; i++) chars[i] = TEMP_PASSWORD_LETTERS.charAt(RANDOM.nextInt(TEMP_PASSWORD_LETTERS.length()));
+        for (int i = 6; i < 10; i++) chars[i] = TEMP_PASSWORD_DIGITS.charAt(RANDOM.nextInt(TEMP_PASSWORD_DIGITS.length()));
+        for (int i = chars.length - 1; i > 0; i--) {
+            int j = RANDOM.nextInt(i + 1);
+            char tmp = chars[i]; chars[i] = chars[j]; chars[j] = tmp;
+        }
+        return new String(chars);
     }
 
     private Long saveWithUniqueGuard(UserEntity user) {

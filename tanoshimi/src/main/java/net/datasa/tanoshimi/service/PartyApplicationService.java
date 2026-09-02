@@ -45,6 +45,7 @@ public class PartyApplicationService {
             ErrorCode code = switch (eligibility.messageKey()) {
                 case "party.apply.disabled.gender" -> ErrorCode.PARTY_GENDER_RESTRICTED;
                 case "party.apply.disabled.age" -> ErrorCode.PARTY_AGE_RESTRICTED;
+                case "party.apply.disabled.closed" -> ErrorCode.PARTY_RECRUITMENT_CLOSED;
                 default -> ErrorCode.PARTY_NATIONALITY_RESTRICTED;
             };
             throw new BusinessException(code);

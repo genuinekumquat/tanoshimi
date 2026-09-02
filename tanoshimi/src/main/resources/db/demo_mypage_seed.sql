@@ -47,42 +47,57 @@ SELECT @uid AS yuja_user_id; -- NULL이면 계정이 없다는 뜻 - 아래 문�
 -- ---------------------------------------------------------------------
 -- PART 1. 완료 파티 29건 (지역 다양성 확보 - 칭호 판정용, 유자차가 개설 → 파티리더 조건도 함께 충족)
 -- ---------------------------------------------------------------------
-DELETE FROM party_members
- WHERE party_id IN (SELECT id FROM (SELECT id FROM parties WHERE title LIKE '[demo]%') x);
-DELETE FROM parties WHERE title LIKE '[demo]%';
+-- 2차 이후 실행 시엔 앱(MyTripService.syncFromCompletedParties)이 이미 이 [demo] 파티들을
+-- my_trips(PARTY)로 동기화해뒀을 수 있다. 매번 파티를 지우고 다시 만들면 ① my_trips.party_id
+-- FK 제약 위반으로 재실행이 그냥 실패하거나, ② 억지로 자식 행까지 다 지우고 재실행되게 하면
+-- 방금 동기화된 my_trips(PARTY)/PART 4가 채운 스냅이 통째로 날아가 "두 번만 실행하면 된다"는
+-- 안내와 달리 (재동기화 위해 마이페이지 재방문 + 3차 실행까지) 필요해진다. 그래서 [demo] 파티가
+-- 이미 있으면 삭제/재생성 자체를 건너뛴다 - 파일 상단에 적힌 "NOT EXISTS 기반 멱등" 설계를
+-- 그대로 따른 것. (진짜로 초기화하고 싶으면 파일 맨 아래 "되돌리기" 블록을 먼저 실행할 것.)
+SET @demo_parties_exist = (SELECT EXISTS(SELECT 1 FROM parties WHERE title LIKE '[demo]%'));
+
+SET @del_members_sql = IF(@demo_parties_exist, 'DO 0',
+  'DELETE FROM party_members WHERE party_id IN (SELECT id FROM (SELECT id FROM parties WHERE title LIKE ''[demo]%'') x)');
+PREPARE stmt FROM @del_members_sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @del_parties_sql = IF(@demo_parties_exist, 'DO 0',
+  'DELETE FROM parties WHERE title LIKE ''[demo]%''');
+PREPARE stmt FROM @del_parties_sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 INSERT INTO parties
   (owner_user_id, tour_id, title, region, departure_date, duration_days, capacity, style_tag, status)
-VALUES
-  (@uid, @tid, '[demo] 서울 여행 1', '서울', DATE_SUB(CURDATE(), INTERVAL 7 DAY), 3, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 서울 여행 2', '서울', DATE_SUB(CURDATE(), INTERVAL 14 DAY), 4, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 서울 여행 3', '서울', DATE_SUB(CURDATE(), INTERVAL 21 DAY), 2, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 서울 여행 4', '서울', DATE_SUB(CURDATE(), INTERVAL 28 DAY), 3, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 서울 여행 5', '서울', DATE_SUB(CURDATE(), INTERVAL 35 DAY), 4, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 부산 여행 1', '부산', DATE_SUB(CURDATE(), INTERVAL 42 DAY), 2, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 부산 여행 2', '부산', DATE_SUB(CURDATE(), INTERVAL 49 DAY), 3, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 부산 여행 3', '부산', DATE_SUB(CURDATE(), INTERVAL 56 DAY), 4, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 부산 여행 4', '부산', DATE_SUB(CURDATE(), INTERVAL 63 DAY), 2, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 부산 여행 5', '부산', DATE_SUB(CURDATE(), INTERVAL 70 DAY), 3, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 제주 여행 1', '제주', DATE_SUB(CURDATE(), INTERVAL 77 DAY), 4, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 제주 여행 2', '제주', DATE_SUB(CURDATE(), INTERVAL 84 DAY), 2, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 제주 여행 3', '제주', DATE_SUB(CURDATE(), INTERVAL 91 DAY), 3, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 제주 여행 4', '제주', DATE_SUB(CURDATE(), INTERVAL 98 DAY), 4, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 제주 여행 5', '제주', DATE_SUB(CURDATE(), INTERVAL 105 DAY), 2, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 오사카 여행 1', '오사카', DATE_SUB(CURDATE(), INTERVAL 112 DAY), 3, 4, '축제', 'completed'),
-  (@uid, @tid, '[demo] 오사카 여행 2', '오사카', DATE_SUB(CURDATE(), INTERVAL 119 DAY), 4, 4, '축제', 'completed'),
-  (@uid, @tid, '[demo] 오사카 여행 3', '오사카', DATE_SUB(CURDATE(), INTERVAL 126 DAY), 2, 4, '축제', 'completed'),
-  (@uid, @tid, '[demo] 교토 여행 1', '교토', DATE_SUB(CURDATE(), INTERVAL 133 DAY), 3, 4, '축제', 'completed'),
-  (@uid, @tid, '[demo] 교토 여행 2', '교토', DATE_SUB(CURDATE(), INTERVAL 140 DAY), 4, 4, '축제', 'completed'),
-  (@uid, @tid, '[demo] 도쿄 여행 1', '도쿄', DATE_SUB(CURDATE(), INTERVAL 147 DAY), 2, 4, '액티비티', 'completed'),
-  (@uid, @tid, '[demo] 도쿄 여행 2', '도쿄', DATE_SUB(CURDATE(), INTERVAL 154 DAY), 3, 4, '액티비티', 'completed'),
-  (@uid, @tid, '[demo] 홋카이도 여행 1', '홋카이도', DATE_SUB(CURDATE(), INTERVAL 161 DAY), 4, 4, '액티비티', 'completed'),
-  (@uid, @tid, '[demo] 후쿠오카 여행 1', '후쿠오카', DATE_SUB(CURDATE(), INTERVAL 168 DAY), 2, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 대구 여행 1', '대구', DATE_SUB(CURDATE(), INTERVAL 175 DAY), 3, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 강원 여행 1', '강원', DATE_SUB(CURDATE(), INTERVAL 182 DAY), 4, 4, '액티비티', 'completed'),
-  (@uid, @tid, '[demo] 대전 여행 1', '대전', DATE_SUB(CURDATE(), INTERVAL 189 DAY), 2, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 전북 여행 1', '전북', DATE_SUB(CURDATE(), INTERVAL 196 DAY), 3, 4, '힐링', 'completed'),
-  (@uid, @tid, '[demo] 광주 여행 1', '광주', DATE_SUB(CURDATE(), INTERVAL 203 DAY), 4, 4, '힐링', 'completed');
+SELECT * FROM (VALUES
+  ROW(@uid, @tid, '[demo] 서울 여행 1', '서울', DATE_SUB(CURDATE(), INTERVAL 7 DAY), 3, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 서울 여행 2', '서울', DATE_SUB(CURDATE(), INTERVAL 14 DAY), 4, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 서울 여행 3', '서울', DATE_SUB(CURDATE(), INTERVAL 21 DAY), 2, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 서울 여행 4', '서울', DATE_SUB(CURDATE(), INTERVAL 28 DAY), 3, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 서울 여행 5', '서울', DATE_SUB(CURDATE(), INTERVAL 35 DAY), 4, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 부산 여행 1', '부산', DATE_SUB(CURDATE(), INTERVAL 42 DAY), 2, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 부산 여행 2', '부산', DATE_SUB(CURDATE(), INTERVAL 49 DAY), 3, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 부산 여행 3', '부산', DATE_SUB(CURDATE(), INTERVAL 56 DAY), 4, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 부산 여행 4', '부산', DATE_SUB(CURDATE(), INTERVAL 63 DAY), 2, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 부산 여행 5', '부산', DATE_SUB(CURDATE(), INTERVAL 70 DAY), 3, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 제주 여행 1', '제주', DATE_SUB(CURDATE(), INTERVAL 77 DAY), 4, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 제주 여행 2', '제주', DATE_SUB(CURDATE(), INTERVAL 84 DAY), 2, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 제주 여행 3', '제주', DATE_SUB(CURDATE(), INTERVAL 91 DAY), 3, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 제주 여행 4', '제주', DATE_SUB(CURDATE(), INTERVAL 98 DAY), 4, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 제주 여행 5', '제주', DATE_SUB(CURDATE(), INTERVAL 105 DAY), 2, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 오사카 여행 1', '오사카', DATE_SUB(CURDATE(), INTERVAL 112 DAY), 3, 4, '축제', 'completed'),
+  ROW(@uid, @tid, '[demo] 오사카 여행 2', '오사카', DATE_SUB(CURDATE(), INTERVAL 119 DAY), 4, 4, '축제', 'completed'),
+  ROW(@uid, @tid, '[demo] 오사카 여행 3', '오사카', DATE_SUB(CURDATE(), INTERVAL 126 DAY), 2, 4, '축제', 'completed'),
+  ROW(@uid, @tid, '[demo] 교토 여행 1', '교토', DATE_SUB(CURDATE(), INTERVAL 133 DAY), 3, 4, '축제', 'completed'),
+  ROW(@uid, @tid, '[demo] 교토 여행 2', '교토', DATE_SUB(CURDATE(), INTERVAL 140 DAY), 4, 4, '축제', 'completed'),
+  ROW(@uid, @tid, '[demo] 도쿄 여행 1', '도쿄', DATE_SUB(CURDATE(), INTERVAL 147 DAY), 2, 4, '액티비티', 'completed'),
+  ROW(@uid, @tid, '[demo] 도쿄 여행 2', '도쿄', DATE_SUB(CURDATE(), INTERVAL 154 DAY), 3, 4, '액티비티', 'completed'),
+  ROW(@uid, @tid, '[demo] 홋카이도 여행 1', '홋카이도', DATE_SUB(CURDATE(), INTERVAL 161 DAY), 4, 4, '액티비티', 'completed'),
+  ROW(@uid, @tid, '[demo] 후쿠오카 여행 1', '후쿠오카', DATE_SUB(CURDATE(), INTERVAL 168 DAY), 2, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 대구 여행 1', '대구', DATE_SUB(CURDATE(), INTERVAL 175 DAY), 3, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 강원 여행 1', '강원', DATE_SUB(CURDATE(), INTERVAL 182 DAY), 4, 4, '액티비티', 'completed'),
+  ROW(@uid, @tid, '[demo] 대전 여행 1', '대전', DATE_SUB(CURDATE(), INTERVAL 189 DAY), 2, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 전북 여행 1', '전북', DATE_SUB(CURDATE(), INTERVAL 196 DAY), 3, 4, '힐링', 'completed'),
+  ROW(@uid, @tid, '[demo] 광주 여행 1', '광주', DATE_SUB(CURDATE(), INTERVAL 203 DAY), 4, 4, '힐링', 'completed')
+) AS v(owner_user_id, tour_id, title, region, departure_date, duration_days, capacity, style_tag, status)
+WHERE NOT @demo_parties_exist;
 
 INSERT IGNORE INTO party_members (party_id, user_id, role)
 SELECT id, @uid, 'owner' FROM parties WHERE title LIKE '[demo]%';
@@ -149,16 +164,18 @@ DELETE FROM posts WHERE user_id = @uid
 DELETE FROM my_trips WHERE user_id = @uid AND source = 'SOLO'
   AND title IN ('오사카 벚꽃 여행', '부산 당일치기');
 
-INSERT INTO my_trips (user_id, source, party_id, title, destination, start_date, end_date, memo)
+-- created_at/updated_at 은 datetime(6) NOT NULL(기본값 없음, 평소엔 JPA @CreatedDate/@LastModifiedDate
+-- 가 채워줌) - SQL로 직접 넣을 땐 명시적으로 값을 줘야 한다.
+INSERT INTO my_trips (user_id, source, party_id, title, destination, start_date, end_date, memo, created_at, updated_at)
 VALUES (@uid, 'SOLO', NULL, '오사카 벚꽃 여행', '오사카',
         DATE_SUB(CURDATE(), INTERVAL 5 DAY), DATE_SUB(CURDATE(), INTERVAL 3 DAY),
-        '도톤보리, 오사카성 다녀옴');
+        '도톤보리, 오사카성 다녀옴', NOW(), NOW());
 SET @trip_osaka = LAST_INSERT_ID();
 
-INSERT INTO my_trips (user_id, source, party_id, title, destination, start_date, end_date, memo)
+INSERT INTO my_trips (user_id, source, party_id, title, destination, start_date, end_date, memo, created_at, updated_at)
 VALUES (@uid, 'SOLO', NULL, '부산 당일치기', '부산',
         DATE_SUB(CURDATE(), INTERVAL 1 DAY), DATE_SUB(CURDATE(), INTERVAL 1 DAY),
-        '해운대 바다 보고 옴');
+        '해운대 바다 보고 옴', NOW(), NOW());
 SET @trip_busan = LAST_INSERT_ID();
 
 INSERT INTO posts (user_id, party_id, trip_id, title, content, region, thumbnail_url, like_count, created_at, updated_at)

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import java.util.List;
 import net.datasa.tanoshimi.domain.dto.ApiResponse;
+import net.datasa.tanoshimi.domain.dto.ChangePasswordRequest;
 import net.datasa.tanoshimi.domain.dto.IntroUpdateRequest;
 import net.datasa.tanoshimi.domain.dto.MyTripView;
 import net.datasa.tanoshimi.domain.dto.TravelHeatmapView;
@@ -23,6 +24,8 @@ import net.datasa.tanoshimi.service.MyTripService;
 import net.datasa.tanoshimi.service.PostService;
 import net.datasa.tanoshimi.service.TitleService;
 import net.datasa.tanoshimi.service.TravelHeatmapService;
+import net.datasa.tanoshimi.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -71,6 +74,7 @@ public class MyPageController {
     private final net.datasa.tanoshimi.service.BlockService blockService;
     private final UserBlockRepository userBlockRepository;
     private final UserNotificationSettingsService userNotificationSettingsService;
+    private final UserService userService;
 
     @GetMapping("/mypage")
     public String myPage(@AuthenticationPrincipal CustomUserDetails principal, Model model) {
@@ -198,8 +202,9 @@ public class MyPageController {
      * <p>지도에서 더 들어갈 데가 없는 지역(상세 지도의 시/군·현, 드릴다운이 없는 시/도)을
      * 클릭하면 여기로 온다 - 그 지역 태그가 붙은 내 스냅만 모아 보여주고, 스냅을 누르면
      * 해당 게시글(/board/{id})로 간다. 지역 이름은 지도 쪽 표기(예: "울릉")로 넘어오는데
-     * 글에 적힌 표기("독도", "경상북도" 등)와 다를 수 있어서, 비교는 PostService 에서
-     * 정규화한 뒤에 한다(PostService.normalizeRegion).
+     * 글에 적힌 표기("독도", "경상북도" 등)와 다를 수 있어서, 비교는
+     * {@link net.datasa.tanoshimi.service.RegionCatalog} 로 정규화한 뒤에 한다.
+     * 권역 이름(예: "전남")으로 들어오면 그 아래 지역("여수")의 스냅까지 같이 모아준다.
      */
     @GetMapping("/mypage/snaps")
     public String regionSnaps(@RequestParam(name = "region", required = false) String region,
@@ -304,6 +309,29 @@ public class MyPageController {
         me.changeProfile(me.getName(), intro, me.getProfileImageUrl());
 
         return ApiResponse.ok("자기소개를 저장했습니다.", intro);
+    }
+
+    /**
+     * 비밀번호 변경 - 자발적 변경과, 비밀번호 재발급으로 받은 임시 비밀번호 이후 강제 변경
+     * 모달(fragments/layout.html 헤더) 양쪽에서 공용으로 쓴다. /api/mypage/** 는
+     * SecurityConfig에서 permitAll 대상이 아니라 인증된 사용자만 호출할 수 있다.
+     */
+    @PostMapping("/api/mypage/change-password")
+    @ResponseBody
+    @Transactional
+    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request,
+                                            @AuthenticationPrincipal CustomUserDetails principal) {
+        userService.changePassword(principal.getId(), request.currentPassword(), request.newPassword());
+
+        // 세션의 mustChangePassword 플래그를 즉시 갱신 - 안 하면 재로그인 전까지 강제변경 모달이 계속 뜬다.
+        UserEntity me = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        CustomUserDetails newUserDetails = new CustomUserDetails(me, principal.getAttributes());
+        Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
+        UsernamePasswordAuthenticationToken newAuth =
+                new UsernamePasswordAuthenticationToken(newUserDetails, currentAuth.getCredentials(), currentAuth.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(newAuth);
+
+        return ApiResponse.okMessage("비밀번호가 변경되었습니다.");
     }
 
     @GetMapping("/users/{id}")

@@ -182,6 +182,14 @@ public class GeminiChatClient implements CompanionChatClient {
             log.warn("Gemini API 응답 형식이 예상과 달라요: " + lastResponse);
             return "오류 내용: " + (lastResponse != null ? lastResponse.toString() : "null");
         } catch (Exception e) {
+            if (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException) {
+                org.springframework.web.reactive.function.client.WebClientResponseException we =
+                        (org.springframework.web.reactive.function.client.WebClientResponseException) e;
+                if (we.getStatusCode().value() == 429) {
+                    log.warn("Gemini API 요청 한도 초과(429): " + we.getResponseBodyAsString());
+                    return "...잠시만요, %s 님. 신탁의 목소리가 살짝 지쳤나 봐요. (무료 API 한도 초과) 1분만 기다려주시면 다시 우아하게 답해드릴게요.".formatted(username);
+                }
+            }
             String errMsg = e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ? ((org.springframework.web.reactive.function.client.WebClientResponseException)e).getResponseBodyAsString() : e.getMessage();
             log.error("Gemini API 호출 실패: " + errMsg, e);
             return "디버그 안됨: " + errMsg;

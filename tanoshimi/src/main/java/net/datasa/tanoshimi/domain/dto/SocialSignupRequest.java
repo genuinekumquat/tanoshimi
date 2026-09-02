@@ -1,6 +1,7 @@
 package net.datasa.tanoshimi.domain.dto;
 
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -8,13 +9,18 @@ import java.time.LocalDate;
 import java.time.Period;
 import net.datasa.tanoshimi.util.UsernamePolicy;
 
-/** 소셜 가입 추가정보. 이메일/소셜ID 는 서버 세션값만 사용(클라이언트가 위조 불가). */
+/**
+ * 소셜 가입 추가정보. 이메일/소셜ID 는 서버 세션값만 사용(클라이언트가 위조 불가).
+ * 소셜 로그인은 인증코드로 이메일을 재확인하지 않으므로(UserService.signupSocial 참고),
+ * 최소한 형식만이라도 걸러내도록 @Email 을 둔다 - provider가 이메일을 준 경우엔 그 값 그대로라
+ * 항상 유효하고, LINE처럼 사용자가 직접 입력한 경우에만 실제로 걸러내는 역할을 한다.
+ */
 public record SocialSignupRequest(
         @NotBlank @Pattern(regexp = "^[가-힣a-zA-Zぁ-んァ-ヶ一-龠]{2,20}$") String name,
         /** [vanity-url 신규] SignupRequest 와 동일한 규칙(UsernamePolicy) - 소셜 가입도 별도
          * 가입 경로라서 여기도 똑같이 받아야 한다(공유 검증 로직만 재사용, 필드 자체는 중복 정의). */
         @NotBlank String username,
-        String email,   // provider 가 이메일을 안 줬을 때만 사용자가 직접 입력(그 외엔 무시하고 세션값 사용)
+        @Email String email,   // provider 가 이메일을 안 줬을 때만 사용자가 직접 입력(그 외엔 무시하고 세션값 사용)
         @NotBlank @Pattern(regexp = "^01[016789][0-9]{7,8}$") String phone,
         @NotNull String gender,
         @NotNull LocalDate birthDate,

@@ -8,6 +8,7 @@
     const nationalitySelect = document.getElementById('nationality');
     const birthDateInput = document.getElementById('birthDate');
     const phoneInput = document.getElementById('phone');
+    const btnSendCode = document.getElementById('btn-send-code');
     const codeField = document.getElementById('code-field');
     const codeInput = document.getElementById('code');
     const timerEl = document.getElementById('timer');
@@ -16,8 +17,8 @@
     const formMsg = document.getElementById('msg-form');
 
     let emailChecked = false;
+    let emailVerified = false;
     let usernameChecked = false;
-    let phoneVerified = false;
     let timerId = null;
 
     function setMsg(id, text, ok) {
@@ -42,19 +43,27 @@
     }
 
     function refreshSubmit() {
-        signupBtn.disabled = !(emailChecked && usernameChecked && validPassword(passwordInput.value)
+        signupBtn.disabled = !(emailChecked && emailVerified && usernameChecked && validPassword(passwordInput.value)
             && passwordInput.value === passwordConfirmInput.value
             && nameInput.value.trim().length >= 2
             && genderSelect.value && nationalitySelect.value && birthDateInput.value
-            && phoneVerified && termsInput.checked);
+            && onlyDigits(phoneInput.value).length >= 10 && termsInput.checked);
     }
 
-    emailInput.addEventListener('input', () => { emailChecked = false; refreshSubmit(); });
+    emailInput.addEventListener('input', () => {
+        emailChecked = false;
+        emailVerified = false;
+        btnSendCode.disabled = true;
+        codeField.style.display = 'none';
+        stopTimer();
+        refreshSubmit();
+    });
     document.getElementById('btn-email-check').addEventListener('click', async () => {
         const email = emailInput.value.trim().toLowerCase();
         const result = await window.api.get('/api/auth/email-check?email=' + encodeURIComponent(email));
         emailChecked = !!result.data;
         setMsg('msg-email', result.message, emailChecked);
+        btnSendCode.disabled = !emailChecked;
         refreshSubmit();
     });
 
@@ -92,25 +101,24 @@
 
     phoneInput.addEventListener('input', () => {
         phoneInput.value = formatPhone(phoneInput.value);
-        phoneVerified = false;
         refreshSubmit();
     });
 
-    document.getElementById('btn-send-code').addEventListener('click', async () => {
-        const phone = onlyDigits(phoneInput.value);
-        const result = await window.api.post('/api/verification/phone/send', { phone });
-        setMsg('msg-phone', result.message, result.success);
+    btnSendCode.addEventListener('click', async () => {
+        const email = emailInput.value.trim().toLowerCase();
+        const result = await window.api.post('/api/verification/email/send', { email });
+        setMsg('msg-email-verify', result.message, result.success);
         if (!result.success) return;
         codeField.style.display = 'block';
         startTimer(300);
     });
 
     document.getElementById('btn-confirm-code').addEventListener('click', async () => {
-        const phone = onlyDigits(phoneInput.value);
+        const email = emailInput.value.trim().toLowerCase();
         const code = codeInput.value.trim();
-        const result = await window.api.post('/api/verification/phone/confirm', { phone, code });
+        const result = await window.api.post('/api/verification/email/confirm', { email, code });
         setMsg('msg-code', result.message, result.success);
-        if (result.success) { phoneVerified = true; stopTimer(); refreshSubmit(); }
+        if (result.success) { emailVerified = true; stopTimer(); refreshSubmit(); }
     });
 
     function startTimer(seconds) {

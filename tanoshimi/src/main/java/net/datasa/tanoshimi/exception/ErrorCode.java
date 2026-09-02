@@ -13,17 +13,22 @@ public enum ErrorCode {
     UNDERAGE(HttpStatus.BAD_REQUEST, "만 14세 이상만 가입할 수 있습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."),
 
-    // 휴대폰 인증
+    // 본인인증 (휴대폰/이메일 공용 - PhoneVerificationService, EmailVerificationService 둘 다 사용)
     VERIFICATION_NOT_FOUND(HttpStatus.BAD_REQUEST, "인증 요청 내역이 없습니다."),
     VERIFICATION_EXPIRED(HttpStatus.BAD_REQUEST, "인증번호 유효시간이 지났습니다."),
     VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "인증번호가 일치하지 않습니다."),
     VERIFICATION_ATTEMPT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "인증 시도 횟수를 초과했습니다."),
-    VERIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "휴대폰 인증을 먼저 완료해 주세요."),
+    VERIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "본인인증을 먼저 완료해 주세요."),
     VERIFICATION_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "잠시 후 다시 요청해 주세요."),
     VERIFICATION_DAILY_LIMIT(HttpStatus.TOO_MANY_REQUESTS, "하루 인증 요청 횟수를 초과했습니다."),
+    EMAIL_SEND_FAILED(HttpStatus.BAD_GATEWAY, "인증 메일 발송에 실패했습니다. 잠시 후 다시 시도해 주세요."),
 
     // 소셜
     SOCIAL_SESSION_EXPIRED(HttpStatus.BAD_REQUEST, "소셜 로그인 정보가 만료되었습니다."),
+
+    // 비밀번호 재발급/변경
+    SOCIAL_ACCOUNT_NO_PASSWORD(HttpStatus.BAD_REQUEST, "소셜 로그인 계정은 비밀번호 재발급을 지원하지 않습니다. 소셜 로그인으로 이용해 주세요."),
+    CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다."),
 
     // 투어/예약/결제
     TOUR_NOT_FOUND(HttpStatus.NOT_FOUND, "패키지를 찾을 수 없습니다."),
@@ -38,6 +43,7 @@ public enum ErrorCode {
     PARTY_AGE_RESTRICTED(HttpStatus.FORBIDDEN, "이 파티는 연령 조건이 맞지 않아 신청할 수 없습니다."),
     PARTY_NATIONALITY_RESTRICTED(HttpStatus.FORBIDDEN, "이 파티는 국적 조건이 맞지 않아 신청할 수 없습니다."),
     PARTY_FULL(HttpStatus.CONFLICT, "이미 정원이 가득 찼습니다."),
+    PARTY_RECRUITMENT_CLOSED(HttpStatus.CONFLICT, "모집이 마감된 파티입니다."),
     NOT_PARTY_MEMBER(HttpStatus.FORBIDDEN, "파티원만 볼 수 있는 페이지입니다."),
 
     // 계획표
