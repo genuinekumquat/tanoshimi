@@ -208,7 +208,23 @@ class UserServiceTest {
     }
 
     @Test
-    void signupSocial_pending에_이메일이_없으면_요청의_이메일을_사용한다() {
+    void signupSocial_소셜제공자가_이메일을_준_경우엔_이미_검증된_것으로_보고_이메일인증을_요구하지_않는다() {
+        // 구글/네이버는 pending.email() 이 채워져서 온다 - 그 제공자가 이미 소유를 확인해준
+        // 이메일이므로, 우리가 인증코드를 또 보내 확인시킬 필요가 없다.
+        PendingSocialSignup pending = new PendingSocialSignup("google", "social-id-1", "pending@test.com", "유자차");
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByPhone(anyString())).thenReturn(false);
+        when(userRepository.saveAndFlush(any(UserEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        userService.signupSocial(pending, validSocialSignupRequest(null));
+
+        verify(emailVerificationService, never()).consumeVerified(anyString(), any());
+    }
+
+    @Test
+    void signupSocial_pending에_이메일이_없으면_요청의_이메일을_사용하고_이메일인증을_요구한다() {
+        // LINE처럼 제공자가 이메일 스코프를 안 줘서 사용자가 화면에서 직접 입력한 경우 -
+        // 우리가 검증한 적 없는 이메일이므로 인증코드 확인이 반드시 필요하다.
         PendingSocialSignup pending = new PendingSocialSignup("line", "social-id-2", null, "유자차");
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByPhone(anyString())).thenReturn(false);
@@ -217,6 +233,7 @@ class UserServiceTest {
         userService.signupSocial(pending, validSocialSignupRequest("user@test.com"));
 
         verify(userRepository).existsByEmail("user@test.com");
+        verify(emailVerificationService).consumeVerified("user@test.com", VerificationPurpose.signup);
     }
 
     @Test

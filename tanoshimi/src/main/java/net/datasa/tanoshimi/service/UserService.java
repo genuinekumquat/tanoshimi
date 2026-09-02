@@ -66,7 +66,12 @@ public class UserService {
         if (userRepository.existsByEmail(email)) throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         if (userRepository.existsByPhone(req.phone())) throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
 
-        emailVerificationService.consumeVerified(email, VerificationPurpose.signup);
+        // 구글/네이버처럼 소셜 제공자가 이메일을 줬다면 그 제공자가 이미 소유를 확인해준 것이므로
+        // 우리가 또 인증코드를 보낼 필요가 없다. LINE처럼 이메일 스코프가 없어 사용자가 화면에서
+        // 직접 입력한 경우(pending.email() == null)만 우리 쪽에서 다시 확인한다.
+        if (pending.email() == null) {
+            emailVerificationService.consumeVerified(email, VerificationPurpose.signup);
+        }
 
         UserEntity user = UserEntity.createSocial(
                 email, unusablePasswordHash(), req.name(), req.phone(),

@@ -11,23 +11,18 @@
     </p>
 
     <div style="display:flex; flex-direction:column; gap:14px;" id="social-form">
+      <!-- needEmailInput=false 면 provider(구글/네이버)가 이미 이 이메일의 소유를 확인해준
+           것이므로 인증코드 재확인 없이 그대로 사용한다. LINE처럼 이메일 스코프가 없어 화면에서
+           직접 입력받는 경우(needEmailInput=true)만 인증코드로 재확인한다. -->
       <div class="field" th:if="${needEmailInput}">
         <label>이메일 *</label>
         <div style="display:flex; gap:8px;">
           <input type="email" id="email" style="flex:1;">
           <button type="button" id="btn-send-code" class="btn" style="border:1px solid var(--line); background:#fff;">인증요청</button>
         </div>
+        <p class="msg" id="msg-email-verify"></p>
       </div>
-      <div class="field" th:unless="${needEmailInput}">
-        <label>이메일</label>
-        <div style="display:flex; gap:8px;">
-          <input type="email" id="email" th:value="${email}" style="flex:1;" readonly>
-          <button type="button" id="btn-send-code" class="btn" style="border:1px solid var(--line); background:#fff;">인증요청</button>
-        </div>
-      </div>
-      <p class="msg" id="msg-email-verify"></p>
-
-      <div class="field" id="code-field" style="display:none;">
+      <div class="field" th:if="${needEmailInput}" id="code-field" style="display:none;">
         <label>인증번호 *</label>
         <div style="display:flex; gap:8px; align-items:center;">
           <input type="text" id="code" maxlength="6" style="flex:1;">
@@ -35,6 +30,12 @@
           <button type="button" id="btn-confirm-code" class="btn" style="border:1px solid var(--line); background:#fff;">확인</button>
         </div>
         <p class="msg" id="msg-code"></p>
+      </div>
+
+      <div class="field" th:unless="${needEmailInput}">
+        <label>이메일</label>
+        <input type="email" id="email" th:value="${email}" disabled>
+        <p style="font-size:11px; color:var(--ink-soft); margin:4px 0 0;"><span th:text="${providerName}">소셜</span> 계정에서 이미 확인된 이메일이라 별도 인증이 필요 없어요.</p>
       </div>
 
       <div class="field">

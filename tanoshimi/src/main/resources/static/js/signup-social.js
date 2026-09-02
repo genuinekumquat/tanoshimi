@@ -5,13 +5,16 @@
     const birthDateInput = document.getElementById('birthDate');
     const phoneInput = document.getElementById('phone');
     const emailInput = document.getElementById('email');
+    const btnSendCode = document.getElementById('btn-send-code');
     const codeField = document.getElementById('code-field');
     const codeInput = document.getElementById('code');
     const timerEl = document.getElementById('timer');
     const termsInput = document.getElementById('termsAgreed');
     const submitBtn = document.getElementById('btn-submit');
 
-    let emailVerified = false;
+    // btn-send-code 가 화면에 없다는 건 needEmailInput=false, 즉 구글/네이버가 이미 확인해준
+    // 이메일이라 별도 인증이 필요 없다는 뜻이다(signup-social.html 참고).
+    let emailVerified = !btnSendCode;
     let timerId = null;
 
     function onlyDigits(v) { return (v || '').replace(/[^0-9]/g, ''); }
@@ -30,21 +33,23 @@
         el.addEventListener('input', refreshSubmit); el.addEventListener('change', refreshSubmit);
     });
 
-    document.getElementById('btn-send-code').addEventListener('click', async () => {
-        const email = emailInput.value.trim().toLowerCase();
-        const result = await window.api.post('/api/verification/email/send', { email });
-        setMsg('msg-email-verify', result.message, result.success);
-        if (!result.success) return;
-        codeField.style.display = 'block';
-        startTimer(300);
-    });
+    if (btnSendCode) {
+        btnSendCode.addEventListener('click', async () => {
+            const email = emailInput.value.trim().toLowerCase();
+            const result = await window.api.post('/api/verification/email/send', { email });
+            setMsg('msg-email-verify', result.message, result.success);
+            if (!result.success) return;
+            codeField.style.display = 'block';
+            startTimer(300);
+        });
 
-    document.getElementById('btn-confirm-code').addEventListener('click', async () => {
-        const email = emailInput.value.trim().toLowerCase();
-        const result = await window.api.post('/api/verification/email/confirm', { email, code: codeInput.value.trim() });
-        setMsg('msg-code', result.message, result.success);
-        if (result.success) { emailVerified = true; stopTimer(); refreshSubmit(); }
-    });
+        document.getElementById('btn-confirm-code').addEventListener('click', async () => {
+            const email = emailInput.value.trim().toLowerCase();
+            const result = await window.api.post('/api/verification/email/confirm', { email, code: codeInput.value.trim() });
+            setMsg('msg-code', result.message, result.success);
+            if (result.success) { emailVerified = true; stopTimer(); refreshSubmit(); }
+        });
+    }
 
     function startTimer(seconds) {
         stopTimer();
