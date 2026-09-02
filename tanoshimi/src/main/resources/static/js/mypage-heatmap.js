@@ -90,21 +90,53 @@
         { min: 0, color: 'var(--tier-0)', label: '아직 안 가봄' }
     ];
 
-    // 서버 지역명이 map-data.js 시절 표기(광역시/도 단위 등)와 다를 수 있어 별칭을 둔다.
-    // 지도 쪽 이름과 서버 쪽 이름이 늘어나면 여기만 고치면 된다.
-    var NAME_ALIASES = {
-        '서울특별시': '서울', '경기도': '경기', '인천광역시': '인천',
-        '강원특별자치도': '강원', '강원도': '강원',
-        '충청북도': '충북', '충청남도': '충남', '세종특별자치시': '세종',
-        '전라북도': '전북', '전북특별자치도': '전북', '전라남도': '전남',
-        '경상북도': '경북', '경상남도': '경남',
-        '대구광역시': '대구', '부산광역시': '부산', '광주광역시': '광주',
-        '대전광역시': '대전', '울산광역시': '울산', '제주특별자치도': '제주', '제주도': '제주',
-        // v19: 독도는 행정구역상 울릉군 소속이라 지도에서도 별도 지역으로 안 두고 울릉에
-        // 합쳤다(regions.json 참고) - 그래서 "독도"라고 직접 입력된 여행지도 울릉 쪽 통계/
-        // 스냅으로 묶는다.
-        '독도': '울릉'
-    };
+    /* ===================== 지역 이름 트리 (v21) =====================
+     *
+     * 서버 지역명이 지도 표기와 다를 수 있어(예: "경상북도" -> "경북", "독도" -> "울릉")
+     * 별칭표가 필요한데, 예전에는 그 표를 이 파일 · TitleService · PostService 가 각자
+     * 하나씩 들고 있었다. 이제 region-tree.json 하나만 보고, 서버도 같은 파일을 읽는다
+     * (RegionCatalog.java) - 인수인계 문서의 "지역 매핑 서버 일원화" 항목.
+     *
+     * 트리에는 <b>도형이 아직 없는 지역</b>도 들어있다. 그래서 드릴다운 지도를 안 그린
+     * 시/도의 시/군(예: "여수")으로 태그된 여행도 상위 시/도("전남")에 얹어 색칠할 수
+     * 있다(rollUpUnmatchedFromTree) - 도형 없이 이름만으로 롤업하는 유일한 경로다.
+     */
+    var REGION_TREE_URL = '/assets/geo/region-tree.json';
+
+    var NAME_ALIASES = {};   // 표기 흔들림 -> 표준 이름
+    var PLACE_AREA = {};     // 지역 이름 -> { country, area }. 권역 이름 자신도 들어있다.
+    var AREA_PLACES = {};    // "국가코드/권역명" -> 그 권역의 지역 이름 배열
+
+    function loadTree(tree) {
+        NAME_ALIASES = tree.aliases || {};
+        (tree.countries || []).forEach(function (country) {
+            (country.areas || []).forEach(function (area) {
+                AREA_PLACES[country.code + '/' + area.name] = area.places || [];
+                PLACE_AREA[area.name] = { country: country.code, area: area.name };
+                (area.places || []).forEach(function (place) {
+                    // 권역 이름과 같은 지역명(서울 · 부산 · 홋카이도 등)은 바로 위에서 넣은
+                    // 값과 어차피 같으므로 덮어써도 무해하다.
+                    PLACE_AREA[place] = { country: country.code, area: area.name };
+                });
+            });
+        });
+    }
+
+    /** 표기 정규화. 상위로 접지는 않는다("여수"는 "여수" 그대로). */
+    function norm(raw) {
+        var name = (raw == null ? '' : String(raw)).trim();
+        var alias = NAME_ALIASES[name];
+        if (alias) return alias;
+        if (PLACE_AREA[name]) return name;
+        // "여수시"/"울릉군"처럼 접미사가 붙은 자유 입력을 흡수한다(지역 선택기가 붙기 전에
+        // 손으로 적어둔 데이터가 있다). 트리에 그 이름이 그대로 있는 경우 - 예를 들어
+        // "제주시" - 는 바로 위에서 걸러지므로 잘못 자를 일이 없다.
+        if (/[시군구]$/.test(name)) {
+            var stripped = name.slice(0, -1);
+            if (PLACE_AREA[stripped]) return stripped;
+        }
+        return name;
+    }
 
     function tier(v) {
         for (var i = 0; i < TIERS.length; i++) {
@@ -113,39 +145,46 @@
         return TIERS[TIERS.length - 1];
     }
 
-    /* 지역명 -> 그 지역에서 찍은 스냅 목록. 템플릿의 #snaps-data 에서 읽는다. */
-    var snapsByRegion = (function () {
-        var map = {};
+    /**
+     * 지역명 -> 그 지역에서 찍은 스냅 목록. 템플릿의 #snaps-data 에서 읽는다.
+     * 별칭 정규화가 필요해서 트리를 받은 뒤에 만든다(v21 이전엔 즉시 실행이었다).
+     */
+    var snapsByRegion = {};
+
+    function buildSnapIndex() {
+        snapsByRegion = {};
         [].forEach.call(document.querySelectorAll('#snaps-data span'), function (el) {
             var raw = (el.dataset.region || '').trim();
             if (!raw) return;
-            var name = NAME_ALIASES[raw] || raw;
-            (map[name] = map[name] || []).push({
+            var name = norm(raw);
+            (snapsByRegion[name] = snapsByRegion[name] || []).push({
                 id: el.dataset.id || '',
                 thumb: el.dataset.thumb || '',
                 title: el.dataset.title || ''
             });
         });
-        return map;
-    })();
+    }
 
     /**
-     * 이 지역에서 보여줄 스냅들. 오버뷰 단계에서 하위 드릴 지역이 있는 항목(일본 지방,
-     * 한국 경북)이면 그 하위 지역들의 스냅을 합친다.
-     * v18 이전엔 일본만 오버뷰/드릴 2단계였어서 country==='japan'으로 하드코딩돼 있었는데,
-     * 경북 드릴다운이 생기면서 한국도 같은 처리가 필요해져 국가 구분 없이 일반화했다.
+     * 이 지역에서 보여줄 스냅들. 오버뷰 단계에서는 그 권역 자체로 태그된 스냅 + 그 아래
+     * 지역들의 스냅을 합친다.
+     *
+     * <p>하위 목록은 드릴다운 도형(regions.json)이 아니라 <b>이름 트리</b>에서 가져온다
+     * (v21 변경) - 도형이 아직 없는 시/도(전남 등)도 "여수" 스냅을 상위에서 보여줘야 하기
+     * 때문이다. 도형이 있는 경북 · 일본 지방은 트리의 places 가 드릴다운과 같은 구성이라
+     * 결과가 예전과 동일하다(트리 생성 시 구성을 대조해 검증한다).
      */
     function snapsFor(r) {
-        var drill = DATA[state.country].drill;
-        if (state.level === 'overview' && drill && drill[r.key]) {
-            var merged = [];
-            drill[r.key].forEach(function (child) {
-                var list = snapsByRegion[child.name];
-                if (list) merged = merged.concat(list);
-            });
-            return merged;
+        if (state.level !== 'overview') {
+            return snapsByRegion[r.name] || [];
         }
-        return snapsByRegion[r.name] || [];
+        var merged = (snapsByRegion[r.name] || []).slice();
+        (AREA_PLACES[state.country + '/' + r.name] || []).forEach(function (place) {
+            if (place === r.name) return;   // 광역시처럼 권역 = 지역인 경우 중복 방지
+            var list = snapsByRegion[place];
+            if (list) merged = merged.concat(list);
+        });
+        return merged;
     }
 
     var NS = 'http://www.w3.org/2000/svg';
@@ -179,12 +218,12 @@
     function normalizeRaw(raw) {
         var out = {};
         Object.keys(raw || {}).forEach(function (name) {
-            var norm = NAME_ALIASES[name] || name;
+            var std = norm(name);
             var cell = raw[name];
-            if (!out[norm]) out[norm] = { trips: 0, days: 0, score: 0 };
-            out[norm].trips += cell.trips || 0;
-            out[norm].days += cell.days || 0;
-            out[norm].score += cell.score || 0;
+            if (!out[std]) out[std] = { trips: 0, days: 0, score: 0 };
+            out[std].trips += cell.trips || 0;
+            out[std].days += cell.days || 0;
+            out[std].score += cell.score || 0;
         });
         return out;
     }
@@ -245,10 +284,40 @@
         });
         rollUpOverviewFromDrill('japan');
         rollUpOverviewFromDrill('korea');
+        rollUpUnmatchedFromTree(byName, matchedNames);
 
         if (matchedNames.size) {
             console.warn('[여행 지도] 지도에서 찾을 수 없는 지역명(서버 heatmap):', Array.from(matchedNames));
         }
+    }
+
+    /**
+     * [v21 신규] 도형이 없어서 아직 아무 데도 못 얹힌 지역명을, 이름 트리로 상위 권역에 얹는다.
+     *
+     * <p>드릴다운 지도는 지금 경북 · 일본 9지방만 있는데, 지역 선택기(파티 개설 등)는
+     * region-tree.json 기준으로 전국 시/군을 다 고를 수 있다. 그래서 "여수"로 등록한 여행은
+     * 오버뷰의 "전남"과도, 드릴 데이터와도 이름이 안 맞아 지도에 아무 흔적도 안 남는다 -
+     * 세분화를 켜는 순간 히트맵이 오히려 더 비어 보이는 문제. 여기서 그 나머지를 트리가
+     * 알려주는 상위 권역에 더해준다.
+     *
+     * <p>여기 들어오는 이름은 <b>정의상 어디에도 매칭되지 않은 것들</b>(matchedNames 잔여)
+     * 이라서, 위 롤업들과 이중으로 더해질 일이 없다.
+     */
+    function rollUpUnmatchedFromTree(byName, matchedNames) {
+        Array.from(matchedNames).forEach(function (name) {
+            var info = PLACE_AREA[name];
+            if (!info || !DATA[info.country]) return;
+            var target = null;
+            DATA[info.country].overview.forEach(function (region) {
+                if (region.name === info.area) target = region;
+            });
+            if (!target) return;
+            var cell = byName[name];
+            target.trips = (target.trips || 0) + (cell.trips || 0);
+            target.days = (target.days || 0) + (cell.days || 0);
+            target.score = (target.score || 0) + (cell.score || 0);
+            matchedNames.delete(name);
+        });
     }
 
     function curSet() {
@@ -590,19 +659,29 @@
     if (btnJp) btnJp.addEventListener('click', function () { setCountry('japan'); });
     if (btnKr) btnKr.addEventListener('click', function () { setCountry('korea'); });
 
-    fetch(REGIONS_URL)
-        .then(function (res) {
-            if (!res.ok) throw new Error('regions.json HTTP ' + res.status);
+    function getJson(url, label) {
+        return fetch(url).then(function (res) {
+            if (!res.ok) throw new Error(label + ' HTTP ' + res.status);
             return res.json();
-        })
-        .then(function (json) {
-            DATA = json;
+        });
+    }
+
+    // 도형(regions.json)과 이름 트리(region-tree.json)를 같이 받는다. 트리는 별칭 · 상위
+    // 롤업 · 스냅 묶기에 모두 쓰이므로, 스냅 색인(buildSnapIndex)도 트리를 받은 뒤에 만든다.
+    Promise.all([
+        getJson(REGIONS_URL, 'regions.json'),
+        getJson(REGION_TREE_URL, 'region-tree.json')
+    ])
+        .then(function (results) {
+            DATA = results[0];
+            loadTree(results[1]);
+            buildSnapIndex();
             svg.setAttribute('viewBox', DATA.viewBox);
             mergeServerData();
             draw();
         })
         .catch(function (err) {
-            console.error('[여행 지도] 지역 경계 데이터를 불러오지 못했습니다:', err);
+            console.error('[여행 지도] 지역 데이터를 불러오지 못했습니다:', err);
             if (mapStat) mapStat.textContent = '지도를 불러오지 못했습니다.';
         });
 })();

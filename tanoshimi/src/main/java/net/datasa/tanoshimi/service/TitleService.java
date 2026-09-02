@@ -41,8 +41,12 @@ import org.springframework.transaction.annotation.Transactional;
  * (자세한 배경은 그쪽 클래스 주석 참고). 시/군 단위 태그(예: "경주")는 {@link #normalizeRegion}
  * 이 상위 시/도("경북")로 접어서 합산한다 - 이 클래스의 "지역" 판정(8도 정복자, 광역시 특색
  * 등)은 전부 시/도·현 단위 전제라서다. 지도 드릴다운(mypage-heatmap.js)은 반대로 시/군
- * 단위를 그대로 보여줘야 해서 접지 않는다 - 같은 원본 데이터를 서로 다른 두 단위로 쓰는
- * 셈이니, 시/군 목록을 하나 늘리면 여기 {@code KOREA_CITY_TO_PROVINCE} 도 같이 늘려야 한다.
+ * 단위를 그대로 보여줘야 해서 접지 않는다 - 같은 원본 데이터를 서로 다른 두 단위로 쓰는 셈이다.
+ *
+ * <p><b>v21 변경 - 지역 이름 표를 전부 {@link RegionCatalog} 로 옮겼다.</b> 예전에는 별칭표와
+ * 시/군→시/도 표(경북만)를 이 클래스가 직접 들고 있어서, 다른 시/도의 시/군 이름이 들어오기
+ * 시작하면 여기 표를 같이 늘려주지 않는 한 그 지역 판정이 조용히 새 나갔다. 이제 이름 계층은
+ * region-tree.json 한 곳에만 있고 이 클래스는 물어보기만 한다.
  *
  * <p><b>판정 근거</b>는 완료된 파티(PartyStatus.completed) + 개별 여행이다. TravelHeatmapService
  * 와 같은 근거를 쓰되, 지도는 "지수"로 색을 칠하고 칭호는 "횟수"로 판정한다.
@@ -92,19 +96,22 @@ public class TitleService {
             Map.entry("R_JEJU", "제주"));
 
     /**
-     * 일본 권역 칭호: 코드 -> 그 권역에 속한 도도부현.
+     * 일본 권역 칭호: 코드 -> 권역 이름.
      *
      * <p>parties.region 에는 '오사카', '홋카이도' 처럼 현 단위 이름이 들어오는데 칭호는
-     * 권역 단위라, 여기서 현을 권역으로 묶는다. 화면(mypage-heatmap.js)도 같은 계층을
-     * 쓰지만 그쪽은 regions.json 의 지오메트리 기준이라 표가 따로 있다 - 지역 매핑을
-     * 서버 한 곳으로 모으는 건 Phase 2 과제.
+     * 권역 단위라, 그 현이 어느 권역에 속하는지 알아야 한다.
+     *
+     * <p><b>[v21 변경]</b> 예전에는 권역별 현 목록을 여기 직접 적어뒀다(regions.json ·
+     * mypage-heatmap.js 와 같은 내용의 세 번째 사본이었다). 이제 소속은
+     * {@link RegionCatalog} 에게 묻고, 이 표에는 "어떤 칭호가 어떤 권역인지"라는 칭호
+     * 도메인 지식만 남긴다.
      */
-    private static final Map<String, Set<String>> JAPAN_AREA_TITLES = Map.of(
-            "J_KANSAI", Set.of("미에", "시가", "교토", "오사카", "효고", "나라", "와카야마"),
-            "J_KANTO", Set.of("이바라키", "도치기", "군마", "사이타마", "지바", "도쿄", "가나가와"),
-            "J_KYUSHU", Set.of("후쿠오카", "사가", "나가사키", "구마모토", "오이타", "미야자키", "가고시마"),
-            "J_HOKKAIDO", Set.of("홋카이도"),
-            "J_OKINAWA", Set.of("오키나와"));
+    private static final Map<String, String> JAPAN_AREA_TITLES = Map.of(
+            "J_KANSAI", "간사이",
+            "J_KANTO", "간토",
+            "J_KYUSHU", "규슈",
+            "J_HOKKAIDO", "홋카이도",
+            "J_OKINAWA", "오키나와");
 
     /**
      * '8도 정복자'(R_ALL8) 판정용 국내 8개 권역.
@@ -133,41 +140,11 @@ public class TitleService {
             "여행 횟수", "국내 지역 다양성", "광역시 특색", "일본 권역",
             "매너온도", "파티 활동", "여행 거리", "액티비티");
 
-    /**
-     * parties.region 표기 흔들림 흡수. mypage-titles.js / mypage-heatmap.js 의
-     * NAME_ALIASES 와 같은 표를 유지해야 한다.
-     */
-    private static final Map<String, String> REGION_ALIASES = Map.ofEntries(
-            Map.entry("서울특별시", "서울"), Map.entry("경기도", "경기"), Map.entry("인천광역시", "인천"),
-            Map.entry("강원특별자치도", "강원"), Map.entry("강원도", "강원"),
-            Map.entry("충청북도", "충북"), Map.entry("충청남도", "충남"), Map.entry("세종특별자치시", "세종"),
-            Map.entry("전라북도", "전북"), Map.entry("전북특별자치도", "전북"), Map.entry("전라남도", "전남"),
-            Map.entry("경상북도", "경북"), Map.entry("경상남도", "경남"),
-            Map.entry("대구광역시", "대구"), Map.entry("부산광역시", "부산"), Map.entry("광주광역시", "광주"),
-            Map.entry("대전광역시", "대전"), Map.entry("울산광역시", "울산"),
-            Map.entry("제주특별자치도", "제주"), Map.entry("제주도", "제주"));
-
-    /**
-     * 시/군/구 -> 소속 시/도. v18에서 개별 여행(스냅 지역 태그) 판정이 생기면서, "경주"·"포항"
-     * 처럼 시/군 단위 태그도 들어올 수 있게 됐다(마이페이지 지도가 경북부터 시/군 드릴다운을
-     * 지원하기 시작했다 - regions.json 참고). 이 클래스의 지역 판정은 전부 시/도 단위라서
-     * 여기로 되돌린다. 아직 경북만 드릴다운이 있어 경북만 채워뒀다 - 다른 시/도도 드릴다운이
-     * 생기면 이 표에 추가해야 그 시/도의 "8도 정복자"·"지도 수집가" 등 판정이 안 새 나간다.
-     */
-    private static final Map<String, String> KOREA_CITY_TO_PROVINCE = Map.ofEntries(
-            Map.entry("포항", "경북"), Map.entry("경주", "경북"), Map.entry("김천", "경북"),
-            Map.entry("안동", "경북"), Map.entry("구미", "경북"), Map.entry("영주", "경북"),
-            Map.entry("영천", "경북"), Map.entry("상주", "경북"), Map.entry("문경", "경북"),
-            Map.entry("경산", "경북"), Map.entry("군위", "경북"), Map.entry("의성", "경북"),
-            Map.entry("청송", "경북"), Map.entry("영양", "경북"), Map.entry("영덕", "경북"),
-            Map.entry("청도", "경북"), Map.entry("고령", "경북"), Map.entry("성주", "경북"),
-            Map.entry("칠곡", "경북"), Map.entry("예천", "경북"), Map.entry("봉화", "경북"),
-            Map.entry("울진", "경북"), Map.entry("울릉", "경북"), Map.entry("독도", "경북"));
-
     private final TitleRepository titleRepository;
     private final UserTitleRepository userTitleRepository;
     private final PartyMemberRepository partyMemberRepository;
     private final PartyRepository partyRepository;
+    private final RegionCatalog regionCatalog;
 
     /**
      * 완료한 여행·파티 활동·매너온도로 칭호를 확인해 부여한다.
@@ -214,11 +191,14 @@ public class TitleService {
             }
         });
 
-        // 일본 권역 - 권역에 속한 현들의 방문 횟수 합계로 판정
-        JAPAN_AREA_TITLES.forEach((code, prefectures) -> {
+        // 일본 권역 - 그 권역에 속한 현들의 방문 횟수 합계로 판정.
+        // 어떤 현이 어느 권역인지는 RegionCatalog(region-tree.json)가 단독으로 안다.
+        JAPAN_AREA_TITLES.forEach((code, areaName) -> {
             int areaTrips = 0;
-            for (String prefecture : prefectures) {
-                areaTrips += tripsByRegion.getOrDefault(prefecture, 0);
+            for (Map.Entry<String, Integer> visited : tripsByRegion.entrySet()) {
+                if (areaName.equals(regionCatalog.areaOf(visited.getKey()))) {
+                    areaTrips += visited.getValue();
+                }
             }
             if (areaTrips >= REGION_MASTER_TRIPS) {
                 earned.add(code);
@@ -294,24 +274,16 @@ public class TitleService {
     }
 
     /**
-     * parties.region / posts.region 표기를 지도/칭호가 쓰는 표준 지역명(시/도·현 단위)으로
-     * 맞춘다. 긴 표기(예: "경상북도")는 짧은 표기로, 시/군 단위(예: "경주")는 소속 시/도로
-     * 접는다.
+     * my_trips.destination 표기를 칭호가 쓰는 판정 단위로 맞춘다 - 한국은 시/도, 일본은
+     * 도도부현. 긴 표기("경상북도")는 짧게, 국내 시/군("여수")은 소속 시/도("전남")로 접는다.
+     *
+     * <p><b>[v21 변경]</b> 별칭표와 시/군→시/도 표를 이 클래스가 직접 들고 있었는데,
+     * region-tree.json 을 단일 출처로 삼는 {@link RegionCatalog#toTitleRegion} 으로 옮겼다.
+     * 예전에는 경북 시/군만 표에 있어서, 다른 시/도의 드릴다운이 생길 때마다 여기 표를
+     * 같이 늘려주지 않으면 "8도 정복자"·"지도 수집가" 판정이 조용히 새 나갔다.
      */
-    private static String normalizeRegion(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        String trimmed = raw.trim();
-        String alias = REGION_ALIASES.get(trimmed);
-        if (alias != null) {
-            return alias;
-        }
-        String province = KOREA_CITY_TO_PROVINCE.get(trimmed);
-        if (province != null) {
-            return province;
-        }
-        return trimmed;
+    private String normalizeRegion(String raw) {
+        return regionCatalog.toTitleRegion(raw);
     }
 
     /** 마이페이지 뱃지에 보여줄 "가장 최근에 딴 칭호" - 없으면 null. */
