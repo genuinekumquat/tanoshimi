@@ -6,6 +6,10 @@ public enum ErrorCode {
     // 회원/인증
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     DUPLICATE_PHONE(HttpStatus.CONFLICT, "이미 가입된 휴대폰 번호입니다."),
+    // [vanity-url 신규] 프로필 URL(/{username}) 아이디
+    DUPLICATE_USERNAME(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다."),
+    RESERVED_USERNAME(HttpStatus.BAD_REQUEST, "사용할 수 없는 아이디입니다."),
+    INVALID_USERNAME_FORMAT(HttpStatus.BAD_REQUEST, "아이디는 영문 소문자로 시작하는 3~20자의 소문자/숫자/밑줄만 쓸 수 있어요."),
     UNDERAGE(HttpStatus.BAD_REQUEST, "만 14세 이상만 가입할 수 있습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."),
 

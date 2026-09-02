@@ -13,6 +13,10 @@ import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.repository.UserRepository;
+import jakarta.servlet.http.HttpSession;
+import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
+import net.datasa.tanoshimi.repository.UserBlockRepository;
+import net.datasa.tanoshimi.service.UserNotificationSettingsService;
 import net.datasa.tanoshimi.service.FileStorageService;
 import net.datasa.tanoshimi.service.FollowService;
 import net.datasa.tanoshimi.service.MyTripService;
@@ -65,6 +69,8 @@ public class MyPageController {
     private final TravelHeatmapService travelHeatmapService;
     private final MyTripService myTripService;
     private final net.datasa.tanoshimi.service.BlockService blockService;
+    private final UserBlockRepository userBlockRepository;
+    private final UserNotificationSettingsService userNotificationSettingsService;
 
     @GetMapping("/mypage")
     public String myPage(@AuthenticationPrincipal CustomUserDetails principal, Model model) {
@@ -208,6 +214,53 @@ public class MyPageController {
         return "mypage/snaps";
     }
 
+    /**
+     * [account-settings 신규] 계정 관리 - 왼쪽 세로 탭 5개(회원정보조회/소셜 연동/알림 설정/
+     * 계정 공개범위/차단 계정 관리)를 한 페이지에서 JS로 전환하는 단일 라우트.
+     * 실제 저장(PUT)은 AccountSettingsController(/api/mypage/account/*)가 맡는다 - 이 컨트롤러가
+     * 이미 여러 책임(공개 프로필/여행/스냅/이미지업로드)을 지고 있어 새 뮤테이션 API를
+     * 여기 더 얹지 않고 분리했다(투자 판단 - 화면 로딩(GET)만 기존 컨트롤러 관례를 따른다).
+     */
+    @GetMapping("/mypage/account")
+    public String accountSettings(@AuthenticationPrincipal CustomUserDetails principal, Model model) {
+        UserEntity me = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        model.addAttribute("me", me);
+        model.addAttribute("notificationSettings", userNotificationSettingsService.current(me));
+        model.addAttribute("blockedUsers", userBlockRepository.findBlockedUsersByBlocker(me));
+
+        return "mypage/account";
+    }
+
+    /**
+     * [social-link 신규] "구글로 연동하기" 버튼이 호출하는 시작점 - 리다이렉트만 한다.
+     *
+     * <p>여기서 하는 건 딱 하나: 지금 로그인된 사용자의 id 를 세션에 심어두고
+     * /oauth2/authorization/{provider} 로 보내는 것뿐이다. 이 id 는 요청 파라미터나 바디로
+     * 받지 않는다 - @AuthenticationPrincipal 로만 얻는다(즉 "지금 이 세션으로 실제 로그인된
+     * 사람" 외에는 절대 값을 넣을 수 없다). 실제 연동 처리는 콜백이 돌아왔을 때
+     * CustomOAuth2UserService.loadUser() 가 이 세션 값을 읽어서 한다.
+     */
+    @GetMapping("/mypage/account/social/link/{provider}")
+    public String startSocialLink(@PathVariable String provider,
+                                  @AuthenticationPrincipal CustomUserDetails principal,
+                                  HttpSession session) {
+        if (!"google".equals(provider) && !"naver".equals(provider)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "지원하지 않는 소셜 로그인입니다.");
+        }
+        UserEntity me = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (me.isSocialAccount()) {
+            // 화면(계정 관리 > 소셜 연동 탭)은 이미 연동된 계정에는 이 버튼 자체를 안 보여주지만,
+            // URL을 직접 두드리는 경우까지 막기 위한 서버측 방어.
+            return "redirect:/mypage/account?tab=social&linkError=already_linked";
+        }
+
+        session.setAttribute(CustomOAuth2UserService.LINK_TARGET_SESSION_KEY, principal.getId());
+        return "redirect:/oauth2/authorization/" + provider;
+    }
+
     @PostMapping("/api/mypage/profile-image")
     @ResponseBody
     @Transactional
@@ -256,14 +309,44 @@ public class MyPageController {
     @GetMapping("/users/{id}")
     public String publicProfile(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
         UserEntity target = userRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return renderProfile(target, principal, model);
+    }
+
+    /**
+     * [vanity-url 신규] "/users/{id}" 와 "/{username}"(비소유자 조회) 이 완전히 같은 화면을
+     * 그리므로 공통 로직을 여기로 뺐다. 패키지-프라이빗으로 둔 이유: 같은
+     * net.datasa.tanoshimi.controller 패키지의 ProfileController(/{username} 담당)가
+     * MyPageController 빈을 주입받아 바로 호출한다 - 서비스 레이어로 더 내리면 Model 을
+     * 서비스가 만지게 되어(웹 계층 관심사가 새어나감) 이 프로젝트의 다른 서비스들과
+     * 결이 안 맞는다고 판단했다.
+     */
+    String renderProfile(UserEntity target, CustomUserDetails principal, Model model) {
+        // [account-settings 신규 - v2] 계정 공개범위(is_private) 가드. 처음에는 리다이렉트로
+        // 막았는데, 요청에 따라 같은 화면(/users/{id})에 그대로 머물되 내용만 블러+자물쇠로
+        // 가리는 방식으로 바꿨다 - 본인/관리자는 예외.
+        //
+        // "블러 처리"는 실제 데이터를 CSS로 가리는 게 아니라, 애초에 진짜 데이터를 템플릿에
+        // 넘기지 않는 방식으로 한다: 팔로워/팔로잉 수, isFollowing/isBlocked 는 이 분기에서
+        // 아예 조회(followService/blockService 호출)하지 않고, profileUser.intro 등도 템플릿이
+        // 참조하지 않는다(마크업만 봐도 스켈레톤 placeholder 라 확인 가능 - public-profile.html
+        // 참고). profileUser 자체(이름)는 <head> 타이틀 표시에만 쓴다 - 표시 이름은 이 앱에서
+        // "비공개" 가 감추는 대상(자기소개/팔로워수/차단여부 등)이 아니라고 판단했다.
+        boolean isOwner = principal != null && principal.getId().equals(target.getId());
+        boolean isAdminViewer = principal != null && principal.isAdmin();
+        boolean privateAndNotOwner = target.isPrivate() && !isOwner && !isAdminViewer;
+
         model.addAttribute("profileUser", target);
-        model.addAttribute("followerCount", followService.followerCount(target));
-        model.addAttribute("followingCount", followService.followingCount(target));
-        if (principal != null) {
-            UserEntity me = userRepository.findById(principal.getId()).orElse(null);
-            model.addAttribute("isFollowing", me != null && followService.isFollowing(me, target));
-            model.addAttribute("isSelf", me != null && me.getId().equals(target.getId()));
-            model.addAttribute("isBlocked", me != null && blockService.isBlockedByMe(me, target));
+        model.addAttribute("privateAndNotOwner", privateAndNotOwner);
+
+        if (!privateAndNotOwner) {
+            model.addAttribute("followerCount", followService.followerCount(target));
+            model.addAttribute("followingCount", followService.followingCount(target));
+            if (principal != null) {
+                UserEntity me = userRepository.findById(principal.getId()).orElse(null);
+                model.addAttribute("isFollowing", me != null && followService.isFollowing(me, target));
+                model.addAttribute("isSelf", me != null && me.getId().equals(target.getId()));
+                model.addAttribute("isBlocked", me != null && blockService.isBlockedByMe(me, target));
+            }
         }
         return "mypage/public-profile";
     }

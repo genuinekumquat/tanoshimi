@@ -1,5 +1,6 @@
 (function () {
     const emailInput = document.getElementById('email');
+    const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
     const passwordConfirmInput = document.getElementById('passwordConfirm');
     const nameInput = document.getElementById('name');
@@ -15,6 +16,7 @@
     const formMsg = document.getElementById('msg-form');
 
     let emailChecked = false;
+    let usernameChecked = false;
     let phoneVerified = false;
     let timerId = null;
 
@@ -40,7 +42,7 @@
     }
 
     function refreshSubmit() {
-        signupBtn.disabled = !(emailChecked && validPassword(passwordInput.value)
+        signupBtn.disabled = !(emailChecked && usernameChecked && validPassword(passwordInput.value)
             && passwordInput.value === passwordConfirmInput.value
             && nameInput.value.trim().length >= 2
             && genderSelect.value && nationalitySelect.value && birthDateInput.value
@@ -53,6 +55,25 @@
         const result = await window.api.get('/api/auth/email-check?email=' + encodeURIComponent(email));
         emailChecked = !!result.data;
         setMsg('msg-email', result.message, emailChecked);
+        refreshSubmit();
+    });
+
+    usernameInput.addEventListener('input', () => {
+        usernameInput.value = usernameInput.value.toLowerCase();
+        usernameChecked = false;
+        refreshSubmit();
+    });
+    document.getElementById('btn-username-check').addEventListener('click', async () => {
+        const username = usernameInput.value.trim().toLowerCase();
+        if (!/^[a-z][a-z0-9_]{2,19}$/.test(username)) {
+            usernameChecked = false;
+            setMsg('msg-username', '영문 소문자로 시작하는 3~20자의 소문자/숫자/밑줄만 쓸 수 있어요.', false);
+            refreshSubmit();
+            return;
+        }
+        const result = await window.api.get('/api/auth/username-check?username=' + encodeURIComponent(username));
+        usernameChecked = !!result.data;
+        setMsg('msg-username', result.message, usernameChecked);
         refreshSubmit();
     });
 
@@ -112,6 +133,7 @@
         signupBtn.disabled = true;
         const result = await window.api.post('/api/auth/signup', {
             email: emailInput.value.trim().toLowerCase(),
+            username: usernameInput.value.trim().toLowerCase(),
             password: passwordInput.value,
             passwordConfirm: passwordConfirmInput.value,
             name: nameInput.value.trim(),

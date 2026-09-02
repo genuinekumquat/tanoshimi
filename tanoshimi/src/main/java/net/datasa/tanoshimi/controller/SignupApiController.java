@@ -32,6 +32,14 @@ public class SignupApiController {
         return ApiResponse.ok(available ? "사용할 수 있는 이메일입니다." : "이미 사용 중인 이메일입니다.", available);
     }
 
+    /** [vanity-url 신규] 회원가입 화면의 아이디 중복확인 - UserService.isUsernameAvailable 이
+     * 형식/예약어/중복을 한 번에 본다. */
+    @GetMapping("/username-check")
+    public ApiResponse<Boolean> checkUsername(@RequestParam String username) {
+        boolean available = userService.isUsernameAvailable(username);
+        return ApiResponse.ok(available ? "사용할 수 있는 아이디입니다." : "사용할 수 없는 아이디입니다.", available);
+    }
+
     @PostMapping("/signup")
     public ApiResponse<Void> signup(@Valid @RequestBody SignupRequest request) {
         userService.signup(request);

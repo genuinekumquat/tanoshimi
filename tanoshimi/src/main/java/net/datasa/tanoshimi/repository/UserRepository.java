@@ -9,6 +9,8 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByEmail(String email);
     Optional<UserEntity> findBySocialProviderAndSocialId(String socialProvider, String socialId);
     boolean existsByEmail(String email);
+    boolean existsByUsername(String username);
+    Optional<UserEntity> findByUsername(String username);
     boolean existsByPhone(String phone);
     org.springframework.data.domain.Page<UserEntity> findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(String name, String email, org.springframework.data.domain.Pageable pageable);
 }
