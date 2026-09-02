@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:replace="~{fragments/layout :: head('계정 관리 | 타노시미')}"></th:block>
+  <style>
+    :root{
+      --parchment:#f3e8cf; --parchment-deep:#e8dab3; --card:#fffcf4;
+      --forest:#4b6b4a; --forest-deep:#33472f; --sash:#e0793f; --sash-deep:#b85c2b;
+      --gold:#d9a441; --sky:#8fb9c9; --ink:#3a2e22; --ink-soft:#6b5c46; --rope:#c9b58b; --line:#d8c69a;
+      --danger:#c0463a;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background:radial-gradient(ellipse at top left, rgba(255,255,255,.35), transparent 55%), var(--parchment);
+      color:var(--ink); font-family:'Gowun Dodum','Apple SD Gothic Neo',sans-serif; line-height:1.6;
+    }
+    h1,h2,h3{ font-family:'Jua','Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
+    a{ color:var(--forest-deep); text-decoration:none; }
+    .wrap{ max-width:980px; margin:0 auto; padding:26px 22px 90px; }
+    .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; }
+    .btn{
+      font-family:'Gowun Dodum',sans-serif; font-weight:700; font-size:12.5px; border:none; border-radius:9px;
+      padding:8px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    }
+    .btn:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+    .btn-forest{ background:var(--forest); color:#fff; box-shadow:0 3px 0 var(--forest-deep); }
+    .btn-forest:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--forest-deep); }
+    .btn-forest:disabled{ opacity:.55; cursor:not-allowed; }
+    .btn-ghost{ background:var(--card); color:var(--forest-deep); border:1.5px solid var(--line); }
+    .btn-ghost:hover{ border-color:var(--sash); color:var(--sash-deep); }
+    .btn-sash{ background:var(--sash); color:#fff; box-shadow:0 3px 0 var(--sash-deep); }
+    .btn-sash:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--sash-deep); }
+    .btn-danger{ background:#fff; color:var(--danger); border:1.5px solid var(--danger); }
+    .btn-danger:hover{ background:rgba(192,70,58,.08); }
+
+    .tm-head{ display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+
+    /* ===================== 좌측 세로 탭 레이아웃 ===================== */
+    .acct-layout{ display:grid; grid-template-columns:200px 1fr; gap:18px; align-items:start; }
+    @media (max-width:700px){ .acct-layout{ grid-template-columns:1fr; } }
+    .acct-tabs{ display:flex; flex-direction:column; gap:4px; padding:10px; position:sticky; top:16px; }
+    .acct-tabs button{
+      text-align:left; background:none; border:none; border-radius:10px; padding:11px 13px;
+      font-family:'Gowun Dodum',sans-serif; font-size:13.5px; font-weight:700; color:var(--ink-soft);
+      cursor:pointer; transition:background .15s, color .15s;
+    }
+    .acct-tabs button:hover{ background:rgba(75,107,74,.08); color:var(--forest-deep); }
+    .acct-tabs button.active{ background:var(--forest); color:#fff; }
+    .acct-panel{ padding:20px 22px; min-height:320px; }
+    .acct-panel[hidden]{ display:none; }
+    .acct-panel h2{ font-size:17px; margin-bottom:4px; }
+    .acct-panel .p-sub{ font-size:12.5px; color:var(--ink-soft); margin-bottom:18px; }
+
+    .field-row{ display:flex; flex-direction:column; gap:5px; margin-bottom:14px; max-width:420px; }
+    .field-row label{ font-size:12px; font-weight:700; color:var(--ink-soft); }
+    .field-row input, .field-row select{
+      padding:9px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px;
+      background:#fff; color:var(--ink);
+    }
+    .field-row input[readonly], .field-row input:disabled, .field-row select:disabled{
+      background:rgba(107,92,70,.06); color:var(--ink-soft); cursor:not-allowed;
+    }
+    .field-row .hint{ font-size:11px; color:var(--ink-soft); }
+
+    /* 토글 스위치 */
+    .toggle-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 4px; border-bottom:1px solid var(--line); max-width:460px; }
+    .toggle-row:last-of-type{ border-bottom:none; }
+    .toggle-row .t-label{ font-size:13px; font-weight:700; color:var(--ink); }
+    .toggle-row .t-desc{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+    .switch{ position:relative; display:inline-block; width:42px; height:24px; flex:none; }
+    .switch input{ opacity:0; width:0; height:0; }
+    .switch .slider{
+      position:absolute; inset:0; background:#d8c69a; border-radius:999px; cursor:pointer; transition:.2s;
+    }
+    .switch .slider::before{
+      content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s;
+      box-shadow:0 1px 2px rgba(0,0,0,.25);
+    }
+    .switch input:checked + .slider{ background:var(--forest); }
+    .switch input:checked + .slider::before{ transform:translateX(18px); }
+    .switch input:focus-visible + .slider{ outline:3px solid var(--gold); outline-offset:2px; }
+
+    .divider{ border:none; border-top:1px dashed var(--line); margin:18px 0; }
+
+    /* 소셜 연동 카드 */
+    .social-card{ display:flex; align-items:center; gap:14px; padding:16px; border:1px solid var(--line); border-radius:12px; background:var(--parchment); max-width:460px; }
+    .social-badge{ width:44px; height:44px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; flex:none; border:1px solid var(--line); }
+    .social-card .s-title{ font-weight:700; font-size:14px; }
+    .social-card .s-sub{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+
+    /* 차단 목록 */
+    .block-list{ display:flex; flex-direction:column; gap:8px; max-width:520px; }
+    .block-row{ display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--parchment); }
+    .block-row .b-avatar{ width:36px; height:36px; border-radius:50%; background:var(--forest); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; flex:none; overflow:hidden; }
+    .block-row .b-avatar img{ width:100%; height:100%; object-fit:cover; }
+    .block-row .b-name{ flex:1; font-size:13px; font-weight:700; }
+
+    /* ===================== 모달 공용 ===================== */
+    .modal{ position:fixed; inset:0; background:rgba(30,22,14,.42); display:none; align-items:center; justify-content:center; z-index:80; padding:20px; }
+    .modal.show{ display:flex; }
+    .modal-panel{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; width:min(420px,100%); box-shadow:0 20px 50px rgba(30,22,14,.3); }
+    .modal-panel h3{ font-family:'Jua',sans-serif; color:var(--forest-deep); margin:0 0 4px; font-size:18px; }
+    .modal-panel .m-sub{ font-size:12.5px; color:var(--ink-soft); margin-bottom:16px; }
+    .m-actions{ display:flex; gap:9px; justify-content:flex-end; margin-top:16px; }
+
+    .toast{ position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+      background:var(--forest-deep); color:#fff; font-size:13px; padding:10px 18px; border-radius:999px;
+      box-shadow:0 6px 16px rgba(59,44,20,.3); opacity:0; pointer-events:none; transition:.25s; z-index:90; }
+
+    @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
+  </style>
+</head>
+<body>
+
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="wrap">
+
+  <div class="tm-head">
+    <h1 style="font-size:22px;">계정 관리</h1>
+  </div>
+
+  <!-- 서버 값은 data-* 로 감춰서 넘기고, mypage-account.js 가 읽어서 폼을 채운다. -->
+  <div id="account-data" hidden
+       th:attr="data-name=${me.name},data-phone=${me.phone},data-gender=${me.gender},
+                data-birth=${me.birthDate},data-nationality=${me.nationality},data-email=${me.email},
+                data-social=${me.socialAccount},data-provider=${me.socialProvider},
+                data-private=${me.private},
+                data-push=${notificationSettings.pushEnabled},data-email-noti=${notificationSettings.emailEnabled},
+                data-focus=${notificationSettings.focusModeEnabled},
+                data-n-follower=${notificationSettings.notifyNewFollower},
+                data-n-comment=${notificationSettings.notifyNewComment},
+                data-n-party-app=${notificationSettings.notifyPartyApplication},
+                data-n-party-approved=${notificationSettings.notifyPartyApproved},
+                data-n-party-rejected=${notificationSettings.notifyPartyRejected},
+                data-n-party-kicked=${notificationSettings.notifyPartyKicked},
+                data-n-trip-reminder=${notificationSettings.notifyTripReminder}"></div>
+
+  <section class="card acct-layout">
+    <nav class="acct-tabs" role="tablist" aria-label="계정 관리 탭">
+      <button type="button" class="active" data-tab="info">회원정보조회</button>
+      <button type="button" data-tab="social">소셜 연동</button>
+      <button type="button" data-tab="notify">알림 설정</button>
+      <button type="button" data-tab="privacy">계정 공개범위</button>
+      <button type="button" data-tab="blocks">차단 계정 관리</button>
+    </nav>
+
+    <div>
+      <!-- 1. 회원정보조회 -->
+      <section class="acct-panel" id="panel-info" data-panel="info">
+        <h2>회원정보조회</h2>
+        <p class="p-sub">이메일은 로그인 ID라 이 화면에서 바꿀 수 없어요. 나머지 정보를 바꾸려면 "수정"을 눌러 비밀번호를 확인해 주세요.</p>
+
+        <div class="field-row">
+          <label>이메일</label>
+          <input type="text" id="f-email" readonly>
+        </div>
+        <div class="field-row">
+          <label>이름</label>
+          <input type="text" id="f-name" readonly>
+        </div>
+        <div class="field-row">
+          <label>휴대폰 번호</label>
+          <input type="text" id="f-phone" readonly>
+        </div>
+        <div class="field-row">
+          <label>성별</label>
+          <select id="f-gender" disabled>
+            <option value="male">남자</option>
+            <option value="female">여자</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label>생년월일</label>
+          <input type="date" id="f-birth" readonly>
+        </div>
+        <div class="field-row">
+          <label>국적</label>
+          <select id="f-nationality" disabled>
+            <option value="KR">한국</option>
+            <option value="JP">일본</option>
+          </select>
+        </div>
+
+        <button type="button" id="btn-edit-info" class="btn btn-forest">수정</button>
+        <div style="display:none; gap:8px; margin-top:6px;" id="edit-actions">
+          <button type="button" id="btn-save-info" class="btn btn-sash">저장</button>
+          <button type="button" id="btn-cancel-info" class="btn btn-ghost">취소</button>
+        </div>
+      </section>
+
+      <!-- 2. 소셜 연동 -->
+      <section class="acct-panel" id="panel-social" data-panel="social" hidden>
+        <h2>소셜 연동</h2>
+        <p class="p-sub">현재 로그인 방식이에요.</p>
+        <div class="social-card">
+          <div class="social-badge" id="social-icon">🔒</div>
+          <div>
+            <div class="s-title" id="social-title">일반 로그인 계정</div>
+            <div class="s-sub" id="social-sub">이메일과 비밀번호로 로그인해요.</div>
+          </div>
+        </div>
+
+        <!-- [social-link] 로컬 계정이면 연동 버튼(설정된 provider만 - google/naver, line 제외)을
+             보여준다. 클릭하면 mypage-account.js 가 먼저 confirm() 으로 "한 번 연동하면 해제할 수
+             없다"는 걸 확인받은 뒤에만 /mypage/account/social/link/{provider} 로 이동한다.
+             이미 연동된 계정은 이 카드(위)만 보여주고 끝 - 해제 기능 자체가 없다(영구 연동,
+             코디네이터 지시). -->
+        <div id="social-link-actions" style="display:flex; gap:8px; margin-top:14px;"></div>
+      </section>
+
+      <!-- 3. 알림 설정 -->
+      <section class="acct-panel" id="panel-notify" data-panel="notify" hidden>
+        <h2>알림 설정</h2>
+        <p class="p-sub">푸시/이메일 발송 인프라는 아직 없어서, 지금은 설정값만 저장돼요.</p>
+
+        <div class="toggle-row">
+          <div><div class="t-label">푸시 알림</div></div>
+          <label class="switch"><input type="checkbox" id="n-push"><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div><div class="t-label">이메일 알림</div></div>
+          <label class="switch"><input type="checkbox" id="n-email"><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div><div class="t-label">방해 금지(야간/집중) 모드</div><div class="t-desc">켜두면 알림을 받지 않아요.</div></div>
+          <label class="switch"><input type="checkbox" id="n-focus"><span class="slider"></span></label>
+        </div>
+
+        <hr class="divider">
+        <p class="p-sub" style="margin-bottom:8px;">받을 알림 종류</p>
+
+        <div class="toggle-row"><div class="t-label">새 팔로워</div>
+          <label class="switch"><input type="checkbox" id="n-follower"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div class="t-label">내 글에 댓글</div>
+          <label class="switch"><input type="checkbox" id="n-comment"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div class="t-label">파티 신청</div>
+          <label class="switch"><input type="checkbox" id="n-party-app"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div class="t-label">파티 신청 승인</div>
+          <label class="switch"><input type="checkbox" id="n-party-approved"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div class="t-label">파티 신청 거절</div>
+          <label class="switch"><input type="checkbox" id="n-party-rejected"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div class="t-label">파티 강퇴</div>
+          <label class="switch"><input type="checkbox" id="n-party-kicked"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div class="t-label">여행 하루 전 알림</div>
+          <label class="switch"><input type="checkbox" id="n-trip-reminder"><span class="slider"></span></label></div>
+
+        <button type="button" id="btn-save-notify" class="btn btn-forest" style="margin-top:18px;">저장</button>
+      </section>
+
+      <!-- 4. 계정 공개범위 -->
+      <section class="acct-panel" id="panel-privacy" data-panel="privacy" hidden>
+        <h2>계정 공개범위</h2>
+        <p class="p-sub">비공개로 설정하면 다른 사용자는 내 프로필 페이지(/users/내 번호)를 볼 수 없어요. 내가 내 마이페이지를 보는 데는 영향이 없어요.</p>
+
+        <div class="field-row" style="max-width:460px;">
+          <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:var(--ink); cursor:pointer;">
+            <input type="radio" name="privacy" id="privacy-public" value="false"> 공개 - 누구나 프로필을 볼 수 있어요
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:var(--ink); cursor:pointer;">
+            <input type="radio" name="privacy" id="privacy-private" value="true"> 비공개 - 다른 사람은 프로필을 볼 수 없어요
+          </label>
+        </div>
+
+        <button type="button" id="btn-save-privacy" class="btn btn-forest">저장</button>
+      </section>
+
+      <!-- 5. 차단 계정 관리 -->
+      <section class="acct-panel" id="panel-blocks" data-panel="blocks" hidden>
+        <h2>차단 계정 관리</h2>
+        <p class="p-sub">차단을 해제하면 서로의 글/댓글이 다시 보이고 메시지를 주고받을 수 있어요.</p>
+
+        <div class="block-list" id="block-list">
+          <div class="block-row" th:each="u : ${blockedUsers}" th:attr="data-user-id=${u.id}">
+            <div class="b-avatar">
+              <img th:if="${u.profileImageUrl}" th:src="@{${u.profileImageUrl}}" onerror="this.style.display='none';">
+              <span th:if="${u.profileImageUrl == null}" th:text="${#strings.substring(u.name,0,1)}">유</span>
+            </div>
+            <div class="b-name" th:text="${u.name}">이름</div>
+            <button type="button" class="btn btn-danger btn-unblock" th:attr="data-target-id=${u.id}">차단 해제</button>
+          </div>
+        </div>
+        <p id="block-empty" style="color:var(--ink-soft); font-size:13px;" th:if="${#lists.isEmpty(blockedUsers)}">
+          차단한 계정이 없습니다.
+        </p>
+      </section>
+    </div>
+  </section>
+
+</main>
+
+<!-- 비밀번호 확인 모달 (회원정보조회 "수정") -->
+<div class="modal" id="pw-modal">
+  <div class="modal-panel">
+    <h3>비밀번호 확인</h3>
+    <p class="m-sub">개인정보를 수정하려면 현재 비밀번호를 입력해 주세요.</p>
+    <div class="field-row">
+      <input type="password" id="pw-input" placeholder="현재 비밀번호" autocomplete="current-password">
+    </div>
+    <p id="pw-error" style="color:var(--danger); font-size:12px; display:none;">비밀번호가 일치하지 않습니다.</p>
+    <div class="m-actions">
+      <button type="button" class="btn btn-ghost" id="pw-cancel">취소</button>
+      <button type="button" class="btn btn-forest" id="pw-confirm">확인</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script th:src="@{/js/csrf.js}"></script>
+<script th:src="@{/js/mypage-account.js}"></script>
+
+</body>
+</html>

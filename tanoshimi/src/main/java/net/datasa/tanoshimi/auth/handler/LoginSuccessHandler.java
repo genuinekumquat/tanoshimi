@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.auth.LoginAttemptService;
+import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
 import net.datasa.tanoshimi.domain.entity.PreferredLang;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.repository.UserRepository;
@@ -67,8 +68,19 @@ public class LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
             }
         }
 
-        // 3. 처리가 끝나면 메인 화면("/")으로 리다이렉트
-        setDefaultTargetUrl("/");
+        // 3. [social-link 신규] 방금 "계정 연동" 플로우로 로그인된 거면(CustomOAuth2UserService
+        //    가 세운 1회성 플래그) 평소처럼 메인이 아니라 계정 관리 화면으로 보낸다. 이 플래그는
+        //    쓰고 나면 바로 지운다 - 다음 로그인에 잘못 반응하지 않게.
+        Object justLinked = request.getSession(false) != null
+                ? request.getSession(false).getAttribute(CustomOAuth2UserService.LINK_SUCCESS_SESSION_KEY)
+                : null;
+        if (Boolean.TRUE.equals(justLinked)) {
+            request.getSession(false).removeAttribute(CustomOAuth2UserService.LINK_SUCCESS_SESSION_KEY);
+            setDefaultTargetUrl("/mypage/account?tab=social&linked=1");
+        } else {
+            // 처리가 끝나면 메인 화면("/")으로 리다이렉트
+            setDefaultTargetUrl("/");
+        }
         super.onAuthenticationSuccess(request, response, authentication);
     }
 }

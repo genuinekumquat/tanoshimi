@@ -56,7 +56,7 @@ class SignupApiControllerTest {
     }
 
     private SocialSignupRequest validRequest() {
-        return new SocialSignupRequest("유자차", null, "01011112222", "female",
+        return new SocialSignupRequest("유자차", "yuzacha", null, "01011112222", "female",
                 LocalDate.of(1998, 5, 14), "KR", true);
     }
 
@@ -89,7 +89,7 @@ class SignupApiControllerTest {
         PendingSocialSignup pending = new PendingSocialSignup("google", "social-id-1", "user@test.com", "유자차");
         when(httpSession.getAttribute(PendingSocialSignup.SESSION_KEY)).thenReturn(pending);
 
-        UserEntity savedUser = UserEntity.createSocial("user@test.com", "unusable-hash", "유자차", "01011112222",
+        UserEntity savedUser = UserEntity.createSocial("user@test.com", "yuzacha", "unusable-hash", "유자차", "01011112222",
                 Gender.female, LocalDate.of(1998, 5, 14), Nationality.KR, "google", "social-id-1");
         when(userService.signupSocial(pending, validRequest())).thenReturn(savedUser);
 
