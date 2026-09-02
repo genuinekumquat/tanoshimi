@@ -34,6 +34,7 @@ public enum ErrorCode {
     PARTY_AGE_RESTRICTED(HttpStatus.FORBIDDEN, "이 파티는 연령 조건이 맞지 않아 신청할 수 없습니다."),
     PARTY_NATIONALITY_RESTRICTED(HttpStatus.FORBIDDEN, "이 파티는 국적 조건이 맞지 않아 신청할 수 없습니다."),
     PARTY_FULL(HttpStatus.CONFLICT, "이미 정원이 가득 찼습니다."),
+    PARTY_RECRUITMENT_CLOSED(HttpStatus.CONFLICT, "모집이 마감된 파티입니다."),
     NOT_PARTY_MEMBER(HttpStatus.FORBIDDEN, "파티원만 볼 수 있는 페이지입니다."),
 
     // 계획표

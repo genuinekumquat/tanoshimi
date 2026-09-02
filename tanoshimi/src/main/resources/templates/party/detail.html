@@ -19,26 +19,34 @@
   </div>
 
   <div class="party-box" style="background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden;">
-    <div style="position:relative; height:200px;">
+    <div style="position:relative; height:200px;"
+         th:with="today=${T(java.time.LocalDate).now()}, isRecruitable=${party.status.name() == 'recruiting' and party.departureDate.isAfter(today)}">
       <div th:class="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'ph1' : (party.thumbnailUrl ?: 'ph1')}"
            style="position:absolute; inset:0;"
            th:styleappend="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'background-image:url(' + party.thumbnailUrl + '); background-size:cover; background-position:center;' : ''}"></div>
-           
+
       <div style="position:absolute; top:12px; left:12px; display:flex; gap:6px;">
         <span class="chip chip-region" th:text="'📍 ' + ${party.region}" style="background:var(--sky); color:#1c3a44; font-size:12px; font-weight:700; border-radius:999px; padding:4px 11px; display:inline-block;">지역</span>
-        
-        <span class="chip" th:text="${party.status.name() == 'recruiting'} ? #{party.status.recruiting} : #{party.status.closed}"
-              th:style="${party.status.name() == 'recruiting'} ? 'font-size:12px; font-weight:700; border-radius:999px; padding:4px 11px; display:inline-block; background:var(--forest);color:#fff;' : 'font-size:12px; font-weight:700; border-radius:999px; padding:4px 11px; display:inline-block; background:#8a7a63;color:#fff;'">상태</span>
+
+        <!-- '모집중'은 status==recruiting 뿐 아니라 출발일이 오늘보다 뒤일 때만 뜬다 - 출발 당일부터는
+             신청 자체를 막기로 했으므로(PartyApplicationService.apply) 화면 문구도 그 기준을 따라야
+             실제 신청 가능 여부와 어긋나지 않는다. -->
+        <span class="chip" th:text="${isRecruitable} ? #{party.status.recruiting} : #{party.status.closed}"
+              th:style="${isRecruitable} ? 'font-size:12px; font-weight:700; border-radius:999px; padding:4px 11px; display:inline-block; background:var(--forest);color:#fff;' : 'font-size:12px; font-weight:700; border-radius:999px; padding:4px 11px; display:inline-block; background:#8a7a63;color:#fff;'">상태</span>
       </div>
-      
+
       <div th:if="${isOwner}" style="position:absolute; bottom:12px; left:12px;">
         <button type="button" class="btn" style="background:rgba(255,255,255,.9); font-size:11px; padding:4px 8px;" onclick="document.getElementById('thumbnail-upload').click()">📷 [[#{party.thumb.change}]]</button>
         <input type="file" id="thumbnail-upload" accept="image/*" style="display:none;" onchange="changeThumbnail()">
       </div>
 
+      <!-- '마감'은 날짜 계산(endDate=departureDate+durationDays) 대신 party.status가 completed
+           인지로만 판정한다 - PartyCompletionScheduler가 매일 00:30에 endDate 경과 파티를 completed
+           로 바꿔주는데, 날짜만으로 계산하면 자정~00:30 사이엔 "아직 completed 는 아닌데 날짜상으론
+           종료"인 상태가 생겨 위 모집상태 칩과 모순될 수 있다. status를 그대로 신뢰하면 두 뱃지가
+           항상 같은 정보를 기준으로 삼게 되어 이 레이스도 원천 차단된다. -->
       <span style="position:absolute; bottom:12px; right:12px; background:rgba(58,46,34,.72); color:#fff; font-size:12px; border-radius:999px; padding:4px 10px;"
-            th:with="today=${T(java.time.LocalDate).now()}"
-            th:text="${party.departureDate.isEqual(today) ? 'D-DAY' : (party.departureDate.isAfter(today) ? 'D-' + T(java.time.temporal.ChronoUnit).DAYS.between(today, party.departureDate) : '마감')}">D-7</span>
+            th:text="${party.departureDate.isEqual(today) ? 'D-DAY' : (party.departureDate.isAfter(today) ? 'D-' + T(java.time.temporal.ChronoUnit).DAYS.between(today, party.departureDate) : (party.status.name() == 'completed' ? '마감' : '여행중'))}">D-7</span>
     </div>
     
     <div style="padding:20px;">
