@@ -1,7 +1,7 @@
 package net.datasa.tanoshimi.config;
 
 import lombok.RequiredArgsConstructor;
-import net.datasa.tanoshimi.auth.TempPasswordAuthenticationProvider;
+import net.datasa.tanoshimi.auth.CustomUserDetailsService;
 import net.datasa.tanoshimi.auth.handler.LoginFailureHandler;
 import net.datasa.tanoshimi.auth.handler.LoginSuccessHandler;
 import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
@@ -22,18 +22,14 @@ import org.springframework.security.web.SecurityFilterChain;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final TempPasswordAuthenticationProvider tempPasswordAuthenticationProvider;
+    private final CustomUserDetailsService userDetailsService;
     private final CustomOAuth2UserService oAuth2UserService;
     private final LoginSuccessHandler loginSuccessHandler;
     private final LoginFailureHandler loginFailureHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
 
-    // TempPasswordAuthenticationProvider 가 생성자로 이 빈을 필요로 하는데, SecurityConfig는
-    // 그 provider를 생성자로 필요로 한다 - 인스턴스 메서드면 "SecurityConfig -> provider ->
-    // 이 빈(인스턴스 메서드라 SecurityConfig 인스턴스 필요) -> SecurityConfig" 순환참조가
-    // 생긴다(defaultOAuth2UserService()와 같은 이유). static이면 이 순환이 생기지 않는다.
     @Bean
-    public static PasswordEncoder passwordEncoder() {
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(10);
     }
 
@@ -101,7 +97,7 @@ public class SecurityConfig {
                                 "connect-src 'self' ws: wss:; frame-ancestors 'none'"))
                 )
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/ws/**"))
-                .authenticationProvider(tempPasswordAuthenticationProvider);
+                .userDetailsService(userDetailsService);
 
         return http.build();
     }

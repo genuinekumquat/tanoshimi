@@ -325,22 +325,21 @@ class UserServiceTest {
     }
 
     @Test
-    void issueTemporaryPassword_존재하는_로컬계정이면_임시비밀번호를_대기시키고_메일을_보낸다() {
+    void issueTemporaryPassword_존재하는_로컬계정이면_임시비밀번호를_즉시_반영하고_메일을_보낸다() {
         UserEntity user = localUser("user@test.com", RAW_PASSWORD);
         when(userRepository.findByEmail("user@test.com")).thenReturn(java.util.Optional.of(user));
 
         userService.issueTemporaryPassword(" User@Test.com ");
 
-        // 실제 password는 이 시점엔 그대로다 - 원래 비밀번호로도 계속 로그인할 수 있어야 한다.
-        assertThat(user.isMustChangePassword()).isFalse();
-        assertThat(new BCryptPasswordEncoder(4).matches(RAW_PASSWORD, user.getPassword())).isTrue();
+        assertThat(user.isMustChangePassword()).isTrue();
+        // 발급된 임시 비밀번호로 로그인할 수 있어야 하고(=인코딩된 해시가 실제로 바뀌었어야 하고),
+        // 예전 비밀번호로는 더 이상 로그인할 수 없어야 한다.
+        assertThat(new BCryptPasswordEncoder(4).matches(RAW_PASSWORD, user.getPassword())).isFalse();
 
         ArgumentCaptor<String> tempPasswordCaptor = ArgumentCaptor.forClass(String.class);
         verify(emailSender).sendTemporaryPassword(eq("user@test.com"), tempPasswordCaptor.capture());
         String tempPassword = tempPasswordCaptor.getValue();
-        // 발급된 임시 비밀번호는 실제 password가 아니라 대기 필드에만 걸려 있어야 한다.
-        assertThat(user.hasValidPendingTempPassword()).isTrue();
-        assertThat(new BCryptPasswordEncoder(4).matches(tempPassword, user.getPendingTempPasswordHash())).isTrue();
+        assertThat(new BCryptPasswordEncoder(4).matches(tempPassword, user.getPassword())).isTrue();
     }
 
     @Test
