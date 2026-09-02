@@ -3,6 +3,12 @@ spring:
   datasource:
     username: tanoshimi
     password: 여기에_로컬_DB_비밀번호
+  mail:
+    # app.email.provider: smtp 로 바꿔서 실제 메일 발송을 테스트할 때만 채우면 됨.
+    # Gmail 이면 계정 자체 비밀번호가 아니라 앱 비밀번호를 써야 함.
+    host: smtp.gmail.com
+    username: 발신용_메일주소
+    password: 앱_비밀번호
   security:
     oauth2:
       client:
@@ -25,6 +31,9 @@ app:
       api-key: 알리고_API_KEY
       user-id: 알리고_아이디
       sender: 01000000000
+  email:
+    provider: log      # 회원가입 본인인증 - smtp 로 바꾸면 위 spring.mail 설정으로 실제 발송
+
   weather:
     provider: mock     # 실제 키 생기면 kma 또는 openweather 로 변경
     api-key: 날씨_API_KEY
