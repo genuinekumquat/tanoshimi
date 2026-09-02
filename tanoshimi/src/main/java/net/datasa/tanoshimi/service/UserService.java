@@ -66,12 +66,9 @@ public class UserService {
         if (userRepository.existsByEmail(email)) throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         if (userRepository.existsByPhone(req.phone())) throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
 
-        // 구글/네이버처럼 소셜 제공자가 이메일을 줬다면 그 제공자가 이미 소유를 확인해준 것이므로
-        // 우리가 또 인증코드를 보낼 필요가 없다. LINE처럼 이메일 스코프가 없어 사용자가 화면에서
-        // 직접 입력한 경우(pending.email() == null)만 우리 쪽에서 다시 확인한다.
-        if (pending.email() == null) {
-            emailVerificationService.consumeVerified(email, VerificationPurpose.signup);
-        }
+        // 소셜 로그인 자체가 이미 신뢰할 수 있는 인증 수단이라, 이메일을 provider가 줬든
+        // (구글/네이버) 사용자가 직접 입력했든(LINE) 별도의 이메일 인증코드는 요구하지 않는다.
+        // 로컬(이메일/비밀번호) 가입에만 이메일 인증이 필요하다 - signup() 참고.
 
         UserEntity user = UserEntity.createSocial(
                 email, unusablePasswordHash(), req.name(), req.phone(),
