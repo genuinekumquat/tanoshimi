@@ -28,6 +28,12 @@ public class AuthViewController {
         return "auth/signup";
     }
 
+    @GetMapping("/find-password")
+    public String findPasswordPage(Authentication authentication) {
+        if (isLoggedIn(authentication)) return "redirect:/";
+        return "auth/find-password";
+    }
+
     @GetMapping("/signup/social")
     public String socialSignupPage(Authentication authentication, Model model) {
         if (isLoggedIn(authentication)) return "redirect:/";

@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.auth.SessionLoginHelper;
@@ -49,5 +51,15 @@ public class SignupApiController {
         httpSession.removeAttribute(PendingSocialSignup.SESSION_KEY);
         sessionLoginHelper.login(new CustomUserDetails(user), servletRequest, servletResponse);
         return ApiResponse.okMessage("가입이 완료되었습니다.");
+    }
+
+    public record FindPasswordRequest(@NotBlank @Email String email) {
+        String normalizedEmail() { return email.trim().toLowerCase(); }
+    }
+
+    @PostMapping("/find-password")
+    public ApiResponse<Void> findPassword(@Valid @RequestBody FindPasswordRequest request) {
+        userService.issueTemporaryPassword(request.normalizedEmail());
+        return ApiResponse.okMessage("임시 비밀번호를 이메일로 보내드렸어요. 로그인 후 꼭 비밀번호를 변경해 주세요.");
     }
 }

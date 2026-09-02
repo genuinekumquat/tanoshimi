@@ -31,17 +31,26 @@ public class SmtpEmailSender implements EmailSender {
 
     @Override
     public void sendVerificationCode(String email, String code) {
+        send(email, "[타노시미] 이메일 인증번호", "인증번호는 " + code + " 입니다. 5분 이내에 입력해 주세요.");
+    }
+
+    @Override
+    public void sendTemporaryPassword(String email, String tempPassword) {
+        send(email, "[타노시미] 임시 비밀번호 발급", "임시 비밀번호는 " + tempPassword + " 입니다. 로그인 후 반드시 비밀번호를 변경해 주세요.");
+    }
+
+    private void send(String email, String subject, String text) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);
         message.setTo(email);
-        message.setSubject("[타노시미] 이메일 인증번호");
-        message.setText("인증번호는 " + code + " 입니다. 5분 이내에 입력해 주세요.");
+        message.setSubject(subject);
+        message.setText(text);
 
         try {
             mailSender.send(message);
-            log.info("이메일 인증번호 발송 성공: to={}", mask(email));
+            log.info("이메일 발송 성공: to={}", mask(email));
         } catch (MailException e) {
-            log.error("이메일 인증번호 발송 실패: to={}", mask(email), e);
+            log.error("이메일 발송 실패: to={}", mask(email), e);
             throw new BusinessException(ErrorCode.EMAIL_SEND_FAILED);
         }
     }
