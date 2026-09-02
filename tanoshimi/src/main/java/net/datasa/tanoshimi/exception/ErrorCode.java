@@ -22,6 +22,10 @@ public enum ErrorCode {
     // 소셜
     SOCIAL_SESSION_EXPIRED(HttpStatus.BAD_REQUEST, "소셜 로그인 정보가 만료되었습니다."),
 
+    // 비밀번호 재발급/변경
+    SOCIAL_ACCOUNT_NO_PASSWORD(HttpStatus.BAD_REQUEST, "소셜 로그인 계정은 비밀번호 재발급을 지원하지 않습니다. 소셜 로그인으로 이용해 주세요."),
+    CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다."),
+
     // 투어/예약/결제
     TOUR_NOT_FOUND(HttpStatus.NOT_FOUND, "패키지를 찾을 수 없습니다."),
     PARTY_NOT_FOUND(HttpStatus.NOT_FOUND, "파티를 찾을 수 없습니다."),

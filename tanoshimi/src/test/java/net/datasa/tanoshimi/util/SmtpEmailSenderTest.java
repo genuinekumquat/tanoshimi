@@ -59,4 +59,26 @@ class SmtpEmailSenderTest {
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.EMAIL_SEND_FAILED);
     }
+
+    @Test
+    void 임시비밀번호_발송이면_수신자와_임시비밀번호가_포함된_메일을_보낸다() {
+        sender.sendTemporaryPassword("user@test.com", "Ab3xQ92kFz");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+
+        SimpleMailMessage sent = captor.getValue();
+        assertThat(sent.getTo()).containsExactly("user@test.com");
+        assertThat(sent.getText()).contains("Ab3xQ92kFz");
+    }
+
+    @Test
+    void 임시비밀번호_발송중_MailException이_나면_EMAIL_SEND_FAILED로_변환된다() {
+        doThrow(new MailSendException("smtp connection refused")).when(mailSender).send(any(SimpleMailMessage.class));
+
+        assertThatThrownBy(() -> sender.sendTemporaryPassword("user@test.com", "Ab3xQ92kFz"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.EMAIL_SEND_FAILED);
+    }
 }

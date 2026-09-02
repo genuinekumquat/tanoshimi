@@ -118,4 +118,13 @@ class SignupApiControllerTest {
         verify(httpSession, never()).removeAttribute(PendingSocialSignup.SESSION_KEY);
         verify(sessionLoginHelper, never()).login(any(), any(), any());
     }
+
+    // ------------------------------------------------------------ findPassword
+
+    @Test
+    void findPassword_이메일을_대소문자_공백_정규화해서_서비스에_넘긴다() {
+        controller.findPassword(new SignupApiController.FindPasswordRequest("  User@Test.com "));
+
+        verify(userService).issueTemporaryPassword("user@test.com");
+    }
 }

@@ -6,6 +6,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.dto.ApiResponse;
+import net.datasa.tanoshimi.domain.dto.ChangePasswordRequest;
 import net.datasa.tanoshimi.domain.entity.ReservationEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
@@ -17,6 +18,8 @@ import net.datasa.tanoshimi.service.FileStorageService;
 import net.datasa.tanoshimi.service.FollowService;
 import net.datasa.tanoshimi.service.PostService;
 import net.datasa.tanoshimi.service.TitleService;
+import net.datasa.tanoshimi.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,6 +31,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,6 +47,7 @@ public class MyPageController {
     private final FollowService followService;
     private final FileStorageService fileStorageService;
     private final TitleService titleService;
+    private final UserService userService;
 
     @GetMapping("/mypage")
     public String myPage(@AuthenticationPrincipal CustomUserDetails principal, Model model) {
@@ -102,6 +107,29 @@ public class MyPageController {
         SecurityContextHolder.getContext().setAuthentication(newAuth);
         
         return ApiResponse.ok("프로필 사진이 변경되었습니다.", url);
+    }
+
+    /**
+     * 비밀번호 변경 - 자발적 변경과, 비밀번호 재발급으로 받은 임시 비밀번호 이후 강제 변경
+     * 모달(fragments/layout.html 헤더) 양쪽에서 공용으로 쓴다. /api/mypage/** 는
+     * SecurityConfig에서 permitAll 대상이 아니라 인증된 사용자만 호출할 수 있다.
+     */
+    @PostMapping("/api/mypage/change-password")
+    @ResponseBody
+    @Transactional
+    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request,
+                                            @AuthenticationPrincipal CustomUserDetails principal) {
+        userService.changePassword(principal.getId(), request.currentPassword(), request.newPassword());
+
+        // 세션의 mustChangePassword 플래그를 즉시 갱신 - 안 하면 재로그인 전까지 강제변경 모달이 계속 뜬다.
+        UserEntity me = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        CustomUserDetails newUserDetails = new CustomUserDetails(me, principal.getAttributes());
+        Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
+        UsernamePasswordAuthenticationToken newAuth =
+                new UsernamePasswordAuthenticationToken(newUserDetails, currentAuth.getCredentials(), currentAuth.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(newAuth);
+
+        return ApiResponse.okMessage("비밀번호가 변경되었습니다.");
     }
 
     @GetMapping("/users/{id}")

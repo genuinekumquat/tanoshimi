@@ -15,6 +15,7 @@ import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.UserRepository;
 import net.datasa.tanoshimi.domain.entity.VerificationPurpose;
+import net.datasa.tanoshimi.util.EmailSender;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,10 +27,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final String TEMP_PASSWORD_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
+    private static final String TEMP_PASSWORD_DIGITS = "23456789";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationService emailVerificationService;
+    private final EmailSender emailSender;
     private final TitleService titleService;
 
     @Transactional(readOnly = true)
@@ -78,6 +82,46 @@ public class UserService {
         saveWithUniqueGuard(user);
         titleService.awardNewbie(user);
         return user;
+    }
+
+    /**
+     * 비밀번호 재발급 - 이메일 입력 -> 임시 비밀번호를 생성해 이메일로 보내고, 다음 로그인 때
+     * 강제로 비밀번호를 바꾸게 만든다(팀 논의로 확정한 워크플로우). 소셜 전용 계정은 애초에
+     * 로그인 불가능한 랜덤 해시만 갖고 있어 이 절차 대상이 아니다.
+     */
+    @Transactional
+    public void issueTemporaryPassword(String rawEmail) {
+        String email = rawEmail == null ? null : rawEmail.trim().toLowerCase();
+        UserEntity user = userRepository.findByEmail(email).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (user.isSocialAccount()) {
+            throw new BusinessException(ErrorCode.SOCIAL_ACCOUNT_NO_PASSWORD);
+        }
+
+        String tempPassword = generateTemporaryPassword();
+        user.issueTemporaryPassword(passwordEncoder.encode(tempPassword));
+        emailSender.sendTemporaryPassword(email, tempPassword);
+    }
+
+    /** 현재 비밀번호 확인 후 새 비밀번호로 교체한다. 자발적 변경과 강제 변경(임시 비밀번호 이후) 공용. */
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        UserEntity user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BusinessException(ErrorCode.CURRENT_PASSWORD_MISMATCH);
+        }
+        user.changePassword(passwordEncoder.encode(newPassword));
+    }
+
+    /** 10자 - 문자/숫자를 섞어 PasswordPolicy를 항상 만족시키고, 헷갈리기 쉬운 0/O/1/I/l 은 제외한다. */
+    private String generateTemporaryPassword() {
+        char[] chars = new char[10];
+        for (int i = 0; i < 6; i++) chars[i] = TEMP_PASSWORD_LETTERS.charAt(RANDOM.nextInt(TEMP_PASSWORD_LETTERS.length()));
+        for (int i = 6; i < 10; i++) chars[i] = TEMP_PASSWORD_DIGITS.charAt(RANDOM.nextInt(TEMP_PASSWORD_DIGITS.length()));
+        for (int i = chars.length - 1; i > 0; i--) {
+            int j = RANDOM.nextInt(i + 1);
+            char tmp = chars[i]; chars[i] = chars[j]; chars[j] = tmp;
+        }
+        return new String(chars);
     }
 
     private Long saveWithUniqueGuard(UserEntity user) {

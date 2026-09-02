@@ -42,6 +42,10 @@ public class UserEntity {
     @Column(name = "phone_verified", nullable = false)
     private boolean phoneVerified;
 
+    /** 비밀번호 재발급으로 임시 비밀번호를 받은 상태 - true면 로그인 직후 강제로 비밀번호 변경을 유도한다. */
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private Gender gender;
@@ -171,7 +175,17 @@ public class UserEntity {
         return java.time.Period.between(birthDate, LocalDate.now()).getYears();
     }
 
-    public void changePassword(String encoded) { this.password = encoded; }
+    public void changePassword(String encoded) {
+        this.password = encoded;
+        this.mustChangePassword = false;
+    }
+
+    /** 비밀번호 재발급 - 임시 비밀번호로 교체하고 다음 로그인 때 변경을 강제한다. */
+    public void issueTemporaryPassword(String encodedTempPassword) {
+        this.password = encodedTempPassword;
+        this.mustChangePassword = true;
+    }
+
     public void changeProfile(String name, String intro, String profileImageUrl) {
         this.name = name;
         this.intro = intro;

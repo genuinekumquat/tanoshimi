@@ -10,6 +10,7 @@ import net.datasa.tanoshimi.domain.entity.VerificationPurpose;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.UserRepository;
+import net.datasa.tanoshimi.util.EmailSender;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -48,6 +50,9 @@ class UserServiceTest {
     private EmailVerificationService emailVerificationService;
 
     @Mock
+    private EmailSender emailSender;
+
+    @Mock
     private TitleService titleService;
 
     private UserService userService;
@@ -56,7 +61,7 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository, new BCryptPasswordEncoder(4), emailVerificationService, titleService);
+        userService = new UserService(userRepository, new BCryptPasswordEncoder(4), emailVerificationService, emailSender, titleService);
     }
 
     private SignupRequest validSignupRequest() {
@@ -308,5 +313,87 @@ class UserServiceTest {
         assertThat(userService.isEmailAvailable(null)).isFalse();
         assertThat(userService.isEmailAvailable("   ")).isFalse();
         verify(userRepository, never()).existsByEmail(anyString());
+    }
+
+    // ------------------------------------------------------------ issueTemporaryPassword
+
+    private UserEntity localUser(String email, String rawPassword) {
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(4);
+        return UserEntity.createLocal(email, encoder.encode(rawPassword), "유자차", "01011112222",
+                net.datasa.tanoshimi.domain.entity.Gender.female, LocalDate.of(1998, 5, 14),
+                net.datasa.tanoshimi.domain.entity.Nationality.KR);
+    }
+
+    @Test
+    void issueTemporaryPassword_존재하는_로컬계정이면_임시비밀번호를_발급하고_메일을_보낸다() {
+        UserEntity user = localUser("user@test.com", RAW_PASSWORD);
+        when(userRepository.findByEmail("user@test.com")).thenReturn(java.util.Optional.of(user));
+
+        userService.issueTemporaryPassword(" User@Test.com ");
+
+        assertThat(user.isMustChangePassword()).isTrue();
+        // 발급된 임시 비밀번호로 로그인할 수 있어야 하고(=인코딩된 해시가 실제로 바뀌었어야 하고),
+        // 예전 비밀번호로는 더 이상 로그인할 수 없어야 한다.
+        assertThat(new BCryptPasswordEncoder(4).matches(RAW_PASSWORD, user.getPassword())).isFalse();
+
+        ArgumentCaptor<String> tempPasswordCaptor = ArgumentCaptor.forClass(String.class);
+        verify(emailSender).sendTemporaryPassword(eq("user@test.com"), tempPasswordCaptor.capture());
+        String tempPassword = tempPasswordCaptor.getValue();
+        assertThat(new BCryptPasswordEncoder(4).matches(tempPassword, user.getPassword())).isTrue();
+    }
+
+    @Test
+    void issueTemporaryPassword_가입되지_않은_이메일이면_USER_NOT_FOUND_예외() {
+        when(userRepository.findByEmail(anyString())).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> userService.issueTemporaryPassword("nobody@test.com"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.USER_NOT_FOUND);
+
+        verify(emailSender, never()).sendTemporaryPassword(anyString(), anyString());
+    }
+
+    @Test
+    void issueTemporaryPassword_소셜계정이면_SOCIAL_ACCOUNT_NO_PASSWORD_예외() {
+        UserEntity social = UserEntity.createSocial("user@test.com", "unusable-hash", "유자차", "01011112222",
+                net.datasa.tanoshimi.domain.entity.Gender.female, LocalDate.of(1998, 5, 14),
+                net.datasa.tanoshimi.domain.entity.Nationality.KR, "google", "social-id-1");
+        when(userRepository.findByEmail("user@test.com")).thenReturn(java.util.Optional.of(social));
+
+        assertThatThrownBy(() -> userService.issueTemporaryPassword("user@test.com"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.SOCIAL_ACCOUNT_NO_PASSWORD);
+
+        verify(emailSender, never()).sendTemporaryPassword(anyString(), anyString());
+        assertThat(social.isMustChangePassword()).isFalse();
+    }
+
+    // ------------------------------------------------------------ changePassword
+
+    @Test
+    void changePassword_현재비밀번호가_맞으면_새비밀번호로_바꾸고_강제변경플래그를_끈다() {
+        UserEntity user = localUser("user@test.com", RAW_PASSWORD);
+        ReflectionTestUtils.setField(user, "mustChangePassword", true);
+        when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
+
+        userService.changePassword(1L, RAW_PASSWORD, "NewPass12!");
+
+        assertThat(user.isMustChangePassword()).isFalse();
+        assertThat(new BCryptPasswordEncoder(4).matches("NewPass12!", user.getPassword())).isTrue();
+    }
+
+    @Test
+    void changePassword_현재비밀번호가_틀리면_CURRENT_PASSWORD_MISMATCH_예외를_던지고_바꾸지_않는다() {
+        UserEntity user = localUser("user@test.com", RAW_PASSWORD);
+        when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
+
+        assertThatThrownBy(() -> userService.changePassword(1L, "wrong-password", "NewPass12!"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.CURRENT_PASSWORD_MISMATCH);
+
+        assertThat(new BCryptPasswordEncoder(4).matches(RAW_PASSWORD, user.getPassword())).isTrue();
     }
 }

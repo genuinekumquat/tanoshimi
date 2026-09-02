@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     name            VARCHAR(50)  NOT NULL,
     phone           VARCHAR(20)  NOT NULL,
     phone_verified  BOOLEAN      NOT NULL DEFAULT FALSE,
+    must_change_password BOOLEAN NOT NULL DEFAULT FALSE COMMENT '비밀번호 재발급으로 받은 임시 비밀번호 - 다음 로그인 때 강제 변경',
     gender          ENUM('male','female') NOT NULL,
     birth_date      DATE         NOT NULL COMMENT '성인 인증 + 파티 연령제한 매칭용',
     nationality     ENUM('KR','JP') NOT NULL COMMENT '한국인/일본인 파티 제한 필터용',

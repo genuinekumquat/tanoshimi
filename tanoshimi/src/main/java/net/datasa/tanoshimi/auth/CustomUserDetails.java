@@ -21,6 +21,7 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
     private final boolean active;
     private final PreferredLang preferredLang;
     private final String profileImageUrl;
+    private final boolean mustChangePassword;
     private final Map<String, Object> attributes;
 
     public CustomUserDetails(UserEntity user) { this(user, Map.of()); }
@@ -34,6 +35,7 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
         this.active = user.isActive();
         this.preferredLang = user.getPreferredLang();
         this.profileImageUrl = user.getProfileImageUrl();
+        this.mustChangePassword = user.isMustChangePassword();
         this.attributes = attributes == null ? Map.of() : attributes;
     }
 
@@ -43,6 +45,7 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
     public Role getRole() { return role; }
     public PreferredLang getPreferredLang() { return preferredLang; }
     public String getProfileImageUrl() { return profileImageUrl; }
+    public boolean isMustChangePassword() { return mustChangePassword; }
     public boolean isAdmin() { return role == Role.admin; }
 
     @Override public Collection<? extends GrantedAuthority> getAuthorities() {
