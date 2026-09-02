@@ -29,7 +29,10 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final PhoneVerificationService phoneVerificationService;
+    // v17(칭호 v17 개편)에서 TitleService 는 UserService 밖으로 빠졌다(가입만 하면 받는
+    // 칭호가 없어져서) - main과 합치며 그 결정을 그대로 따르고, phoneVerificationService만
+    // 이 브랜치의 목적대로 emailVerificationService 로 바꾼다.
+    private final EmailVerificationService emailVerificationService;
 
     @Transactional(readOnly = true)
     public boolean isEmailAvailable(String email) {
@@ -43,7 +46,8 @@ public class UserService {
         if (userRepository.existsByEmail(req.email())) throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         if (userRepository.existsByPhone(req.phone())) throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
 
-        phoneVerificationService.consumeVerified(req.phone(), VerificationPurpose.signup);
+        // 알리고 등 SMS API가 사업자등록번호 없이는 실사용이 어려워 본인인증 채널을 이메일로 전환.
+        emailVerificationService.consumeVerified(req.email(), VerificationPurpose.signup);
 
         UserEntity user = UserEntity.createLocal(
                 req.email(), passwordEncoder.encode(req.password()), req.name(), req.phone(),
@@ -64,7 +68,9 @@ public class UserService {
         if (userRepository.existsByEmail(email)) throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         if (userRepository.existsByPhone(req.phone())) throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
 
-        phoneVerificationService.consumeVerified(req.phone(), VerificationPurpose.signup);
+        // 소셜 로그인 자체가 이미 신뢰할 수 있는 인증 수단이라, 이메일을 provider가 줬든
+        // (구글/네이버) 사용자가 직접 입력했든(LINE) 별도의 이메일 인증코드는 요구하지 않는다.
+        // 로컬(이메일/비밀번호) 가입에만 이메일 인증이 필요하다 - signup() 참고.
 
         UserEntity user = UserEntity.createSocial(
                 email, unusablePasswordHash(), req.name(), req.phone(),

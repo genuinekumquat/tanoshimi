@@ -13,6 +13,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -30,6 +31,15 @@ public class  SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(10);
+    }
+
+    // CustomOAuth2UserService 가 생성자로 주입받아 테스트에서 mock으로 대체할 수 있게 빈으로 뺐다.
+    // static 이어야 한다 - SecurityConfig 는 생성자에서 CustomOAuth2UserService 를 필요로 하는데,
+    // 이 빈이 인스턴스 메서드면 SecurityConfig 인스턴스가 먼저 있어야 호출할 수 있어
+    // "SecurityConfig -> CustomOAuth2UserService -> 이 빈 -> SecurityConfig" 순환참조가 생긴다.
+    @Bean
+    public static DefaultOAuth2UserService defaultOAuth2UserService() {
+        return new DefaultOAuth2UserService();
     }
 
     @Bean
