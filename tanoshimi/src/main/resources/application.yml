@@ -15,6 +15,8 @@ spring:
 
   # app.email.provider=smtp 일 때만 실제로 쓰인다(SmtpEmailSender). host 가 비어있으면
   # 발송 시도 자체가 실패하니, 실제 발송을 쓰려면 반드시 application-local.yml/환경변수로 채울 것.
+  # TODO: 팀 공용 Gmail(또는 회사 SMTP) 계정 발급 필요 - MAIL_USERNAME/MAIL_PASSWORD(앱 비밀번호)를
+  # 배포 환경변수로 주입할 것. 로컬 개발용 더미 값은 application-local.yml 에만 둔다(git 미추적).
   mail:
     host: ${MAIL_HOST:}
     port: ${MAIL_PORT:587}
