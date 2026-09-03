@@ -31,6 +31,13 @@
     }
     .sort button.on { color: var(--forest); background: #f4f5f7; }
 
+    .board-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .board-tab {
+        font-size: 13px; font-weight: 700; color: var(--ink-soft); text-decoration: none;
+        padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px;
+    }
+    .board-tab.on { color: #fff; background: var(--forest); border-color: var(--forest); }
+
     /* ===== 상단 타이틀 영역 ===== */
     .page-head{
         display: flex; justify-content: space-between; align-items: center;
@@ -73,44 +80,58 @@
   <div class="layout">
     <section class="main-col">
       <div class="board-top">
-        <div class="board-count" th:utext="${#messages.msg('party.count', parties.size())}"></div>
+        <div class="board-count" th:utext="${showingPast
+              ? #messages.msg('party.count.past', parties.size())
+              : #messages.msg('party.count', parties.size())}"></div>
         <div class="sort">
           <button type="button" class="on" data-sort="latest" th:text="#{sort.latest}">최신순</button>
           <button type="button" data-sort="deadline" th:text="#{sort.deadline}">마감임박순</button>
         </div>
       </div>
 
+      <!-- 기본은 아직 출발 안 한 모집중 파티만 (PartyService.listBoard). 출발일이 지난 파티는
+           여기서 빼고, 보고 싶으면 '지난 모임 보기' 탭으로. -->
+      <div class="board-tabs">
+        <a th:href="@{/party-board(region=${region})}"
+           th:classappend="${showingPast} ? '' : 'on'" class="board-tab" th:text="#{party.board.showCurrent}">모집 중</a>
+        <a th:href="@{/party-board(region=${region}, past=true)}"
+           th:classappend="${showingPast} ? 'on' : ''" class="board-tab" th:text="#{party.board.showPast}">지난 모임 보기</a>
+      </div>
+
+      <div th:if="${showingPast}" style="font-size: 12.5px; color: var(--ink-soft); margin-bottom: 16px; line-height: 1.6;">
+        <span th:text="#{party.board.pastNote}">이미 출발한 파티예요. 신청은 받지 않습니다.</span>
+        <a th:href="@{/my-parties}" style="color: var(--forest); font-weight: 700;" th:text="#{nav.myparties}">내 파티</a>
+      </div>
+
       <div th:if="${#lists.isEmpty(parties)}" style="padding: 100px 0; text-align: center; color: var(--ink-soft); font-size: 15px;">
-        [[#{party.empty}]]
+        <span th:text="${showingPast} ? #{party.empty.past} : #{party.empty}">아직 모집 중인 파티가 없습니다.</span>
       </div>
 
       <div class="party-grid" id="party-grid">
         <a class="party-card card" th:each="party, iter : ${parties}" th:href="@{'/party-board/' + ${party.id}}">
           <div class="thumb" style="position:relative; height:168px; background:var(--parchment-deep);"
-               th:with="today=${T(java.time.LocalDate).now()}, isRecruitable=${party.status.name() == 'recruiting' and party.departureDate.isAfter(today)}">
+               th:with="today=${T(java.time.LocalDate).now()}, recruiting=${party.status.name() == 'recruiting'}">
             <div th:class="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'ph1 ph' : (party.thumbnailUrl ?: 'ph1') + ' ph'}"
                  style="position:absolute; inset:0;"
                  th:styleappend="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'background-image:url(' + party.thumbnailUrl + '); background-size:cover; background-position:center;' : ''}"></div>
 
             <div style="position:absolute; top:10px; left:10px; display:flex; gap:6px; flex-wrap:wrap;">
               <span class="chip chip-region" style="background:var(--sky); color:#1c3a44;" th:text="'📍 ' + ${party.region}">지역</span>
-              <!-- '모집중'은 status==recruiting 뿐 아니라 출발일이 오늘보다 뒤일 때만 뜬다 - 출발 당일부터는
-                   신청 자체를 막기로 했으므로(PartyApplicationService.apply) 화면 문구도 그 기준을 따라야
-                   실제 신청 가능 여부와 어긋나지 않는다. status 는 스케줄러가 여행 종료 후에나 바꿔주므로
-                   출발 당일~여행 중엔 DB상 status 는 여전히 recruiting 이어도 '모집종료'로 보여준다. -->
-              <span class="chip" th:text="${isRecruitable} ? #{party.status.recruiting} : #{party.status.closed}"
-                    th:style="${isRecruitable} ? 'background:var(--forest);color:#fff;' : 'background:#8a7a63;color:#fff;'">상태</span>
+              <!-- 모집상태 뱃지는 party.status 하나만 본다. 예전엔 여기서 출발일까지 같이 따져
+                   'recruiting 이지만 출발일 지남'을 '모집종료'로 바꿔 보여줬는데(그러면서 우상단
+                   D-day 뱃지의 '여행중' 계산과 서로 어긋났다), 이제 출발일이 지난 파티는 이 기본
+                   목록에 아예 안 나오므로(PartyService.listBoard) 그 보정 자체가 필요 없어졌다.
+                   '지난 모임 보기' 탭에서 보이는 파티도 status 를 그대로 보여준다. -->
+              <span class="chip" th:with="statusKey=${'party.status.' + party.status.name()}"
+                    th:text="#{__${statusKey}__}"
+                    th:style="${recruiting} ? 'background:var(--forest);color:#fff;' : 'background:#8a7a63;color:#fff;'">상태</span>
             </div>
 
-            <!-- 디데이. '종료'는 날짜 계산(endDate=departureDate+durationDays) 대신 party.status가
-                 completed 인지로만 판정한다 - PartyCompletionScheduler가 매일 00:30에 endDate 경과
-                 파티를 completed 로 바꿔주는데, 만약 날짜만 보고 계산하면 자정~00:30 사이 30분 동안
-                 "아직 completed 는 아닌데 날짜상으론 종료"인 상태가 생겨 위 모집상태 칩과 다시 모순될
-                 수 있다. status를 그대로 신뢰하면 두 뱃지가 항상 같은 정보(같은 status)를 기준으로
-                 삼게 되어 이 레이스도 원천 차단된다. 출발일만 지나고 아직 completed 전인 파티는
-                 '여행중'으로 표시한다. -->
+            <!-- 우상단 뱃지: 출발 전이면 D-day 카운트다운, 출발일이 지난 파티('지난 모임 보기')는
+                 왼쪽 모집상태 뱃지와 같은 기준(party.status)으로 표시해 둘이 어긋나지 않게 한다. -->
             <span style="position:absolute; top:10px; right:10px; font-family:'Jua',sans-serif; font-size:12px; color:#fff; background:var(--sash); border-radius:6px; padding:3px 9px; box-shadow:0 2px 4px rgba(0,0,0,.15);"
-                  th:text="${party.departureDate.isEqual(today) ? 'D-DAY' : (party.departureDate.isAfter(today) ? 'D-' + T(java.time.temporal.ChronoUnit).DAYS.between(today, party.departureDate) : (party.status.name() == 'completed' ? '종료' : '여행중'))}">D-7</span>
+                  th:with="statusKey=${'party.status.' + party.status.name()}, dday=${T(java.time.temporal.ChronoUnit).DAYS.between(today, party.departureDate)}"
+                  th:text="${dday > 0} ? 'D-' + ${dday} : (${dday == 0} ? 'D-DAY' : #{__${statusKey}__})">D-7</span>
             <!-- report button -->
             <span style="position:absolute; bottom:10px; right:10px; z-index:10;" sec:authorize="isAuthenticated()">
               <span th:attr="data-report-type='party',data-report-id=${party.id},data-report-label=${party.title}" style="font-size:11px; padding:3px 6px; background:rgba(255,255,255,0.9); border:1px solid #ffcccc; color:red; border-radius:4px; font-weight:bold; cursor:pointer;">🚨 신고</span>

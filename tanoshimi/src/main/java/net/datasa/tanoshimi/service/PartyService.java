@@ -1,5 +1,7 @@
 package net.datasa.tanoshimi.service;
 
+import java.time.LocalDate;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.domain.dto.PartyCreateRequest;
 import net.datasa.tanoshimi.domain.entity.*;
@@ -33,6 +35,32 @@ public class PartyService {
     private final NotificationService notificationService;
     private final MannerTempService mannerTempService;
     private final FileStorageService fileStorageService;
+
+    /**
+     * 파티 게시판(둘러보기) 목록.
+     *
+     * <p>기본(includePast=false)은 "지금 신청할 수 있는" 파티만 보여준다 - status=recruiting 이고
+     * 출발일이 아직 안 지난 파티. 출발일이 지난 파티는 모집상태 뱃지를 뭘로 바꾸든 아무도 신청할 수
+     * 없는 죽은 글이라, 이 목록의 목적("같이 갈 사람 모집")에 맞지 않아 기본 조회에서 뺀다.
+     *
+     * <p>includePast=true("지난 모임 보기" 탭)면 출발일이 지난 파티를 상태 무관·최근 출발순으로
+     * 보여준다. 이때는 지역/키워드 필터를 적용하지 않는다(단순 열람 용도).
+     */
+    @Transactional(readOnly = true)
+    public List<PartyEntity> listBoard(String region, String keyword, boolean includePast) {
+        LocalDate today = LocalDate.now();
+        if (includePast) {
+            return partyRepository.findByBlindedFalseAndDepartureDateLessThanOrderByDepartureDateDesc(today);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            return partyRepository.searchRecruiting(PartyStatus.recruiting, keyword.trim(), today);
+        }
+        return (region == null || region.isBlank())
+                ? partyRepository.findByStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
+                        PartyStatus.recruiting, today)
+                : partyRepository.findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
+                        region, PartyStatus.recruiting, today);
+    }
 
     @Transactional
     public Long createParty(UserEntity owner, PartyCreateRequest req) {

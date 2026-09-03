@@ -1,5 +1,6 @@
 package net.datasa.tanoshimi.service;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
@@ -36,6 +37,15 @@ public class PartyApplicationService {
 
     @Transactional
     public Long apply(PartyEntity party, UserEntity applicant, String message) {
+        // 모집이 끝났거나(방장이 마감/스케줄러가 완료 처리) 출발일이 오늘이거나 지난 파티는 신청 자체를 받지 않는다.
+        // 지금까지는 이 판정이 PartyEligibilityService.check() 안에만 있었는데, 그 메서드는 관리자면 맨 앞에서
+        // ok() 로 빠져나가서 관리자 계정으로는 마감/출발 지난 파티에도 신청이 들어갔다. 화면에서 버튼을 감추는 것과
+        // 무관하게 /api/parties/{id}/apply 를 직접 때리면 통하던 구멍이라, 자격 검증보다 먼저 여기서 막는다.
+        // (full 은 이후 빈자리가 나면 다시 받을 수 있으므로 여기서 막지 않고 아래 정원 체크에서 PARTY_FULL 로 처리)
+        if (party.getStatus() == PartyStatus.closed || party.getStatus() == PartyStatus.completed
+                || !party.getDepartureDate().isAfter(LocalDate.now())) {
+            throw new BusinessException(ErrorCode.PARTY_RECRUITMENT_CLOSED);
+        }
         // TNSM-96: 파티장과 차단 관계면 신청 자체를 막는다. 이미 참여 중인 파티는 별도 처리하지 않는다(스펙 명시).
         if (blockService.isBlockedEitherWay(applicant, party.getOwner())) {
             throw new BusinessException(ErrorCode.CANNOT_APPLY_BLOCKED_PARTY);
