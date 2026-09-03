@@ -7,6 +7,7 @@ import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.FollowRepository;
+import net.datasa.tanoshimi.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,19 @@ public class FollowService {
 
     private final FollowRepository followRepository;
     private final NotificationService notificationService;
+    private final UserRepository userRepository;
+
+    // ---- 컨트롤러가 상대 유저를 직접 조회하지 않도록: id 만 받아 내부에서 조회하는 오버로드 ----
+
+    private UserEntity user(Long id) {
+        return userRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Transactional
+    public void follow(UserEntity me, Long targetId) { follow(me, user(targetId)); }
+
+    @Transactional
+    public void unfollow(UserEntity me, Long targetId) { unfollow(me, user(targetId)); }
 
     @Transactional
     public void follow(UserEntity me, UserEntity target) {

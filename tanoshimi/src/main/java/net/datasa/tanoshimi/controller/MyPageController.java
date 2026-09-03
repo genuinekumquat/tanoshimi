@@ -15,7 +15,6 @@ import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.UserRepository;
 import jakarta.servlet.http.HttpSession;
 import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
-import net.datasa.tanoshimi.repository.UserBlockRepository;
 import net.datasa.tanoshimi.service.UserNotificationSettingsService;
 import net.datasa.tanoshimi.service.FileStorageService;
 import net.datasa.tanoshimi.service.FollowService;
@@ -71,7 +70,6 @@ public class MyPageController {
     private final TravelHeatmapService travelHeatmapService;
     private final MyTripService myTripService;
     private final net.datasa.tanoshimi.service.BlockService blockService;
-    private final UserBlockRepository userBlockRepository;
     private final UserNotificationSettingsService userNotificationSettingsService;
     private final UserService userService;
 
@@ -232,7 +230,7 @@ public class MyPageController {
 
         model.addAttribute("me", me);
         model.addAttribute("notificationSettings", userNotificationSettingsService.current(me));
-        model.addAttribute("blockedUsers", userBlockRepository.findBlockedUsersByBlocker(me));
+        model.addAttribute("blockedUsers", blockService.blockedUsers(me));
 
         return "mypage/account";
     }
