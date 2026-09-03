@@ -95,14 +95,7 @@
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-weight: bold; white-space: nowrap;">캐릭터 표정</span>
-                <div id="companion-expr-btns" style="display: flex; gap: 5px; flex-wrap: wrap;">
-                    <button data-expr="normal" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">기본</button>
-                    <button data-expr="happy" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">기쁨</button>
-                    <button data-expr="sad" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">슬픔</button>
-                    <button data-expr="angry" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">화남</button>
-                    <button data-expr="shy" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">부끄럼</button>
-                    <!-- 구분선 -->
-                    <div style="width: 1px; background: #ccc; margin: 0 4px;"></div>
+                
                     <button id="companion-ghost-btn" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ccc; background: #ffeb3b; border-radius: 4px; cursor: pointer; font-weight: bold;">👻 숨기기</button>
                       <div style="width: 1px; background: #ccc; margin: 0 4px;"></div>
                       <label style="cursor:pointer; display:flex; align-items:center; gap:4px; font-weight:bold; color:var(--forest, #4A6741); margin-left:auto;"><input type="checkbox" id="companion-show-bot-chat"> 채팅방 출력 ✏️</label>
@@ -129,7 +122,7 @@
         <canvas id="companion-canvas" style="pointer-events: auto; cursor: grab; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2)); transition: filter 0.2s;"></canvas>
     </div>
 
-    <script src="/js/companion-widget.js?v=999125"></script>
+    <script src="/js/companion-widget.js?v=999126"></script>
 </div>
 
 <header th:fragment="header" style="position:sticky; top:0; z-index:999; background:rgba(255,255,255,0.95); backdrop-filter:blur(8px); border-bottom:1px solid #eaeaea; padding:12px 20px;">
