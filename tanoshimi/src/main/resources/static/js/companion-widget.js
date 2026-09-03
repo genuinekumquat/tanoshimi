@@ -69,7 +69,6 @@
                 return;
             }
 
-            // Fallback sizes if internalModel properties are missing
             const iw = model.internalModel.width || 1000;
             const ih = model.internalModel.height || 1000;
             
@@ -89,7 +88,6 @@
             model.alpha = 1;
             
             console.log(`Mimi Re-Loaded! size=${iw}x${ih}, scale=${baseScale}, pos=${model.x},${model.y}`);
-
 
             function updateScale(uiScale) {
                 canvas.style.setProperty('--vivian-scale', uiScale);
@@ -133,7 +131,11 @@
 
             live2dModel = model;
             
-            
+            live2dModel.internalModel.on('beforeModelUpdate', () => {
+                if (window.currentVivianEmotion && live2dModel.internalModel.coreModel) {
+                    live2dModel.internalModel.coreModel.addParameterValueById(window.currentVivianEmotion, 1.0);
+                }
+            });
 
                                     window.isDraggingVivian = false;
 
@@ -150,7 +152,92 @@
                 // For character, we want exact pixel hover detection
                 if (elId === "companion-character-wrap") {
                     handle.style.pointerEvents = 'none'; // Default to transparent
+                    window.addEventListener('pointermove', (e) => {
+                        if (window.isDraggingVivian) {
+                            handle.style.pointerEvents = 'auto';
+                            return;
+                        }
+
+                        const rect = handle.getBoundingClientRect();
+                        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                            handle.style.pointerEvents = 'none';
+                            return;
+                        }
+
+                        const gl = handle.getContext('webgl2') || handle.getContext('webgl');
+                        if (!gl) return;
+                        
+                        try {
+                            const pixels = new Uint8Array(4);
+                            const px = (e.clientX - rect.left) * (handle.width / rect.width);
+                            const py = (e.clientY - rect.top) * (handle.height / rect.height);
+                            gl.readPixels(px, handle.height - py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                            handle.style.pointerEvents = (pixels[3] === 0) ? 'none' : 'auto';
+                        } catch(err) {}
+                    }, { passive: true });
+                }
+
+                handle.addEventListener('pointerdown', (e) => {
+                    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+                    isDown = true;
+                    if (elId === "companion-character-wrap") window.isDraggingVivian = true;
                     
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    const rect = el.getBoundingClientRect();
+                    startLeft = rect.left;
+                    startTop = rect.top;
+                    el.style.right = 'auto';
+                    el.style.bottom = 'auto';
+                    el.style.left = startLeft + 'px';
+                    el.style.top = startTop + 'px';
+                    handle.style.cursor = 'grabbing';
+                    
+                    if(elId === "companion-character-wrap") {
+                        handle.classList.add("dangle-animate");
+                        handle.style.filter = "drop-shadow(0px 10px 15px rgba(0,0,0,0.4))";
+                        react('shy');
+                    }
+                });
+                
+                window.addEventListener('pointermove', (e) => {
+                    if (!isDown) return;
+                    e.preventDefault();
+                    el.style.left = (startLeft + e.clientX - startX) + 'px';
+                    el.style.top = (startTop + e.clientY - startY) + 'px';
+                }, { passive: false });
+                
+                window.addEventListener('pointerup', () => {
+                    if(el.id === "companion-character-wrap") {
+                        handle.classList.remove("dangle-animate");
+                        handle.style.filter = "drop-shadow(0px 4px 6px rgba(0,0,0,0.2))";
+                        react('normal');
+                        if (isDown) window.isDraggingVivian = false;
+                    }
+
+                    if (isDown) {
+                        isDown = false;
+                        handle.style.cursor = 'grab';
+                        try {
+                            const rect = el.getBoundingClientRect();
+                            const pos = { left: rect.left, top: rect.top };
+                            localStorage.setItem(storageKey, JSON.stringify(pos));
+                        } catch (e) {}
+                    }
+                });
+
+                if (elId === "companion-character-wrap") {
+                    handle.addEventListener('dblclick', (e) => {
+                        react('angry');
+                    });
+                }
+            }
+
+            makeDraggable('companion-character-wrap', 'companion-canvas', 'companion_pos_char');
+            makeDraggable('companion-chat-panel', 'companion-chat-drag-handle', 'companion_pos_chat');
+            
+
+
 
             const chatOpenBtn = document.getElementById('companion-chat-open');
             if (chatOpenBtn) {
@@ -180,22 +267,7 @@
         if (!live2dModel) return;
         const motionByEmotion = { greet: 'tap_body', thinking: 'flick_head', happy: 'tap_body', angry: 'tap_body', sad: 'flick_head', shy: 'tap_body', normal: 'tap_body' };
         try { live2dModel.motion(motionByEmotion[emotion] || 'tap_body'); } catch (e) { }
-        try {
-            if (emotion === 'sad') window.currentVivianEmotion = 'Param144';
-            else if (emotion === 'shy' || emotion === 'happy') window.currentVivianEmotion = 'Param149';
-            else if (emotion === 'angry') window.currentVivianEmotion = 'Param150';
-            else if (emotion === 'thinking') window.currentVivianEmotion = 'Param132';
-            else window.currentVivianEmotion = null;
-
-            // 3초 뒤에 원래 표정으로 리셋
-            if (window.vivianEmotionTimeout) clearTimeout(window.vivianEmotionTimeout);
-            if (window.currentVivianEmotion !== null) {
-                window.vivianEmotionTimeout = setTimeout(() => {
-                    window.currentVivianEmotion = null;
-                }, 3000);
-            }
-        } catch (e) { console.warn('표정 변경 실패', e); }
-    }
+        }
     initLive2D();
 
     function loadHistory() {
