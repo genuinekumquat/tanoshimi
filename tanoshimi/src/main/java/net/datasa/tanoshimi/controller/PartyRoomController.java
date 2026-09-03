@@ -7,11 +7,12 @@ import net.datasa.tanoshimi.domain.dto.ApplicantSummaryDTO;
 import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
-import net.datasa.tanoshimi.repository.*;
+import net.datasa.tanoshimi.repository.UserRepository;
 import net.datasa.tanoshimi.service.ChatService;
 import net.datasa.tanoshimi.service.PartyApplicationService;
 import net.datasa.tanoshimi.service.PartyService;
 import net.datasa.tanoshimi.service.PostService;
+import net.datasa.tanoshimi.service.ReservationService;
 import net.datasa.tanoshimi.service.TripScheduleVoteService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -34,13 +35,11 @@ import org.springframework.web.bind.annotation.*;
 public class PartyRoomController {
 
     private final UserRepository userRepository;
-    // TODO(리팩터링 Phase 4/6): 아래 chat/reservation 조회도 각 도메인 서비스로 옮긴다.
-    private final ReservationRepository reservationRepository;
-    private final ChatRoomRepository chatRoomRepository;
     private final ChatService chatService;
     private final PartyApplicationService partyApplicationService;
     private final PartyService partyService;
     private final PostService postService;
+    private final ReservationService reservationService;
     private final TripScheduleVoteService voteService;
 
     @GetMapping("/party-board/{id}/room")
@@ -53,7 +52,7 @@ public class PartyRoomController {
         model.addAttribute("isOwner", party.getOwner().getId().equals(me.getId()));
         model.addAttribute("members", partyService.members(party));
 
-        chatRoomRepository.findByParty(party).ifPresent(room -> {
+        partyService.chatRoomOf(party).ifPresent(room -> {
             model.addAttribute("roomId", room.getId());
             model.addAttribute("chatHistory", chatService.history(room));
         });
@@ -64,7 +63,7 @@ public class PartyRoomController {
         model.addAttribute("voteTally", voteService.tally(schedule));
 
         // 패키지 예약 여부는 별개로 보여준다 - 예약 전이라도 계획표는 이미 위에서 항상 있다
-        reservationRepository.findByParty(party).ifPresent(reservation -> model.addAttribute("reservation", reservation));
+        reservationService.forParty(party).ifPresent(reservation -> model.addAttribute("reservation", reservation));
 
         // 파티 전용 게시판(사진첩)
         model.addAttribute("partyPosts", postService.partyPhotos(party));
