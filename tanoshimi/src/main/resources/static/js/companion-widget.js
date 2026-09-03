@@ -251,7 +251,7 @@
     function renderHistory() {
         log.innerHTML = '';
         if (history.length === 0) {
-            appendBubble('bot', '(당신을 보며 반색하며) 오셨군요. 여행 준비는 제가 도와드릴 테니 신경 쓰지 말고 편하게 말씀하세요.');
+            appendBubble('bot', '멍멍! 여행자님, 타미랑 여행 가자 멍! 뼈다귀는 챙겼냐 멍?! 🐾');
             return;
         }
         history.forEach(turn => appendBubble(turn.role === 'user' ? 'user' : 'bot', turn.content));
@@ -407,7 +407,7 @@
             const detectedEmotion = analyzeEmotion(reply);
             react(detectedEmotion);
         } catch (e) {
-            appendBubble('bot', '어라, 지금 통신이 잘 안 되네... 조금 뒤에 다시 말 걸어줄래? 📡');
+            appendBubble('bot', '멍멍! 여행자님, 타미랑 여행 가자 멍! 뼈다귀는 챙겼냐 멍?! 🐾');
         } finally {
             input.disabled = false;
             sendBtn.disabled = false;
