@@ -2,7 +2,7 @@
  * 여행 도우미 마스코트 위젯 - Live2D 캐릭터 렌더링 + 채팅 UI.
  */
 (function () {
-    const MODEL_URL = '/model/vivian/%E8%96%87%E8%96%87%E5%AE%89.model3.json?v=2';
+    const MODEL_URL = '/model/mimi/dog.model3.json';
     const STORAGE_KEY = 'tanoshimi_companion_chat_history';
     const MAX_STORED_TURNS = 20;
 
@@ -51,19 +51,41 @@
             const APP_WIDTH = 240;
             const APP_HEIGHT = 320;
 
-            const app = new PIXI.Application({
-                view: canvas, transparent: true, autoStart: true,
-                width: APP_WIDTH, height: APP_HEIGHT, preserveDrawingBuffer: true,
-                resolution: Math.max(window.devicePixelRatio || 1, 2) * 2.5,
-                autoDensity: true,
+                        const app = new PIXI.Application({
+                view: canvas,
+                backgroundAlpha: 0,
+                width: APP_WIDTH,
+                height: APP_HEIGHT,
+                autoStart: true,
+                preserveDrawingBuffer: true,
+                resolution: window.devicePixelRatio || 1
             });
-            const model = await PIXI.live2d.Live2DModel.from(MODEL_URL);
-            app.stage.addChild(model);
-
-            const baseScale = Math.min(APP_WIDTH / model.width, APP_HEIGHT / model.height);
-            model.scale.set(baseScale);
-            model.x = (APP_WIDTH - (model.width)) / 2;
-            model.y = (APP_HEIGHT - model.height);
+            let model;
+            try {
+                model = await PIXI.live2d.Live2DModel.from(MODEL_URL, { autoUpdate: true, autoInteract: false });
+                app.stage.addChild(model);
+                
+                // Extremely fail-safe scaling for ANY model
+                const scaleX = APP_WIDTH / model.width;
+                const scaleY = APP_HEIGHT / model.height;
+                const fitScale = Math.min(scaleX, scaleY) * 0.95;
+                
+                model.scale.set(fitScale);
+                model.x = (APP_WIDTH - model.width) / 2;
+                model.y = Math.max(APP_HEIGHT - model.height, 0); // Bottom align usually better
+                
+                // Force visibility and let it update
+                model.visible = true;
+                model.alpha = 1;
+                
+                console.log(`Mimi PIXI! w=${model.width} h=${model.height} scale=${fitScale}`);
+                
+                // Force an emotion or idle parameter just to make sure it wakes up
+                try { model.motion("tap_body"); } catch(e) {}
+            } catch (err) {
+                console.error("Live2D Load Error:", err);
+                return;
+            }
 
             function updateScale(uiScale) {
                 canvas.style.setProperty('--vivian-scale', uiScale);
@@ -113,45 +135,13 @@
                 }
             });
 
-                                    window.isDraggingVivian = false;
-
-                        window.isDraggingVivian = false;
-
-                        window.isDraggingVivian = false;
-
-            function makeDraggable(elId, handleId, storageKey) {
+                                    function makeDraggable(elId, handleId, storageKey) {
                 const el = document.getElementById(elId);
                 const handle = document.getElementById(handleId);
                 if (!el || !handle) return;
                 let isDown = false, startX, startY, startLeft, startTop;
 
-                // For character, we want exact pixel hover detection
-                if (elId === "companion-character-wrap") {
-                    handle.style.pointerEvents = 'none'; // Default to transparent
-                    window.addEventListener('pointermove', (e) => {
-                        if (window.isDraggingVivian) {
-                            handle.style.pointerEvents = 'auto';
-                            return;
-                        }
 
-                        const rect = handle.getBoundingClientRect();
-                        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-                            handle.style.pointerEvents = 'none';
-                            return;
-                        }
-
-                        const gl = handle.getContext('webgl2') || handle.getContext('webgl');
-                        if (!gl) return;
-                        
-                        try {
-                            const pixels = new Uint8Array(4);
-                            const px = (e.clientX - rect.left) * (handle.width / rect.width);
-                            const py = (e.clientY - rect.top) * (handle.height / rect.height);
-                            gl.readPixels(px, handle.height - py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-                            handle.style.pointerEvents = (pixels[3] === 0) ? 'none' : 'auto';
-                        } catch(err) {}
-                    }, { passive: true });
-                }
 
                 handle.addEventListener('pointerdown', (e) => {
                     if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
@@ -170,7 +160,7 @@
                     handle.style.cursor = 'grabbing';
                     
                     if(elId === "companion-character-wrap") {
-                        handle.classList.add("dangle-animate");
+                        
                         handle.style.filter = "drop-shadow(0px 10px 15px rgba(0,0,0,0.4))";
                         react('shy');
                     }
@@ -185,10 +175,9 @@
                 
                 window.addEventListener('pointerup', () => {
                     if(el.id === "companion-character-wrap") {
-                        handle.classList.remove("dangle-animate");
+                        
                         handle.style.filter = "drop-shadow(0px 4px 6px rgba(0,0,0,0.2))";
                         react('normal');
-                        if (isDown) window.isDraggingVivian = false;
                     }
 
                     if (isDown) {
@@ -213,10 +202,7 @@
             makeDraggable('companion-chat-panel', 'companion-chat-drag-handle', 'companion_pos_chat');
             
 
-            window.addEventListener('pointermove', (e) => {
-                const rect = canvas.getBoundingClientRect();
-                model.focus(e.clientX - rect.left, e.clientY - rect.top);
-            });
+
 
             const chatOpenBtn = document.getElementById('companion-chat-open');
             if (chatOpenBtn) {
@@ -246,22 +232,7 @@
         if (!live2dModel) return;
         const motionByEmotion = { greet: 'tap_body', thinking: 'flick_head', happy: 'tap_body', angry: 'tap_body', sad: 'flick_head', shy: 'tap_body', normal: 'tap_body' };
         try { live2dModel.motion(motionByEmotion[emotion] || 'tap_body'); } catch (e) { }
-        try {
-            if (emotion === 'sad') window.currentVivianEmotion = 'Param144';
-            else if (emotion === 'shy' || emotion === 'happy') window.currentVivianEmotion = 'Param149';
-            else if (emotion === 'angry') window.currentVivianEmotion = 'Param150';
-            else if (emotion === 'thinking') window.currentVivianEmotion = 'Param132';
-            else window.currentVivianEmotion = null;
-
-            // 3초 뒤에 원래 표정으로 리셋
-            if (window.vivianEmotionTimeout) clearTimeout(window.vivianEmotionTimeout);
-            if (window.currentVivianEmotion !== null) {
-                window.vivianEmotionTimeout = setTimeout(() => {
-                    window.currentVivianEmotion = null;
-                }, 3000);
-            }
-        } catch (e) { console.warn('표정 변경 실패', e); }
-    }
+        }
     initLive2D();
 
     function loadHistory() {
@@ -280,7 +251,7 @@
     function renderHistory() {
         log.innerHTML = '';
         if (history.length === 0) {
-            appendBubble('bot', '(당신을 보며 반색하며) 오셨군요. 여행 준비는 제가 도와드릴 테니 신경 쓰지 말고 편하게 말씀하세요.');
+            appendBubble('bot', '멍멍! 여행자님, 타미랑 여행 가자 멍! 뼈다귀는 챙겼냐 멍?! 🐾');
             return;
         }
         history.forEach(turn => appendBubble(turn.role === 'user' ? 'user' : 'bot', turn.content));
@@ -367,10 +338,9 @@
     };
     
     
-    const savedHidden = localStorage.getItem('companion_hidden_state');
-    if (savedHidden === 'true') {
-        window.toggleCharacterVisibility(true);
-    }
+    // FORCE VISIBLE
+    localStorage.removeItem('companion_hidden_state');
+    window.toggleCharacterVisibility(false);
 
     toggleBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -437,7 +407,7 @@
             const detectedEmotion = analyzeEmotion(reply);
             react(detectedEmotion);
         } catch (e) {
-            appendBubble('bot', '어라, 지금 통신이 잘 안 되네... 조금 뒤에 다시 말 걸어줄래? 📡');
+            appendBubble('bot', '멍멍! 여행자님, 타미랑 여행 가자 멍! 뼈다귀는 챙겼냐 멍?! 🐾');
         } finally {
             input.disabled = false;
             sendBtn.disabled = false;

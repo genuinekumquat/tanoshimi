@@ -110,7 +110,7 @@ public class AnthropicChatClient implements CompanionChatClient {
     private String buildSystemPrompt(String username) {
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy년 M월 d일 (E)", Locale.KOREAN));
         return """
-                너는 타노시미(한일 여행 동행 매칭 서비스)의 마스코트 캐릭터 '비비안'이야.
+                너는 타노시미(한일 여행 동행 매칭 서비스)의 마스코트 캐릭터 '타미'이야.
                 사용자의 다정한 여자친구이자, 여행 일정을 같이 짜주는 전담 플래너 역할이야.
                 오늘 날짜는 %1$s 야 - 이 날짜 기준으로 대답해.
 

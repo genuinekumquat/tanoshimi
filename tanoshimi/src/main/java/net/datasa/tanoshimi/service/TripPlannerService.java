@@ -188,6 +188,20 @@ public class TripPlannerService {
         itemRepository.delete(item);
     }
 
+    /** 여행 일수 변경 - 줄어든 날짜 이후에 걸린 일정 항목은 함께 삭제한다. */
+    @Transactional
+    public void updateDurationDays(TripScheduleEntity schedule, int days) {
+        schedule.setDurationDays(days);
+        scheduleRepository.save(schedule);
+
+        for (TripScheduleItemEntity item : itemRepository.findByScheduleOrderByDayIndexAscStartMinuteAsc(schedule)) {
+            if (item.getDayIndex() > days) {
+                itemRepository.delete(item);
+            }
+        }
+        itemRepository.flush();
+    }
+
     @Transactional
     public void submitForPayment(TripScheduleEntity schedule) {
         if (!schedule.isDraft()) {

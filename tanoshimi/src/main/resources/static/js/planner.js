@@ -90,13 +90,18 @@
     const START_HOUR = 6;
     const END_HOUR = 24;
     const SLOTS = (END_HOUR - START_HOUR) * (60 / SLOT_MIN);
-    const DAY_COUNT = typeof DURATION_NIGHTS !== 'undefined' ? DURATION_NIGHTS + 1 : 4;
+    let DAY_COUNT = typeof SCHEDULE_DAYS !== 'undefined' ? SCHEDULE_DAYS : (typeof DURATION_NIGHTS !== 'undefined' ? DURATION_NIGHTS + 1 : 4);
 
-    const DAYS = Array.from({length: DAY_COUNT}, (_, i) => ({
-        key: 'd' + (i + 1),
-        date: (i + 1) + '일',
-        week: ''
-    }));
+
+        let DAYS = [];
+    function buildDays() {
+        DAYS = Array.from({length: Math.max(DAY_COUNT, 1)}, (_, i) => ({
+            key: 'd' + (i + 1),
+            date: (i + 1) + '일차',
+            week: ''
+        }));
+    }
+    buildDays();
 
     let items = [];
 
@@ -128,8 +133,14 @@
           })
         );
         
+        // Set CSS grid dynamically
+        gridHead.style.display = 'grid';
+        gridHead.style.gridTemplateColumns = `56px repeat(${DAY_COUNT}, minmax(140px, 1fr))`;
+        gridBody.style.display = 'grid';
+        gridBody.style.gridTemplateColumns = `56px repeat(${DAY_COUNT}, minmax(140px, 1fr))`;
+
         // body
-        let bodyHtml = '<div class="time-col">';
+        let bodyHtml = '<div class="time-col" style="min-width: 56px;">';
         for(let i=0; i<SLOTS; i++) {
             bodyHtml += `<div class="slot">${slotToTime(i)}</div>`;
         }
@@ -148,7 +159,44 @@
             col.addEventListener('dragover', e => e.preventDefault());
             col.addEventListener('drop', onDropToColumn);
         });
+        
+        // Sync top scrollbar dummy width
+        const mainScroll = document.getElementById('main-scroll-wrapper');
+        const topDummy = document.getElementById('top-scroll-dummy');
+        if (mainScroll && topDummy) {
+            // Need setTimeout because DOM rendering of new grid columns takes a tick
+            setTimeout(() => {
+                topDummy.style.width = mainScroll.firstElementChild.scrollWidth + 'px';
+            }, 0);
+        }
     }
+    
+    // Add scroll sync event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        const topScroll = document.getElementById('top-scroll-wrapper');
+        const mainScroll = document.getElementById('main-scroll-wrapper');
+        
+        if (topScroll && mainScroll) {
+            let isSyncingLeftScroll = false;
+            let isSyncingRightScroll = false;
+            
+            topScroll.addEventListener('scroll', function(e) {
+                if (!isSyncingLeftScroll) {
+                    isSyncingRightScroll = true;
+                    mainScroll.scrollLeft = this.scrollLeft;
+                }
+                isSyncingLeftScroll = false;
+            });
+            
+            mainScroll.addEventListener('scroll', function(e) {
+                if (!isSyncingRightScroll) {
+                    isSyncingLeftScroll = true;
+                    topScroll.scrollLeft = this.scrollLeft;
+                }
+                isSyncingRightScroll = false;
+            });
+        }
+    });
 
     /* ---------------------------------------------------------------------
        렌더링
@@ -468,6 +516,29 @@
     }
 
     
+    
+    document.getElementById('btn-add-day')?.addEventListener('click', async () => {
+        if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
+        DAY_COUNT++;
+        buildDays();
+        buildGrid();
+        await window.api.patch(`/api/planner/${SCHEDULE_ID}/days?days=${DAY_COUNT}`);
+        reload();
+    });
+    document.getElementById('btn-remove-day')?.addEventListener('click', async () => {
+        if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
+        if (DAY_COUNT <= 1) {
+            alert('최소 1일은 있어야 합니다.');
+            return;
+        }
+        if (confirm(`정말 마지막 날(${DAY_COUNT}일차)을 삭제하시겠습니까? 해당 일차의 모든 일정이 삭제될 수 있습니다.`)) {
+            DAY_COUNT--;
+            buildDays();
+            buildGrid();
+            await window.api.patch(`/api/planner/${SCHEDULE_ID}/days?days=${DAY_COUNT}`);
+            reload();
+        }
+    });
     document.getElementById('btn-add')?.addEventListener('click', () => {
         if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
         showEditModal('', '', '#4b6b4a', async (newTitle, newMemo, newColor) => {

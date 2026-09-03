@@ -58,7 +58,7 @@
     <div class="rec-grid">
         <div th:each="rec : ${recommendations}" class="rec-card">
             <div class="rec-img-wrap">
-                <img th:src="${rec.imageUrl}" alt="명소 사진" onerror="this.src='https://loremflickr.com/400/400/travel'">
+                <img th:src="${rec.imageUrl}" alt="명소 사진" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'400\' height=\'400\'><rect width=\'100%\' height=\'100%\' fill=\'#eee\'/><text x=\'50%\' y=\'50%\' fill=\'#aaa\' font-family=\'sans-serif\' font-size=\'20\' text-anchor=\'middle\' dy=\'.3em\'>No Image</text></svg>';">
             </div>
             <div class="rec-info">
                 <div class="rec-region" th:text="${rec.region}">도쿄</div>
