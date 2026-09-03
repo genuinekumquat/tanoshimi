@@ -57,8 +57,14 @@
                 resolution: Math.max(window.devicePixelRatio || 1, 2) * 2.5,
                 autoDensity: true,
             });
-            const model = await PIXI.live2d.Live2DModel.from(MODEL_URL);
-            app.stage.addChild(model);
+            let model;
+            try {
+                model = await PIXI.live2d.Live2DModel.from(MODEL_URL);
+                app.stage.addChild(model);
+            } catch (err) {
+                console.error("Live2D Load Error:", err);
+                return;
+            }
 
             const baseScale = Math.min(APP_WIDTH / model.width, APP_HEIGHT / model.height);
             model.scale.set(baseScale);
