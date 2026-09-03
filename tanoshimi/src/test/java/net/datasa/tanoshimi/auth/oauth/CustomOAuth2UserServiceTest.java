@@ -19,6 +19,7 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -137,9 +138,14 @@ class CustomOAuth2UserServiceTest {
 
     @Test
     void 연동_대상_소셜계정이_이미_다른_계정에_연동돼있으면_LINK_CONFLICT_예외() {
+        // target/other 둘 다 실제로 저장한 적 없는 순수 인메모리 엔티티라 id가 null인 채로
+        // 남는다 - "이미 다른 계정에 연결돼 있다"를 제대로 흉내내려면 서로 다른 id를 명시적으로
+        // 심어줘야 한다(안 그러면 둘 다 null이라 "같은 계정"으로 오판하거나 NPE가 난다).
         OAuth2UserRequest request = googleRequest(Map.of("sub", "google-uid-9", "email", "linked@test.com", "name", "유자차"));
         UserEntity target = newSocialUser("google", null);
+        ReflectionTestUtils.setField(target, "id", 42L);
         UserEntity other = newSocialUser("google", "google-uid-9");
+        ReflectionTestUtils.setField(other, "id", 99L);
         when(httpSession.getAttribute(CustomOAuth2UserService.LINK_TARGET_SESSION_KEY)).thenReturn(42L);
         when(userRepository.findById(42L)).thenReturn(Optional.of(target));
         when(userRepository.findBySocialProviderAndSocialId("google", "google-uid-9")).thenReturn(Optional.of(other));

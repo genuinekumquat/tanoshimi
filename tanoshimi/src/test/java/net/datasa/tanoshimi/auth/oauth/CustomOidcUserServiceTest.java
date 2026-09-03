@@ -83,7 +83,7 @@ class CustomOidcUserServiceTest {
     void 라인_속성을_변환해서_resolver에_넘기고_CustomOidcUser로_감싼다() {
         OidcUserRequest request = lineRequest(Map.of(
                 IdTokenClaimNames.SUB, "line-uid-1", "name", "유자차", "email", "user@test.com"));
-        UserEntity user = UserEntity.createSocial("user@test.com", "unusable-hash", "유자차", "01011112222",
+        UserEntity user = UserEntity.createSocial("user@test.com", "yuzacha", "unusable-hash", "유자차", "01011112222",
                 Gender.female, LocalDate.of(1998, 5, 14), Nationality.KR, "line", "line-uid-1");
         when(socialLoginResolver.resolveOrRequireSignup(any())).thenReturn(user);
 

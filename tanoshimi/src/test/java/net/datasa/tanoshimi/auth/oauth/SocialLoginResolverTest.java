@@ -46,7 +46,7 @@ class SocialLoginResolverTest {
     }
 
     private UserEntity newSocialUser(String provider, String socialId) {
-        return UserEntity.createSocial("user@test.com", "unusable-hash", "유자차", "01011112222",
+        return UserEntity.createSocial("user@test.com", "yuzacha", "unusable-hash", "유자차", "01011112222",
                 Gender.female, LocalDate.of(1998, 5, 14), Nationality.KR, provider, socialId);
     }
 
