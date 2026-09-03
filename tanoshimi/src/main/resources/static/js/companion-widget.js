@@ -149,33 +149,7 @@
                 if (!el || !handle) return;
                 let isDown = false, startX, startY, startLeft, startTop;
 
-                // For character, we want exact pixel hover detection
-                if (elId === "companion-character-wrap") {
-                    handle.style.pointerEvents = 'none'; // Default to transparent
-                    window.addEventListener('pointermove', (e) => {
-                        if (window.isDraggingVivian) {
-                            handle.style.pointerEvents = 'auto';
-                            return;
-                        }
 
-                        const rect = handle.getBoundingClientRect();
-                        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-                            handle.style.pointerEvents = 'none';
-                            return;
-                        }
-
-                        const gl = handle.getContext('webgl2') || handle.getContext('webgl');
-                        if (!gl) return;
-                        
-                        try {
-                            const pixels = new Uint8Array(4);
-                            const px = (e.clientX - rect.left) * (handle.width / rect.width);
-                            const py = (e.clientY - rect.top) * (handle.height / rect.height);
-                            gl.readPixels(px, handle.height - py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-                            handle.style.pointerEvents = (pixels[3] === 0) ? 'none' : 'auto';
-                        } catch(err) {}
-                    }, { passive: true });
-                }
 
                 handle.addEventListener('pointerdown', (e) => {
                     if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
