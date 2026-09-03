@@ -187,7 +187,7 @@ public class GeminiChatClient implements CompanionChatClient {
                         (org.springframework.web.reactive.function.client.WebClientResponseException) e;
                 if (we.getStatusCode().value() == 429) {
                     log.warn("Gemini API 요청 한도 초과(429): " + we.getResponseBodyAsString());
-                    return "...잠시만요, %s 님. 신탁의 목소리가 살짝 지쳤나 봐요. (무료 API 한도 초과) 1분만 기다려주시면 다시 우아하게 답해드릴게요.".formatted(username);
+                    return "멍멍! %s 님! 타미가 너무너무 짖어서 목이 살짝 아프다 멍! (무료 API 한도 초과) 1분만 기다렸다가 다시 말해달라 멍! 🐾".formatted(username);
                 }
             }
             String errMsg = e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ? ((org.springframework.web.reactive.function.client.WebClientResponseException)e).getResponseBodyAsString() : e.getMessage();
