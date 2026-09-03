@@ -59,11 +59,11 @@ class UserServiceTest {
     }
     private SignupRequest validSignupRequest() {
         return new SignupRequest(
-                "  User@Test.com ", RAW_PASSWORD, RAW_PASSWORD, "유자차",
+                "  User@Test.com ", "yuzacha", RAW_PASSWORD, RAW_PASSWORD, "유자차",
                 "010-1111-2222", "female", LocalDate.of(1998, 5, 14), "KR", true);
     }
     private SocialSignupRequest validSocialSignupRequest(String email) {
-        return new SocialSignupRequest("유자차", email, "010-1111-2222", "female",
+        return new SocialSignupRequest("유자차", "yuzacha", email, "010-1111-2222", "female",
                 LocalDate.of(1998, 5, 14), "KR", true);
     }
     // ---------------------------------------------------------------- signup
@@ -264,7 +264,7 @@ class UserServiceTest {
 
     private UserEntity localUser(String email, String rawPassword) {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(4);
-        return UserEntity.createLocal(email, encoder.encode(rawPassword), "유자차", "01011112222",
+        return UserEntity.createLocal(email, "yuzacha", encoder.encode(rawPassword), "유자차", "01011112222",
                 net.datasa.tanoshimi.domain.entity.Gender.female, LocalDate.of(1998, 5, 14),
                 net.datasa.tanoshimi.domain.entity.Nationality.KR);
     }
@@ -301,7 +301,7 @@ class UserServiceTest {
 
     @Test
     void issueTemporaryPassword_소셜계정이면_SOCIAL_ACCOUNT_NO_PASSWORD_예외() {
-        UserEntity social = UserEntity.createSocial("user@test.com", "unusable-hash", "유자차", "01011112222",
+        UserEntity social = UserEntity.createSocial("user@test.com", "yuzacha", "unusable-hash", "유자차", "01011112222",
                 net.datasa.tanoshimi.domain.entity.Gender.female, LocalDate.of(1998, 5, 14),
                 net.datasa.tanoshimi.domain.entity.Nationality.KR, "google", "social-id-1");
         when(userRepository.findByEmail("user@test.com")).thenReturn(java.util.Optional.of(social));

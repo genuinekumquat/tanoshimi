@@ -1,34 +1,71 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head th:replace="~{fragments/layout :: head(${profileUser.name} + ' | 타노시미')}"></head>
+<head>
+  <th:block th:replace="~{fragments/layout :: head(${profileUser.name} + ' | 타노시미')}"></th:block>
+  <style>
+    /* [account-settings v2] 비공개 계정 블러+자물쇠 오버레이. app.css 에 재사용할 만한
+       기존 overlay/blur 패턴이 없어서(notif-empty 는 그냥 회색 텍스트) 이 페이지 전용으로 최소한만
+       추가한다 - 색상/변수는 app.css :root 에 이미 있는 --card/--line/--ink-soft 를 그대로 쓴다. */
+    .pp-gate{ position:relative; }
+    .pp-gate .pp-blurred{ filter:blur(7px); pointer-events:none; user-select:none; }
+    .pp-lock-overlay{
+      position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:8px; background:rgba(255,252,244,.55); border-radius:14px;
+    }
+    .pp-lock-overlay .pp-lock-icon{ font-size:30px; }
+    .pp-lock-overlay .pp-lock-text{ font-weight:700; font-size:14px; color:var(--ink); }
+    .pp-lock-overlay .pp-lock-sub{ font-size:12px; color:var(--ink-soft); }
+  </style>
+</head>
 <body>
 <header th:replace="~{fragments/layout :: header}"></header>
 
 <main class="wrap" style="max-width:600px;">
-  <div class="card" style="padding:22px; display:flex; gap:18px; align-items:center;">
-    <div style="position:relative; width:80px; height:80px; border-radius:50%; flex:none; overflow:hidden;
-                background:var(--forest); color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px;">
-      <span th:text="${#strings.substring(profileUser.name,0,1)}">유</span>
-      <img th:if="${profileUser.profileImageUrl}" th:src="@{${profileUser.profileImageUrl}}"
-           onerror="this.style.display='none';"
-           style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
-    </div>
-    <div style="flex:1;">
-      <div style="font-weight:700; font-size:17px;" th:text="${profileUser.name}">이름</div>
-      <div style="font-size:12px; color:var(--ink-soft);">
-        <span th:text="${followerCount}">0</span>명 팔로워 · <span th:text="${followingCount}">0</span>명 팔로잉
+  <div class="card pp-gate" style="padding:22px;">
+
+    <!-- [account-settings v2] 비공개 + 본인/관리자 아님 -> 진짜 데이터는 애초에 이 블록에서
+         참조하지 않는다(모델에도 안 실려 있음 - MyPageController.publicProfile 참고). 자리만
+         차지하는 스켈레톤 모양 위에 자물쇠 오버레이만 얹는다. -->
+    <div th:if="${privateAndNotOwner}" style="display:flex; gap:18px; align-items:center;" class="pp-blurred" aria-hidden="true">
+      <div style="width:80px; height:80px; border-radius:50%; flex:none; background:var(--line);"></div>
+      <div style="flex:1;">
+        <div style="height:16px; width:120px; border-radius:6px; background:var(--line); margin-bottom:8px;"></div>
+        <div style="height:11px; width:160px; border-radius:6px; background:var(--line); margin-bottom:8px;"></div>
+        <div style="height:11px; width:200px; border-radius:6px; background:var(--line);"></div>
       </div>
-      <p style="font-size:12.5px;" th:text="${profileUser.intro}">자기소개</p>
     </div>
-    <div sec:authorize="isAuthenticated()" style="display:flex; flex-direction:column; gap:8px;" th:if="${isSelf == false}">
-      <button type="button" id="btn-follow" class="btn btn-primary"
-              th:text="${isFollowing} ? '언팔로우' : '팔로우'" th:attr="data-target-id=${profileUser.id},data-following=${isFollowing}">팔로우</button>
-      <button type="button" id="btn-message" class="btn" style="background:#fff; border:1px solid var(--line);"
-              th:attr="data-target-id=${profileUser.id}">💬 메시지 보내기</button>
-      <button type="button" id="btn-block" class="btn" style="background:#fff; border:1px solid var(--danger);color:var(--danger);"
-              th:text="${isBlocked} ? '차단해제' : '차단하기'" th:attr="data-target-id=${profileUser.id},data-blocked=${isBlocked}">차단하기</button>
-      <button type="button" th:attr="data-report-type='user',data-report-id=${profileUser.id},data-report-label=${profileUser.name}"
-              style="font-size:11.5px; color:var(--ink-soft); background:none; border:none; cursor:pointer;">🚨 신고</button>
+    <div th:if="${privateAndNotOwner}" class="pp-lock-overlay">
+      <div class="pp-lock-icon">🔒</div>
+      <div class="pp-lock-text">비공개 계정입니다</div>
+      <div class="pp-lock-sub" th:text="${profileUser.name} + '님이 프로필을 공개하지 않았어요.'">이 사용자가 프로필을 공개하지 않았어요.</div>
+    </div>
+
+    <!-- 공개 계정이거나 본인/관리자 - 기존 그대로 -->
+    <div th:unless="${privateAndNotOwner}" style="display:flex; gap:18px; align-items:center;">
+      <div style="position:relative; width:80px; height:80px; border-radius:50%; flex:none; overflow:hidden;
+                  background:var(--forest); color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px;">
+        <span th:text="${#strings.substring(profileUser.name,0,1)}">유</span>
+        <img th:if="${profileUser.profileImageUrl}" th:src="@{${profileUser.profileImageUrl}}"
+             onerror="this.style.display='none';"
+             style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+      </div>
+      <div style="flex:1;">
+        <div style="font-weight:700; font-size:17px;" th:text="${profileUser.name}">이름</div>
+        <div style="font-size:12px; color:var(--ink-soft);">
+          <span th:text="${followerCount}">0</span>명 팔로워 · <span th:text="${followingCount}">0</span>명 팔로잉
+        </div>
+        <p style="font-size:12.5px;" th:text="${profileUser.intro}">자기소개</p>
+      </div>
+      <div sec:authorize="isAuthenticated()" style="display:flex; flex-direction:column; gap:8px;" th:if="${isSelf == false}">
+        <button type="button" id="btn-follow" class="btn btn-primary"
+                th:text="${isFollowing} ? '언팔로우' : '팔로우'" th:attr="data-target-id=${profileUser.id},data-following=${isFollowing}">팔로우</button>
+        <button type="button" id="btn-message" class="btn" style="background:#fff; border:1px solid var(--line);"
+                th:attr="data-target-id=${profileUser.id}">💬 메시지 보내기</button>
+        <button type="button" id="btn-block" class="btn" style="background:#fff; border:1px solid var(--danger);color:var(--danger);"
+                th:text="${isBlocked} ? '차단해제' : '차단하기'" th:attr="data-target-id=${profileUser.id},data-blocked=${isBlocked}">차단하기</button>
+        <button type="button" th:attr="data-report-type='user',data-report-id=${profileUser.id},data-report-label=${profileUser.name}"
+                style="font-size:11.5px; color:var(--ink-soft); background:none; border:none; cursor:pointer;">🚨 신고</button>
+      </div>
     </div>
   </div>
 </main>

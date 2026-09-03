@@ -15,6 +15,7 @@ USE tanoshimi;
 CREATE TABLE IF NOT EXISTS users (
     id              BIGINT       NOT NULL AUTO_INCREMENT,
     email           VARCHAR(255) NOT NULL COMMENT '로그인 ID로 사용',
+    username        VARCHAR(30)  COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '[vanity-url 신규] 프로필 URL(/{username}) 아이디 - 항상 소문자로 정규화 저장(UsernamePolicy). email 등 다른 문자열 컬럼과 같은 콜레이션(DB 기본값 utf8mb4_unicode_ci)으로 명시 고정 - 안 그러면 서버 기본 콜레이션(utf8mb4_0900_ai_ci)이 붙어서 email 파생 값과 비교/JOIN 시 충돌난다(v20-3 실사용 중 실제로 겪은 버그).',
     password        VARCHAR(255) NOT NULL COMMENT 'BCrypt 해시. 소셜 전용 계정은 랜덤 해시',
     name            VARCHAR(50)  NOT NULL,
     phone           VARCHAR(20)  NOT NULL,
@@ -33,10 +34,12 @@ CREATE TABLE IF NOT EXISTS users (
     intro           VARCHAR(300) NULL COMMENT '자기소개',
     social_provider VARCHAR(20)  NULL COMMENT 'google / naver / line (로컬 가입은 NULL)',
     social_id       VARCHAR(255) NULL,
+    is_private      BOOLEAN      NOT NULL DEFAULT FALSE COMMENT '[account-settings 신규] 계정 공개범위 - TRUE면 타인이 /users/{id} 열람 불가',
     created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uk_users_email (email),
+    UNIQUE KEY uk_users_username (username),
     UNIQUE KEY uk_users_phone (phone),
     UNIQUE KEY uk_users_social (social_provider, social_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -576,4 +579,31 @@ CREATE TABLE IF NOT EXISTS user_blocks (
     CONSTRAINT fk_block_blocker FOREIGN KEY (blocker_id) REFERENCES users(id),
     CONSTRAINT fk_block_blocked FOREIGN KEY (blocked_id) REFERENCES users(id),
     CONSTRAINT ck_block_not_self CHECK (blocker_id <> blocked_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 25. user_notification_settings [account-settings 신규] (알림 설정, 회원당 1행)
+-- user_profile_theme 과 같은 패턴(1:1, user_id UNIQUE). 현재는 값을 저장만 한다 -
+-- 실제 푸시/이메일 발송 인프라가 없어(notifications 테이블은 인앱 알림함 전용) 이 값들이
+-- 발송 여부를 좌우하지는 않는다. notify_* 컬럼은 NotificationService.notify(...) 호출부에서
+-- 실제로 쓰이는 type 문자열(new_follower/new_comment/party_application/party_approved/
+-- party_rejected/party_kicked/trip_reminder) 그대로 하나씩 대응한다.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_notification_settings (
+    id                        BIGINT   NOT NULL AUTO_INCREMENT,
+    user_id                   BIGINT   NOT NULL,
+    push_enabled              BOOLEAN  NOT NULL DEFAULT TRUE,
+    email_enabled             BOOLEAN  NOT NULL DEFAULT TRUE,
+    focus_mode_enabled        BOOLEAN  NOT NULL DEFAULT FALSE COMMENT '야간/방해금지 모드',
+    notify_new_follower       BOOLEAN  NOT NULL DEFAULT TRUE,
+    notify_new_comment        BOOLEAN  NOT NULL DEFAULT TRUE,
+    notify_party_application  BOOLEAN  NOT NULL DEFAULT TRUE,
+    notify_party_approved     BOOLEAN  NOT NULL DEFAULT TRUE,
+    notify_party_rejected     BOOLEAN  NOT NULL DEFAULT TRUE,
+    notify_party_kicked       BOOLEAN  NOT NULL DEFAULT TRUE,
+    notify_trip_reminder      BOOLEAN  NOT NULL DEFAULT TRUE,
+    updated_at                DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_uns_user (user_id),
+    CONSTRAINT fk_uns_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

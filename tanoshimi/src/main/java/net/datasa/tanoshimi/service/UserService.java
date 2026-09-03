@@ -14,6 +14,7 @@ import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.UserRepository;
+import net.datasa.tanoshimi.util.UsernamePolicy;
 import net.datasa.tanoshimi.domain.entity.VerificationPurpose;
 import net.datasa.tanoshimi.util.EmailSender;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -43,18 +44,54 @@ public class UserService {
         return email != null && !email.isBlank() && !userRepository.existsByEmail(email.trim().toLowerCase());
     }
 
+    /**
+     * [vanity-url 신규] 회원가입 화면의 "중복확인" + 서버측 재검증 공용 - 형식/예약어(UsernamePolicy)
+     * 를 먼저 걸러내고, 통과하면 DB 중복만 본다. signup()/signupSocial() 도 이 메서드를 그대로
+     * 호출해서 클라이언트가 검증을 우회해도 서버가 다시 막는다.
+     */
+    @Transactional(readOnly = true)
+    public boolean isUsernameAvailable(String rawUsername) {
+        String normalized = UsernamePolicy.normalize(rawUsername);
+        return UsernamePolicy.isAllowed(normalized) && !userRepository.existsByUsername(normalized);
+    }
+
+    private void requireAvailableUsername(String normalizedUsername) {
+        if (!UsernamePolicy.isValidFormat(normalizedUsername)) {
+            throw new BusinessException(ErrorCode.INVALID_USERNAME_FORMAT);
+        }
+        if (UsernamePolicy.isReserved(normalizedUsername)) {
+            throw new BusinessException(ErrorCode.RESERVED_USERNAME);
+        }
+        if (userRepository.existsByUsername(normalizedUsername)) {
+            throw new BusinessException(ErrorCode.DUPLICATE_USERNAME);
+        }
+    }
+
+    /**
+     * [account-settings 신규] 회원정보 수정 등 민감한 동작 전 비밀번호 재확인.
+     * 소셜 전용 계정은 UserEntity.createSocial() 이 알 수 없는 랜덤 문자열의 해시를 넣어두므로
+     * (unusablePasswordHash 참고) 여기로 들어오면 항상 false 가 나온다 - 호출부(AccountSettings
+     * 쪽 컨트롤러/서비스)가 isSocialAccount() 로 먼저 걸러서 소셜 계정에는 이 메서드를 아예
+     * 타지 않게 해야 한다(정책은 AccountController 주석 참고).
+     */
+    @Transactional(readOnly = true)
+    public boolean verifyPassword(UserEntity user, String rawPassword) {
+        return rawPassword != null && passwordEncoder.matches(rawPassword, user.getPassword());
+    }
+
     @Transactional
     public Long signup(SignupRequest rawRequest) {
         SignupRequest req = rawRequest.normalized();
 
         if (userRepository.existsByEmail(req.email())) throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         if (userRepository.existsByPhone(req.phone())) throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
+        requireAvailableUsername(req.username());
 
         // 알리고 등 SMS API가 사업자등록번호 없이는 실사용이 어려워 본인인증 채널을 이메일로 전환.
         emailVerificationService.consumeVerified(req.email(), VerificationPurpose.signup);
 
         UserEntity user = UserEntity.createLocal(
-                req.email(), passwordEncoder.encode(req.password()), req.name(), req.phone(),
+                req.email(), req.username(), passwordEncoder.encode(req.password()), req.name(), req.phone(),
                 Gender.valueOf(req.gender()), req.birthDate(), Nationality.valueOf(req.nationality()));
 
         // v17: 가입 직후 주던 NEWBIE 칭호가 없어졌다. 38종 체계에는 '가입만 하면 받는'
@@ -71,13 +108,14 @@ public class UserService {
         }
         if (userRepository.existsByEmail(email)) throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         if (userRepository.existsByPhone(req.phone())) throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
+        requireAvailableUsername(req.username());
 
         // 소셜 로그인 자체가 이미 신뢰할 수 있는 인증 수단이라, 이메일을 provider가 줬든
         // (구글/네이버) 사용자가 직접 입력했든(LINE) 별도의 이메일 인증코드는 요구하지 않는다.
         // 로컬(이메일/비밀번호) 가입에만 이메일 인증이 필요하다 - signup() 참고.
 
         UserEntity user = UserEntity.createSocial(
-                email, unusablePasswordHash(), req.name(), req.phone(),
+                email, req.username(), unusablePasswordHash(), req.name(), req.phone(),
                 Gender.valueOf(req.gender()), req.birthDate(), Nationality.valueOf(req.nationality()),
                 pending.provider(), pending.socialId());
 
@@ -131,7 +169,7 @@ public class UserService {
             return userRepository.saveAndFlush(user).getId();
         } catch (DataIntegrityViolationException e) {
             log.warn("가입 중 UNIQUE 충돌: {}", e.getMessage());
-            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL, "이미 가입된 이메일 또는 휴대폰 번호입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL, "이미 가입된 이메일, 아이디 또는 휴대폰 번호입니다.");
         }
     }
 

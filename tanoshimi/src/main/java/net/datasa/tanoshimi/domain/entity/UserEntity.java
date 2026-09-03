@@ -30,6 +30,11 @@ public class UserEntity {
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
+    /** [vanity-url 신규] 프로필 URL(/{username}) 용 아이디 - 항상 소문자로 정규화되어 저장된다.
+     * 형식/예약어 규칙은 UsernamePolicy 참고. */
+    @Column(nullable = false, unique = true, length = 30)
+    private String username;
+
     @Column(nullable = false, length = 255)
     private String password;
 
@@ -99,6 +104,10 @@ public class UserEntity {
     @Column(name = "social_id", length = 255)
     private String socialId;
 
+    /** [account-settings 신규] 계정 공개범위. true=비공개(다른 사용자는 /users/{id} 열람 불가), false=공개(기본값). */
+    @Column(name = "is_private", nullable = false)
+    private boolean isPrivate;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -108,10 +117,11 @@ public class UserEntity {
     private LocalDateTime updatedAt;
 
     @Builder(access = AccessLevel.PRIVATE)
-    private UserEntity(String email, String password, String name, String phone, Gender gender,
+    private UserEntity(String email, String username, String password, String name, String phone, Gender gender,
                        LocalDate birthDate, Nationality nationality, Role role, UserStatus status,
                        String socialProvider, String socialId) {
         this.email = email;
+        this.username = username;
         this.password = password;
         this.name = name;
         this.phone = phone;
@@ -129,25 +139,35 @@ public class UserEntity {
         this.socialId = socialId;
     }
 
-    public static UserEntity createLocal(String email, String encodedPassword, String name, String phone,
+    public static UserEntity createLocal(String email, String username, String encodedPassword, String name, String phone,
                                          Gender gender, LocalDate birthDate, Nationality nationality) {
         return UserEntity.builder()
-                .email(email).password(encodedPassword).name(name).phone(phone)
+                .email(email).username(username).password(encodedPassword).name(name).phone(phone)
                 .gender(gender).birthDate(birthDate).nationality(nationality)
                 .role(Role.user).status(UserStatus.active).build();
     }
 
-    public static UserEntity createSocial(String email, String unusablePasswordHash, String name, String phone,
+    public static UserEntity createSocial(String email, String username, String unusablePasswordHash, String name, String phone,
                                           Gender gender, LocalDate birthDate, Nationality nationality,
                                           String provider, String socialId) {
         return UserEntity.builder()
-                .email(email).password(unusablePasswordHash).name(name).phone(phone)
+                .email(email).username(username).password(unusablePasswordHash).name(name).phone(phone)
                 .gender(gender).birthDate(birthDate).nationality(nationality)
                 .role(Role.user).status(UserStatus.active)
                 .socialProvider(provider).socialId(socialId).build();
     }
 
     public boolean isSocialAccount() { return socialProvider != null; }
+
+    /**
+     * [social-link 신규] 이미 존재하는 계정(보통 로컬 계정)에 소셜 계정을 연동한다.
+     * 비밀번호는 절대 건드리지 않는다. 한 번 연동되면 UI 로는 해제할 수 없다(영구 연동 -
+     * 코디네이터 지시로 "연동 해제" 기능 자체를 없앴다).
+     */
+    public void linkSocial(String provider, String socialId) {
+        this.socialProvider = provider;
+        this.socialId = socialId;
+    }
         public boolean isActive() {
         if (status == UserStatus.suspended) {
             if (suspendedUntil != null && LocalDateTime.now().isAfter(suspendedUntil)) {
@@ -186,6 +206,23 @@ public class UserEntity {
     }
 
     public void changePreferredLang(PreferredLang lang) { this.preferredLang = lang; }
+
+    /** [account-settings 신규] 계정 공개범위 변경. Lombok @Getter 가 필드명이 이미 "is"로 시작하므로
+     * isPrivate() 게터를 자동 생성해준다(수동으로 추가하면 중복 정의가 된다). */
+    public void changeVisibility(boolean isPrivate) { this.isPrivate = isPrivate; }
+
+    /**
+     * [account-settings 신규] 회원정보조회 탭의 "수정" - 이름/전화/성별/생년월일/국적을 한 번에 바꾼다.
+     * 이메일은 로그인 ID 라 여기서 다루지 않는다(가입 후 불변 - SignupRequest 에도 이메일 변경 경로가 없다).
+     * 유효성(전화번호 형식 등)은 호출부(UserService)가 SignupRequest 와 같은 규칙으로 먼저 검증한다.
+     */
+    public void changePersonalInfo(String name, String phone, Gender gender, LocalDate birthDate, Nationality nationality) {
+        this.name = name;
+        this.phone = phone;
+        this.gender = gender;
+        this.birthDate = birthDate;
+        this.nationality = nationality;
+    }
     
     
     public void suspend(LocalDateTime until) {

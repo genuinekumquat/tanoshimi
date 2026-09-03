@@ -7,17 +7,18 @@ USE tanoshimi;
 -- ---------------------------------------------------------------------
 -- 회원 (관리자 1 + 한국인 4 + 일본인 3 = 성별/국적/연령 제한 테스트용으로 다양하게)
 -- ---------------------------------------------------------------------
-INSERT INTO users (email, password, name, phone, phone_verified, gender, birth_date, nationality, role, status, manner_temp, points_krw, points_jpy, intro)
+-- [vanity-url v20] username 컬럼 추가로 컬럼 목록/값에 아이디를 채워 넣었다(NOT NULL UNIQUE).
+INSERT INTO users (email, username, password, name, phone, phone_verified, gender, birth_date, nationality, role, status, manner_temp, points_krw, points_jpy, intro)
 VALUES
-('admin@tanoshimi.local', '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', '관리자', '01000000000', TRUE, 'male', '1990-01-01', 'KR', 'admin', 'active', 36.5, 0, 0, NULL),
-('admin', '$2a$10$Dd8y1AZKKlfZa1iTiY6hvu0qOUFpEXnF2mY5m/SaxsiC10v5HRV3C', '관리자', '01099999999', TRUE, 'male', '1990-01-01', 'KR', 'admin', 'active', 36.5, 0, 0, NULL),
-('yuja@test.com',   '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', '유자차', '01011112222', TRUE, 'female', '1998-05-14', 'KR', 'user', 'active', 39.2, 120000, 0,     '일본 축제 여행을 좋아하는 사람입니다.'),
-('seolsan@test.com','$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', '설산곰', '01022223333', TRUE, 'male',   '1995-11-02', 'KR', 'user', 'active', 37.8, 80000,  0,     '스키 시즌만 기다립니다.'),
-('mochi@test.com',  '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', '모찌',   '01033334444', TRUE, 'female', '2001-03-20', 'KR', 'user', 'active', 41.0, 45000,  0,     '벚꽃 시즌 사진 찍는 게 취미예요.'),
-('ramenlover@test.com','$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S','라멘러버','01044445555', TRUE, 'male', '1993-07-09', 'KR', 'user', 'active', 35.5, 0,      0,     '먹는 여행이 최고입니다.'),
-('yuki@test.jp',    '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', 'ユキ',   '08011112222', TRUE, 'female', '1999-02-18', 'JP', 'user', 'active', 38.4, 0,      15000, '韓国旅行が好きです。'),
-('kenta@test.jp',   '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', 'ケンタ', '08022223333', TRUE, 'male',   '1996-09-30', 'JP', 'user', 'active', 36.9, 0,      22000, 'カメラを持って旅するのが好きです。'),
-('haruka@test.jp',  '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', 'ハルカ', '08033334444', TRUE, 'female', '2000-12-05', 'JP', 'user', 'active', 40.1, 0,      9000,  'グルメ旅行が趣味です。');
+('admin@tanoshimi.local', 'adminroot',   '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', '관리자', '01000000000', TRUE, 'male', '1990-01-01', 'KR', 'admin', 'active', 36.5, 0, 0, NULL),
+('admin',                'adminlegacy', '$2a$10$Dd8y1AZKKlfZa1iTiY6hvu0qOUFpEXnF2mY5m/SaxsiC10v5HRV3C', '관리자', '01099999999', TRUE, 'male', '1990-01-01', 'KR', 'admin', 'active', 36.5, 0, 0, NULL),
+('yuja@test.com',   'yuja',       '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', '유자차', '01011112222', TRUE, 'female', '1998-05-14', 'KR', 'user', 'active', 39.2, 120000, 0,     '일본 축제 여행을 좋아하는 사람입니다.'),
+('seolsan@test.com','seolsan',    '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', '설산곰', '01022223333', TRUE, 'male',   '1995-11-02', 'KR', 'user', 'active', 37.8, 80000,  0,     '스키 시즌만 기다립니다.'),
+('mochi@test.com',  'mochi',      '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', '모찌',   '01033334444', TRUE, 'female', '2001-03-20', 'KR', 'user', 'active', 41.0, 45000,  0,     '벚꽃 시즌 사진 찍는 게 취미예요.'),
+('ramenlover@test.com','ramenlover','$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S','라멘러버','01044445555', TRUE, 'male', '1993-07-09', 'KR', 'user', 'active', 35.5, 0,      0,     '먹는 여행이 최고입니다.'),
+('yuki@test.jp',    'yuki',       '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', 'ユキ',   '08011112222', TRUE, 'female', '1999-02-18', 'JP', 'user', 'active', 38.4, 0,      15000, '韓国旅行が好きです。'),
+('kenta@test.jp',   'kenta',      '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', 'ケンタ', '08022223333', TRUE, 'male',   '1996-09-30', 'JP', 'user', 'active', 36.9, 0,      22000, 'カメラを持って旅するのが好きです。'),
+('haruka@test.jp',  'haruka',     '$2a$10$tsmEq1C.VmucLYHJeb7Gyem.5SDa1pn4I1ch.ZIFpgNsSJuDolL9S', 'ハルカ', '08033334444', TRUE, 'female', '2000-12-05', 'JP', 'user', 'active', 40.1, 0,      9000,  'グルメ旅行が趣味です。');
 
 -- ---------------------------------------------------------------------
 -- 칭호
