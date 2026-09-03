@@ -1,7 +1,15 @@
 package net.datasa.tanoshimi.service;
 
+import net.datasa.tanoshimi.domain.dto.PartyCardView;
+import net.datasa.tanoshimi.domain.entity.Gender;
+import net.datasa.tanoshimi.domain.entity.GenderRestriction;
+import net.datasa.tanoshimi.domain.entity.Nationality;
+import net.datasa.tanoshimi.domain.entity.NationalityRestriction;
 import net.datasa.tanoshimi.domain.entity.PartyEntity;
 import net.datasa.tanoshimi.domain.entity.PartyStatus;
+import net.datasa.tanoshimi.domain.entity.UserEntity;
+import net.datasa.tanoshimi.exception.BusinessException;
+import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.PartyRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +20,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -45,6 +54,19 @@ class PartyServiceTest {
     }
 
     private final List<PartyEntity> sample = List.of(mock(PartyEntity.class));
+
+    private UserEntity owner() {
+        return UserEntity.createLocal("o@test.com", "owner", "hash", "오너", "01000000000",
+                Gender.male, LocalDate.of(1990, 1, 1), Nationality.KR);
+    }
+
+    private PartyEntity party(String title, LocalDate departure, int capacity) {
+        return PartyEntity.builder()
+                .owner(owner()).title(title).description("d").region("오사카")
+                .departureDate(departure).durationDays((byte) 1).capacity((byte) capacity)
+                .genderRestriction(GenderRestriction.all).nationalityRestriction(NationalityRestriction.all)
+                .build();
+    }
 
     @Test
     void 기본_조회는_출발일이_안_지난_모집중_파티만_오늘_기준으로_가져온다() {
@@ -104,5 +126,57 @@ class PartyServiceTest {
         verify(partyRepository, never()).searchRecruiting(any(), any(), any());
         verify(partyRepository, never())
                 .findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(any(), any(), any());
+    }
+
+    // ---------------------------------------------------------------- getVisibleParty
+
+    @Test
+    void getVisibleParty_는_블라인드_파티면_PARTY_NOT_FOUND() {
+        PartyEntity blinded = party("가려진 파티", LocalDate.now().plusDays(3), 4);
+        blinded.blind();
+        when(partyRepository.findById(1L)).thenReturn(java.util.Optional.of(blinded));
+
+        assertThatThrownBy(() -> partyService().getVisibleParty(1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.PARTY_NOT_FOUND);
+    }
+
+    @Test
+    void getVisibleParty_는_블라인드가_아니면_그대로_반환() {
+        PartyEntity normal = party("정상 파티", LocalDate.now().plusDays(3), 4);
+        when(partyRepository.findById(1L)).thenReturn(java.util.Optional.of(normal));
+
+        assertThat(partyService().getVisibleParty(1L)).isSameAs(normal);
+    }
+
+    @Test
+    void getParty_는_없으면_PARTY_NOT_FOUND() {
+        when(partyRepository.findById(9L)).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> partyService().getParty(9L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.PARTY_NOT_FOUND);
+    }
+
+    // ---------------------------------------------------------------- urgentPartyCards
+
+    @Test
+    void urgentPartyCards_는_잔여석_적은순_그다음_출발일_빠른순으로_정렬한다() {
+        PartyEntity a = party("A", LocalDate.now().plusDays(10), 4); // 잔여 1
+        PartyEntity b = party("B", LocalDate.now().plusDays(5), 5);  // 잔여 4
+        PartyEntity c = party("C", LocalDate.now().plusDays(3), 4);  // 잔여 1
+        when(partyRepository.findByStatusAndBlindedFalseOrderByDepartureDateAsc(PartyStatus.recruiting))
+                .thenReturn(List.of(a, b, c));
+        when(partyMemberRepository.countByParty(a)).thenReturn(3L);
+        when(partyMemberRepository.countByParty(b)).thenReturn(1L);
+        when(partyMemberRepository.countByParty(c)).thenReturn(3L);
+
+        List<PartyCardView> cards = partyService().urgentPartyCards();
+
+        // 잔여 1인 A·C 가 먼저, 그 안에서는 출발일 빠른 C 가 A 보다 앞. 잔여 4인 B 는 맨 뒤.
+        assertThat(cards).extracting(PartyCardView::title).containsExactly("C", "A", "B");
+        assertThat(cards).extracting(PartyCardView::remaining).containsExactly(1, 1, 4);
     }
 }

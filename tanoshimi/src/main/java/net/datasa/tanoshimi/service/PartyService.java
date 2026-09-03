@@ -1,8 +1,11 @@
 package net.datasa.tanoshimi.service;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import net.datasa.tanoshimi.domain.dto.PartyCardView;
 import net.datasa.tanoshimi.domain.dto.PartyCreateRequest;
 import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.exception.BusinessException;
@@ -35,6 +38,71 @@ public class PartyService {
     private final NotificationService notificationService;
     private final MannerTempService mannerTempService;
     private final FileStorageService fileStorageService;
+
+    /** 메인 페이지 "모집 마감 임박" 카드의 출발일 표기 포맷. */
+    private static final DateTimeFormatter URGENT_CARD_DATE_FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+
+    // ---------------------------------------------------------------- 조회 (컨트롤러가 Repository 를 직접 부르지 않도록 여기로 모음)
+
+    /** 파티 1건. 없으면 PARTY_NOT_FOUND. 블라인드 여부는 공개 화면에서만 따지므로 여기선 보지 않는다. */
+    @Transactional(readOnly = true)
+    public PartyEntity getParty(Long id) {
+        return partyRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
+    }
+
+    /** 공개 상세/신청 화면용 - 존재 + 블라인드 아님까지 확인한다. */
+    @Transactional(readOnly = true)
+    public PartyEntity getVisibleParty(Long id) {
+        PartyEntity party = getParty(id);
+        if (party.isBlinded()) {
+            throw new BusinessException(ErrorCode.PARTY_NOT_FOUND, "블라인드 처리된 파티입니다.");
+        }
+        return party;
+    }
+
+    /** 파티원 목록. */
+    @Transactional(readOnly = true)
+    public List<PartyMemberEntity> members(PartyEntity party) {
+        return partyMemberRepository.findByParty(party);
+    }
+
+    /** 내가 속한 파티(가입일 최신순) - 마이페이지 / 내 파티 목록 공용. */
+    @Transactional(readOnly = true)
+    public List<PartyMemberEntity> myMemberships(UserEntity user) {
+        return partyMemberRepository.findByUserOrderByJoinedAtDesc(user);
+    }
+
+    /** URL 만 알고 들어온 비파티원을 막는 최종 방어선. 파티 전용 화면 진입 시 호출. */
+    @Transactional(readOnly = true)
+    public void assertMember(PartyEntity party, UserEntity user) {
+        if (!partyMemberRepository.existsByPartyAndUser(party, user)) {
+            throw new BusinessException(ErrorCode.NOT_PARTY_MEMBER);
+        }
+    }
+
+    /** 파티 만들기 폼에서 고를 수 있는 패키지(투어) 목록. */
+    @Transactional(readOnly = true)
+    public List<TourEntity> selectableTours() {
+        return tourRepository.findByStatusOrderByIdDesc(ActiveStatus.active);
+    }
+
+    /**
+     * 메인 페이지 "모집 마감 임박" 카드 - 모집중이고 블라인드 아닌 파티를 잔여석 적은 순,
+     * 같으면 출발일 빠른 순으로 정렬해서 카드 뷰로 변환한다.
+     */
+    @Transactional(readOnly = true)
+    public List<PartyCardView> urgentPartyCards() {
+        return partyRepository.findByStatusAndBlindedFalseOrderByDepartureDateAsc(PartyStatus.recruiting).stream()
+                .map(p -> new PartyCardView(
+                        p.getId(), p.getTitle(), p.getRegion(),
+                        p.getDepartureDate().format(URGENT_CARD_DATE_FMT),
+                        p.getBudgetKrw(), p.getCapacity(), (int) partyMemberRepository.countByParty(p),
+                        p.getThumbnailUrl(), p.getStyleTag()))
+                .sorted(Comparator.<PartyCardView>comparingInt(PartyCardView::remaining)
+                        .thenComparing(PartyCardView::departureDate))
+                .toList();
+    }
 
     /**
      * 파티 게시판(둘러보기) 목록.
