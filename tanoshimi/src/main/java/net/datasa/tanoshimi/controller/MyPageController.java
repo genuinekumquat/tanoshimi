@@ -333,8 +333,7 @@ public class MyPageController {
 
     @GetMapping("/users/{id}")
     public String publicProfile(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
-        UserEntity target = userRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        return renderProfile(target, principal, model);
+        return renderProfile(userService.getById(id), principal, model);
     }
 
     /**

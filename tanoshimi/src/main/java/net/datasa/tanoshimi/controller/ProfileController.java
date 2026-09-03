@@ -5,8 +5,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
-import net.datasa.tanoshimi.repository.UserRepository;
-import net.datasa.tanoshimi.util.UsernamePolicy;
+import net.datasa.tanoshimi.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -39,20 +38,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 @RequiredArgsConstructor
 public class ProfileController {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final MyPageController myPageController;
 
     @GetMapping("/{username}")
     public String vanityProfile(@PathVariable String username,
                                 @AuthenticationPrincipal CustomUserDetails principal,
                                 Model model, HttpServletResponse response) {
-        String normalized = UsernamePolicy.normalize(username);
-
-        // 형식이 아예 안 맞으면(예약어 여부는 상관없이 - 예약어는 "발급을 막는" 규칙이지
-        // "조회를 막는" 규칙이 아니다) DB 조회할 것도 없이 못 찾은 걸로 처리한다.
-        Optional<UserEntity> found = UsernamePolicy.isValidFormat(normalized)
-                ? userRepository.findByUsername(normalized)
-                : Optional.empty();
+        // 형식 검증(예약어는 "발급을 막는" 규칙일 뿐 조회를 막지 않음) + DB 조회는 서비스에서.
+        Optional<UserEntity> found = userService.findByVanityUsername(username);
 
         if (found.isEmpty()) {
             response.setStatus(HttpStatus.NOT_FOUND.value());
