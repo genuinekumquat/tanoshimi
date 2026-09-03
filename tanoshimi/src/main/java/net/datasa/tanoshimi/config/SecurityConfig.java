@@ -13,6 +13,7 @@ import net.datasa.tanoshimi.auth.oauth.CustomOidcUserService;
 import net.datasa.tanoshimi.auth.oauth.OAuth2FailureHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -106,6 +107,10 @@ public class  SecurityConfig {
                         .requestMatchers("/party-board/*/room").authenticated()
                         .requestMatchers("/board", "/board/**",
                                 "/party-board", "/party-board/**", "/support", "/support/**").permitAll()
+                        // TNSM-52: 게시글 상세가 비로그인도 볼 수 있는 공개 페이지라, 그 화면이
+                        // 클라이언트에서 fetch 하는 댓글 조회 API도 같이 공개해야 한다.
+                        // 댓글 작성/삭제(POST/DELETE)는 이 규칙에 안 걸리므로 계속 인증이 필요하다.
+                        .requestMatchers(HttpMethod.GET, "/api/posts/*/comments").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/ws/**").authenticated()
                         .anyRequest().authenticated()

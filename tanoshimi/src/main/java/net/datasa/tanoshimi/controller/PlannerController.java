@@ -11,9 +11,6 @@ import net.datasa.tanoshimi.domain.dto.WeatherAdviceResponse;
 import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
-import net.datasa.tanoshimi.repository.PartyMemberRepository;
-import net.datasa.tanoshimi.repository.TripScheduleItemRepository;
-import net.datasa.tanoshimi.repository.TripScheduleRepository;
 import net.datasa.tanoshimi.repository.UserRepository;
 import net.datasa.tanoshimi.service.*;
 import net.datasa.tanoshimi.util.GeminiClient;
@@ -34,11 +31,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PlannerController {
 
-    private final TripScheduleRepository scheduleRepository;
-    private final TripScheduleItemRepository itemRepository;
-    private final PartyMemberRepository partyMemberRepository;
     private final UserRepository userRepository;
     private final TripPlannerService plannerService;
+    private final PartyService partyService;
     private final TripPlannerLockService lockService;
     private final ChatbotActivityService chatbotActivityService;
     private final WeatherAdvisorService weatherAdvisorService;
@@ -69,10 +64,7 @@ public class PlannerController {
         model.addAttribute("lockedByName", effectiveLockHolder != null ? effectiveLockHolder.getName() : null);
         // [방장 전용 메뉴] 편집권을 넘길 수 있는 대상(방장 본인 제외) 목록
         if (isOwner) {
-            model.addAttribute("partyMembers", partyMemberRepository.findByParty(schedule.getParty()).stream()
-                    .filter(m -> !m.getUser().getId().equals(principal.getId()))
-                    .map(PartyMemberEntity::getUser)
-                    .toList());
+            model.addAttribute("partyMembers", partyService.otherMembers(schedule.getParty(), principal.getId()));
         }
         model.addAttribute("aiCreditRemaining", principal == null ? 0
                 : aiCreditService.remaining(userRepository.findById(principal.getId()).orElse(null)));
@@ -279,13 +271,8 @@ public class PlannerController {
             String briefing = root.path("briefing").asText();
             com.fasterxml.jackson.databind.JsonNode newSched = root.path("newSchedule");
             
-            List<TripScheduleItemEntity> allItems = itemRepository.findByScheduleOrderByDayIndexAscStartMinuteAsc(schedule);
-            for (TripScheduleItemEntity it : allItems) {
-                if (!it.isFixed()) {
-                    itemRepository.delete(it);
-                }
-            }
-            itemRepository.flush();
+            List<TripScheduleItemEntity> allItems = plannerService.rawItems(schedule);
+            plannerService.clearNonFixedItems(schedule);
             
             if (newSched != null && newSched.isArray()) {
                 for (com.fasterxml.jackson.databind.JsonNode node : newSched) {
@@ -367,7 +354,7 @@ public class PlannerController {
     @GetMapping("/planner/{scheduleId}/report")
     public String report(@PathVariable Long scheduleId, Model model, @RequestParam(defaultValue = "public") String mode) {
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
-        java.util.List<TripScheduleItemEntity> items = itemRepository.findByScheduleOrderByDayIndexAscStartMinuteAsc(schedule);
+        java.util.List<TripScheduleItemEntity> items = plannerService.rawItems(schedule);
         
         StringBuilder prompt = new StringBuilder();
         prompt.append("다음 여행 일정의 각 일정 간 이동 방법(").append("public".equals(mode) ? "대중교통" : "자동차").append(" 기준), 구글맵 기준 예상 소요 시간 등을 포함한 상세하고 친절한 여행 플랜 리포트를 작성해 줘.\n");
@@ -392,12 +379,11 @@ public class PlannerController {
     }
 
     private TripScheduleEntity getSchedule(Long id) {
-        return scheduleRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+        return plannerService.getSchedule(id);
     }
 
     private TripScheduleEntity getScheduleWithContext(Long id) {
-        return scheduleRepository.findWithReservationAndTourById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+        return plannerService.getScheduleWithContext(id);
     }
 
     private void broadcast(Long scheduleId) {

@@ -7,6 +7,7 @@ import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.UserBlockRepository;
+import net.datasa.tanoshimi.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,22 @@ public class BlockService {
 
     private final UserBlockRepository userBlockRepository;
     private final FollowService followService;
+    private final UserRepository userRepository;
+
+    // ---- 컨트롤러가 상대 유저를 직접 조회하지 않도록: id 만 받아 내부에서 조회하는 오버로드 ----
+
+    private UserEntity user(Long id) {
+        return userRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Transactional
+    public void block(UserEntity me, Long targetId) { block(me, user(targetId)); }
+
+    @Transactional
+    public void unblock(UserEntity me, Long targetId) { unblock(me, user(targetId)); }
+
+    @Transactional(readOnly = true)
+    public boolean isBlockedByMe(UserEntity me, Long targetId) { return isBlockedByMe(me, user(targetId)); }
 
     @Transactional
     public void block(UserEntity me, UserEntity target) {
@@ -55,5 +72,11 @@ public class BlockService {
     @Transactional(readOnly = true)
     public boolean isBlockedByMe(UserEntity me, UserEntity target) {
         return userBlockRepository.existsByBlockerAndBlocked(me, target);
+    }
+
+    /** 내가 차단한 유저 목록 - 계정 설정 화면의 "차단 관리". */
+    @Transactional(readOnly = true)
+    public List<UserEntity> blockedUsers(UserEntity me) {
+        return userBlockRepository.findBlockedUsersByBlocker(me);
     }
 }

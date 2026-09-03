@@ -1,8 +1,11 @@
 package net.datasa.tanoshimi.repository;
 
+import net.datasa.tanoshimi.domain.entity.GenderRestriction;
+import net.datasa.tanoshimi.domain.entity.NationalityRestriction;
 import net.datasa.tanoshimi.domain.entity.PartyEntity;
 import net.datasa.tanoshimi.domain.entity.PartyStatus;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -16,14 +19,58 @@ public interface PartyRepository extends JpaRepository<PartyEntity, Long> {
     org.springframework.data.domain.Page<PartyEntity> findByTitleContainingIgnoreCase(String title, org.springframework.data.domain.Pageable pageable);
     List<PartyEntity> findByRegionAndStatusAndBlindedFalse(String region, PartyStatus status);
 
-    /** 메인 페이지 검색창 - 제목/지역에 키워드가 포함된 모집중 파티. */
+    /**
+     * 파티 게시판(둘러보기) 기본 목록 - status=recruiting 이면서 아직 출발일이 안 지난 파티만.
+     * 출발일이 지난 파티는 뱃지를 뭘로 바꾸든 더 이상 신청할 수 없는 죽은 글이라 기본 조회에서 뺀다
+     * (지난 파티는 findByBlindedFalseAndDepartureDateLessThanOrderByDepartureDateDesc 로 별도 조회).
+     * from 에는 보통 오늘 날짜를 넣는다.
+     */
+    List<PartyEntity> findByStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
+            PartyStatus status, LocalDate from);
+
+    /** 위와 동일하되 지역 필터가 걸린 버전. */
+    List<PartyEntity> findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
+            String region, PartyStatus status, LocalDate from);
+
+    /** 파티 게시판 "지난 모임 보기" 탭 - 출발일이 이미 지난 파티(상태 무관), 최근 출발순. */
+    List<PartyEntity> findByBlindedFalseAndDepartureDateLessThanOrderByDepartureDateDesc(LocalDate before);
+
+    /**
+     * 파티 게시판 검색창 - 제목/지역에 키워드가 포함된 모집중 파티. 게시판 기본 목록과 같은 기준으로
+     * 아직 출발일이 안 지난(p.departureDate &gt;= :from) 파티만 노출한다.
+     */
     @Query("""
             select p from PartyEntity p
             where p.status = :status and p.blinded = false
+              and p.departureDate >= :from
               and (p.title like concat('%', :keyword, '%') or p.region like concat('%', :keyword, '%'))
             order by p.departureDate asc
             """)
-    List<PartyEntity> searchRecruiting(@Param("status") PartyStatus status, @Param("keyword") String keyword);
+    List<PartyEntity> searchRecruiting(@Param("status") PartyStatus status, @Param("keyword") String keyword,
+                                       @Param("from") LocalDate from);
+
+    /**
+     * 파티 게시판 조건 필터(TNSM-54) - 지역/키워드/성별·국적 조건/연령을 전부 선택적으로 조합한다.
+     * 파라미터가 null이면 그 조건은 무시(전체)한다. age는 "이 나이대에 신청 가능한 파티만" 기준으로,
+     * ageMin/ageMax가 null인 쪽은 그 경계가 없는 것으로 취급한다.
+     * "지난 모임 보기" 탭에는 적용하지 않는다(PartyService.listBoard 참고 - 기존 정책 유지).
+     */
+    @Query("""
+            select p from PartyEntity p
+            where p.status = :status and p.blinded = false
+              and p.departureDate >= :from
+              and (:region is null or p.region = :region)
+              and (:keyword is null or p.title like concat('%', :keyword, '%') or p.region like concat('%', :keyword, '%'))
+              and (:gender is null or p.genderRestriction = :gender)
+              and (:nationality is null or p.nationalityRestriction = :nationality)
+              and (:age is null or (p.ageMin is null or p.ageMin <= :age) and (p.ageMax is null or p.ageMax >= :age))
+            order by p.departureDate asc
+            """)
+    List<PartyEntity> searchBoard(@Param("status") PartyStatus status, @Param("from") LocalDate from,
+                                  @Param("region") String region, @Param("keyword") String keyword,
+                                  @Param("gender") GenderRestriction gender,
+                                  @Param("nationality") NationalityRestriction nationality,
+                                  @Param("age") Integer age);
 
     /**
      * [v16 신규] 파티 완료 자동처리 스케줄러 전용 - 아직 completed 가 아니고

@@ -98,34 +98,10 @@
     <button type="button" id="btn-comment-submit" th:attr="data-post-id=${post.id}">등록</button>
   </div>
 
-  <div class="comment-list" id="comment-list">
-    <div class="comment" th:each="c : ${comments}">
-      <div class="ava" th:text="${#strings.substring(c.user.name,0,1)}">U</div>
-      <div class="body">
-        <span class="name" th:text="${c.user.name}"></span><span class="txt" th:text="${c.content}"></span>
-        <button type="button" sec:authorize="isAuthenticated()"
-                th:if="${#authentication.principal.id == c.user.id}"
-                th:onclick="'deleteComment(' + ${c.id} + ')'"
-                style="margin-left:8px; font-size:11px; color:var(--danger); background:none; border:none; cursor:pointer;">삭제</button>
-      </div>
-    </div>
-  </div>
+  <div class="comment-list" id="comment-list" th:attr="data-post-id=${post.id},data-my-id=${myId}"></div>
 </main>
 
 <script th:src="@{/js/post-detail.js}" defer></script>
-<script>
-async function deleteComment(id) {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
-    let csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
-    let csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
-    const res = await fetch('/api/posts/comments/' + id, {
-        method: 'DELETE',
-        headers: { [csrfHeader]: csrfToken }
-    });
-    if (res.ok) window.location.reload();
-    else alert('삭제에 실패했습니다.');
-}
-</script>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

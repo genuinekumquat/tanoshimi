@@ -1,21 +1,18 @@
 package net.datasa.tanoshimi.controller;
 
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.service.FileStorageService;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.dto.ApiResponse;
 import net.datasa.tanoshimi.domain.dto.PartyApplyRequest;
 import net.datasa.tanoshimi.domain.dto.PartyCreateRequest;
-import net.datasa.tanoshimi.domain.entity.ActiveStatus;
+import net.datasa.tanoshimi.domain.entity.GenderRestriction;
+import net.datasa.tanoshimi.domain.entity.NationalityRestriction;
 import net.datasa.tanoshimi.domain.entity.PartyEntity;
-import net.datasa.tanoshimi.domain.entity.PartyStatus;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
-import net.datasa.tanoshimi.repository.PartyRepository;
-import net.datasa.tanoshimi.repository.TourRepository;
 import net.datasa.tanoshimi.repository.UserRepository;
 import net.datasa.tanoshimi.service.PartyApplicationService;
 import net.datasa.tanoshimi.service.PartyEligibilityService;
@@ -35,10 +32,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class PartyController {
 
-    private final PartyRepository partyRepository;
-    private final net.datasa.tanoshimi.repository.PartyMemberRepository partyMemberRepository;
     private final UserRepository userRepository;
-    private final TourRepository tourRepository;
     private final PartyApplicationService partyApplicationService;
     private final PartyEligibilityService eligibilityService;
     private final PartyService partyService;
@@ -46,29 +40,30 @@ public class PartyController {
 
     @GetMapping("/party-board")
     public String board(@RequestParam(required = false) String region,
-                        @RequestParam(required = false) String q, Model model) {
-        List<PartyEntity> parties;
-        if (q != null && !q.isBlank()) {
-            parties = partyRepository.searchRecruiting(PartyStatus.recruiting, q.trim());
-        } else {
-            parties = (region == null || region.isBlank())
-                ? partyRepository.findByStatusAndBlindedFalseOrderByDepartureDateAsc(PartyStatus.recruiting)
-                : partyRepository.findByRegionAndStatusAndBlindedFalse(region, PartyStatus.recruiting);
-        }
-        model.addAttribute("parties", parties);
+                        @RequestParam(required = false) String q,
+                        @RequestParam(required = false, defaultValue = "false") boolean past,
+                        @RequestParam(required = false) String gender,
+                        @RequestParam(required = false) String nationality,
+                        @RequestParam(required = false) Integer age,
+                        Model model) {
+        GenderRestriction genderFilter = (gender == null || gender.isBlank()) ? null : GenderRestriction.valueOf(gender);
+        NationalityRestriction nationalityFilter = (nationality == null || nationality.isBlank()) ? null : NationalityRestriction.valueOf(nationality);
+        model.addAttribute("parties", partyService.listBoard(region, q, past, genderFilter, nationalityFilter, age));
         model.addAttribute("keyword", q);
+        model.addAttribute("region", region);
+        model.addAttribute("showingPast", past);
+        model.addAttribute("selectedGender", gender);
+        model.addAttribute("selectedNationality", nationality);
+        model.addAttribute("selectedAge", age);
         return "party/board";
     }
 
     @GetMapping("/party-board/{id}")
     public String detail(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
-        PartyEntity party = partyRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
-        if (party.isBlinded()) throw new BusinessException(ErrorCode.PARTY_NOT_FOUND, "블라인드 처리된 파티입니다.");
+        PartyEntity party = partyService.getVisibleParty(id);
 
         model.addAttribute("party", party);
-
-        List<net.datasa.tanoshimi.domain.entity.PartyMemberEntity> members = partyMemberRepository.findByParty(party);
-        model.addAttribute("members", members);
+        model.addAttribute("members", partyService.members(party));
 
         // eligible/ineligibleReasonKey/isOwner 는 비로그인 방문자에게도 항상 안전한 기본값이 들어가야 한다.
         // 예전엔 principal != null 일 때만 넣어서, 비로그인 상태로 이 페이지를 보면 이 값들이
@@ -95,7 +90,7 @@ public class PartyController {
 
     @GetMapping("/party-board/create")
     public String createForm(Model model) {
-        model.addAttribute("tours", tourRepository.findByStatusOrderByIdDesc(ActiveStatus.active));
+        model.addAttribute("tours", partyService.selectableTours());
         return "party/create";
     }
 
@@ -162,8 +157,7 @@ public class PartyController {
     @ResponseBody
     public ApiResponse<Long> apply(@PathVariable Long id, @Valid @RequestBody PartyApplyRequest request,
                                    @AuthenticationPrincipal CustomUserDetails principal) {
-        PartyEntity party = partyRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
-        if (party.isBlinded()) throw new BusinessException(ErrorCode.PARTY_NOT_FOUND, "블라인드 처리된 파티입니다.");
+        PartyEntity party = partyService.getVisibleParty(id);
         UserEntity applicant = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         Long applicationId = partyApplicationService.apply(party, applicant, request.message());
@@ -173,8 +167,7 @@ public class PartyController {
     @PostMapping("/api/parties/{id}/apply/cancel")
     @ResponseBody
     public ApiResponse<Void> cancelApply(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal) {
-        PartyEntity party = partyRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
-        if (party.isBlinded()) throw new BusinessException(ErrorCode.PARTY_NOT_FOUND, "블라인드 처리된 파티입니다.");
+        PartyEntity party = partyService.getVisibleParty(id);
         UserEntity applicant = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         partyApplicationService.cancel(party, applicant);
@@ -186,7 +179,7 @@ public class PartyController {
     @org.springframework.transaction.annotation.Transactional
     public ApiResponse<String> updateThumbnail(@PathVariable Long id, @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
                                                @AuthenticationPrincipal CustomUserDetails principal) {
-        PartyEntity party = partyRepository.findById(id).orElseThrow(() -> new net.datasa.tanoshimi.exception.BusinessException(net.datasa.tanoshimi.exception.ErrorCode.PARTY_NOT_FOUND));
+        PartyEntity party = partyService.getParty(id);
         if (!party.getOwner().getId().equals(principal.getId())) {
             throw new net.datasa.tanoshimi.exception.BusinessException(net.datasa.tanoshimi.exception.ErrorCode.ACCESS_DENIED, "파티장만 변경할 수 있습니다.");
         }

@@ -1,6 +1,5 @@
 package net.datasa.tanoshimi.controller;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.dto.ApiResponse;
@@ -8,10 +7,12 @@ import net.datasa.tanoshimi.domain.dto.ApplicantSummaryDTO;
 import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
-import net.datasa.tanoshimi.repository.*;
+import net.datasa.tanoshimi.repository.UserRepository;
 import net.datasa.tanoshimi.service.ChatService;
 import net.datasa.tanoshimi.service.PartyApplicationService;
 import net.datasa.tanoshimi.service.PartyService;
+import net.datasa.tanoshimi.service.PostService;
+import net.datasa.tanoshimi.service.ReservationService;
 import net.datasa.tanoshimi.service.TripScheduleVoteService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -33,28 +34,25 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class PartyRoomController {
 
-    private final PartyRepository partyRepository;
-    private final PartyMemberRepository partyMemberRepository;
     private final UserRepository userRepository;
-    private final ReservationRepository reservationRepository;
-    private final ChatRoomRepository chatRoomRepository;
     private final ChatService chatService;
     private final PartyApplicationService partyApplicationService;
     private final PartyService partyService;
+    private final PostService postService;
+    private final ReservationService reservationService;
     private final TripScheduleVoteService voteService;
-    private final PostRepository postRepository;
 
     @GetMapping("/party-board/{id}/room")
     public String room(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
-        PartyEntity party = partyRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
+        PartyEntity party = partyService.getParty(id);
         UserEntity me = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        assertMember(party, me);
+        partyService.assertMember(party, me);
 
         model.addAttribute("party", party);
         model.addAttribute("isOwner", party.getOwner().getId().equals(me.getId()));
-        model.addAttribute("members", partyMemberRepository.findByParty(party));
+        model.addAttribute("members", partyService.members(party));
 
-        chatRoomRepository.findByParty(party).ifPresent(room -> {
+        partyService.chatRoomOf(party).ifPresent(room -> {
             model.addAttribute("roomId", room.getId());
             model.addAttribute("chatHistory", chatService.history(room));
         });
@@ -65,14 +63,10 @@ public class PartyRoomController {
         model.addAttribute("voteTally", voteService.tally(schedule));
 
         // 패키지 예약 여부는 별개로 보여준다 - 예약 전이라도 계획표는 이미 위에서 항상 있다
-        reservationRepository.findByParty(party).ifPresent(reservation -> model.addAttribute("reservation", reservation));
+        reservationService.forParty(party).ifPresent(reservation -> model.addAttribute("reservation", reservation));
 
         // 파티 전용 게시판(사진첩)
-        
-        java.util.List<PostEntity> photos = postRepository.findByPartyOrderByCreatedAtDesc(party).stream()
-            .filter(p -> p.getThumbnailUrl() != null && !p.getThumbnailUrl().isBlank())
-            .toList();
-        model.addAttribute("partyPosts", photos);
+        model.addAttribute("partyPosts", postService.partyPhotos(party));
 
 
         if (party.getOwner().getId().equals(me.getId())) {
@@ -85,7 +79,7 @@ public class PartyRoomController {
     @ResponseBody
     public ApiResponse<Void> approve(@PathVariable Long partyId, @PathVariable Long applicationId,
                                      @AuthenticationPrincipal CustomUserDetails principal) {
-        PartyEntity party = partyRepository.findById(partyId).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
+        PartyEntity party = partyService.getParty(partyId);
         assertOwner(party, principal.getId());
         partyApplicationService.approve(applicationId);
         return ApiResponse.okMessage("승인했습니다.");
@@ -95,16 +89,10 @@ public class PartyRoomController {
     @ResponseBody
     public ApiResponse<Void> reject(@PathVariable Long partyId, @PathVariable Long applicationId,
                                     @AuthenticationPrincipal CustomUserDetails principal) {
-        PartyEntity party = partyRepository.findById(partyId).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
+        PartyEntity party = partyService.getParty(partyId);
         assertOwner(party, principal.getId());
         partyApplicationService.reject(applicationId);
         return ApiResponse.okMessage("거절했습니다.");
-    }
-
-    private void assertMember(PartyEntity party, UserEntity user) {
-        if (!partyMemberRepository.existsByPartyAndUser(party, user)) {
-            throw new BusinessException(ErrorCode.NOT_PARTY_MEMBER);
-        }
     }
 
     private void assertOwner(PartyEntity party, Long userId) {

@@ -1,4 +1,86 @@
 (function () {
+    // TNSM-52: 댓글/대댓글 로드 + 렌더링. party/room.html 사진 댓글 모달의
+    // 트리 빌드 방식을 그대로 재사용한다(같은 /api/posts/{id}/comments 응답 형태를 씀).
+    const commentList = document.getElementById('comment-list');
+    let loadComments = null;
+    if (commentList) {
+        const postId = commentList.dataset.postId;
+        const myId = commentList.dataset.myId ? Number(commentList.dataset.myId) : null;
+        const commentCountEl = document.getElementById('comment-count');
+        const commentInput = document.getElementById('comment-input');
+
+        const escapeHtml = (s) => !s ? '' : String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+        function renderComment(c, depth) {
+            const div = document.createElement('div');
+            div.className = 'comment';
+            div.style.marginLeft = (depth * 24) + 'px';
+
+            let avatarHtml = `<div class="ava">${escapeHtml((c.authorName || '?')[0])}</div>`;
+            if (c.authorImage) {
+                avatarHtml = `<img class="ava" src="${c.authorImage}" style="object-fit:cover;">`;
+            }
+            const canDelete = myId != null && myId === c.authorId;
+
+            div.innerHTML = `
+              ${depth > 0 ? '<div style="color:#ccc;font-size:15px;">↳</div>' : ''}
+              ${avatarHtml}
+              <div class="body">
+                <span class="name">${escapeHtml(c.authorName)}</span><span class="txt">${escapeHtml(c.content)}</span>
+                <div class="time">
+                  ${c.createdAt}
+                  <button type="button" class="reply-btn" data-id="${c.id}" style="margin-left:8px; background:none; border:none; color:var(--forest); font-weight:700; cursor:pointer;">답글</button>
+                  ${canDelete ? `<button type="button" class="del-comment-btn" data-id="${c.id}" style="margin-left:6px; background:none; border:none; color:var(--danger); cursor:pointer;">삭제</button>` : ''}
+                </div>
+              </div>`;
+            commentList.appendChild(div);
+            (c.children || []).forEach(child => renderComment(child, depth + 1));
+        }
+
+        loadComments = async function () {
+            commentList.innerHTML = '<div style="color:var(--ink-soft); font-size:12.8px;">댓글을 불러오는 중...</div>';
+            const res = await window.api.get(`/api/posts/${postId}/comments`);
+            if (!res.success) {
+                commentList.innerHTML = '<div style="color:var(--danger); font-size:12.8px;">댓글을 불러오는데 실패했습니다.</div>';
+                return;
+            }
+            const comments = res.data;
+            if (commentCountEl) commentCountEl.textContent = '(' + comments.length + ')';
+            commentList.innerHTML = '';
+            if (comments.length === 0) {
+                commentList.innerHTML = '<div style="color:var(--ink-soft); font-size:12.8px;">첫 댓글을 남겨보세요!</div>';
+                return;
+            }
+
+            const map = {};
+            const roots = [];
+            comments.forEach(c => { c.children = []; map[c.id] = c; });
+            comments.forEach(c => {
+                if (c.parentId && map[c.parentId]) map[c.parentId].children.push(c);
+                else roots.push(c);
+            });
+            roots.forEach(r => renderComment(r, 0));
+
+            commentList.querySelectorAll('.reply-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (!commentInput) return;
+                    commentInput.dataset.parent = btn.dataset.id;
+                    commentInput.placeholder = '답글을 작성 중... (완료 시 등록 버튼 클릭)';
+                    commentInput.focus();
+                });
+            });
+            commentList.querySelectorAll('.del-comment-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!confirm('정말 삭제하시겠습니까?')) return;
+                    const res = await window.api.del(`/api/posts/comments/${btn.dataset.id}`);
+                    if (res.success) loadComments(); else alert(res.message || '삭제에 실패했습니다.');
+                });
+            });
+        };
+
+        loadComments();
+    }
+
     const likeBtn = document.getElementById('btn-like');
     if (likeBtn) {
         likeBtn.addEventListener('click', async () => {
@@ -20,15 +102,25 @@
             const input = document.getElementById('comment-input');
             const content = input.value.trim();
             if (!content) return;
+            const parentId = input.dataset.parent ? Number(input.dataset.parent) : null;
+            const payload = { content };
+            if (parentId) payload.parentId = parentId;
             try {
                 const response = await fetch(`/api/posts/${commentBtn.dataset.postId}/comments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json',
                         [document.querySelector('meta[name="_csrf_header"]').content]: document.querySelector('meta[name="_csrf"]').content },
-                    body: JSON.stringify({ content: content })
+                    body: JSON.stringify(payload)
                 });
                 const result = await response.json();
-                if (result.success) location.reload(); else alert(result.message || '댓글 등록에 실패했습니다.');
+                if (result.success) {
+                    input.value = '';
+                    delete input.dataset.parent;
+                    input.placeholder = '댓글을 남겨보세요';
+                    if (loadComments) loadComments();
+                } else {
+                    alert(result.message || '댓글 등록에 실패했습니다.');
+                }
             } catch (e) {
                 console.error('댓글 등록 오류:', e);
                 alert('댓글 등록 중 오류가 발생했습니다.');

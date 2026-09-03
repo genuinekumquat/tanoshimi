@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -258,6 +259,31 @@ class UserServiceTest {
         assertThat(userService.isEmailAvailable(null)).isFalse();
         assertThat(userService.isEmailAvailable("   ")).isFalse();
         verify(userRepository, never()).existsByEmail(anyString());
+    }
+
+    // ------------------------------------------------------------ getById / findByVanityUsername
+
+    @Test
+    void getById_없으면_USER_NOT_FOUND() {
+        when(userRepository.findById(404L)).thenReturn(java.util.Optional.empty());
+        assertThatThrownBy(() -> userService.getById(404L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    void findByVanityUsername_형식이_맞으면_정규화해서_조회한다() {
+        UserEntity u = mock(UserEntity.class);
+        when(userRepository.findByUsername("yuja")).thenReturn(java.util.Optional.of(u));
+
+        assertThat(userService.findByVanityUsername("  YuJa ")).containsSame(u);
+    }
+
+    @Test
+    void findByVanityUsername_형식이_안_맞으면_DB를_보지_않고_empty() {
+        assertThat(userService.findByVanityUsername("A")).isEmpty();   // 대문자 시작 + 너무 짧음
+        verify(userRepository, never()).findByUsername(anyString());
     }
 
     // ------------------------------------------------------------ issueTemporaryPassword

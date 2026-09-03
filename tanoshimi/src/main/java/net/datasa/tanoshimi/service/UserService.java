@@ -3,6 +3,7 @@ package net.datasa.tanoshimi.service;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.Base64;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.datasa.tanoshimi.auth.oauth.PendingSocialSignup;
@@ -42,6 +43,26 @@ public class UserService {
     @Transactional(readOnly = true)
     public boolean isEmailAvailable(String email) {
         return email != null && !email.isBlank() && !userRepository.existsByEmail(email.trim().toLowerCase());
+    }
+
+    /** id 로 회원 조회. 없으면 USER_NOT_FOUND - "그 회원이 존재해야 의미가 있는" 화면(공개 프로필 등)용. */
+    @Transactional(readOnly = true)
+    public UserEntity getById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    /**
+     * [vanity-url] "/{username}" 프로필 주소용 조회 - username 형식이 유효할 때만 DB를 본다.
+     * 형식이 안 맞거나 없는 회원이면 empty(예약어 여부는 조회를 막지 않는다 - "발급을 막는" 규칙일 뿐).
+     */
+    @Transactional(readOnly = true)
+    public Optional<UserEntity> findByVanityUsername(String rawUsername) {
+        String normalized = UsernamePolicy.normalize(rawUsername);
+        if (!UsernamePolicy.isValidFormat(normalized)) {
+            return Optional.empty();
+        }
+        return userRepository.findByUsername(normalized);
     }
 
     /**

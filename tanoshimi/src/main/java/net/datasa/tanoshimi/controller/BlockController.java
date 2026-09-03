@@ -22,23 +22,20 @@ public class BlockController {
     @PostMapping("/{targetId}")
     public ApiResponse<Void> block(@PathVariable Long targetId, @AuthenticationPrincipal CustomUserDetails principal) {
         UserEntity me = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        UserEntity target = userRepository.findById(targetId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        blockService.block(me, target);
+        blockService.block(me, targetId);
         return ApiResponse.okMessage("차단했습니다.");
     }
 
     @DeleteMapping("/{targetId}")
     public ApiResponse<Void> unblock(@PathVariable Long targetId, @AuthenticationPrincipal CustomUserDetails principal) {
         UserEntity me = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        UserEntity target = userRepository.findById(targetId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        blockService.unblock(me, target);
+        blockService.unblock(me, targetId);
         return ApiResponse.okMessage("차단을 해제했습니다.");
     }
 
     @GetMapping("/{targetId}/status")
     public ApiResponse<Boolean> status(@PathVariable Long targetId, @AuthenticationPrincipal CustomUserDetails principal) {
         UserEntity me = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        UserEntity target = userRepository.findById(targetId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        return ApiResponse.ok(blockService.isBlockedByMe(me, target));
+        return ApiResponse.ok(blockService.isBlockedByMe(me, targetId));
     }
 }
