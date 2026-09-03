@@ -33,3 +33,49 @@ cp src/main/resources/application-local.yml.example src/main/resources/applicati
 # 3. 실행
 ./gradlew bootRun     # http://localhost:8080  (프로파일: local)
 ```
+
+## 로컬 개발 참고
+
+### 이메일 인증 (회원가입 본인인증)
+
+로컬 기본값은 **실제 메일을 보내지 않습니다.** `app.email.provider` 기본값이 `log`라
+`LogEmailSender`가 동작하고, 인증번호는 **앱 콘솔 로그**에 찍힙니다.
+
+```
+[개발용 이메일] 수신주소=you@example.com 인증번호=123456
+```
+
+회원가입/비밀번호 재발급 테스트는 이 로그의 번호를 입력하면 됩니다.
+
+실제 메일 발송을 쓰려면 `application-local.yml`에 아래를 추가:
+
+```yaml
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: 발신용_메일주소
+    password: 앱_비밀번호        # 계정 비밀번호 아님. Gmail은 2단계 인증 후 앱 비밀번호 발급
+app:
+  email:
+    provider: smtp               # log -> smtp
+    smtp:
+      from: 발신용_메일주소
+```
+
+`provider: smtp`인데 `spring.mail.host`가 비어 있으면 발송이 실패합니다(`EMAIL_SEND_FAILED`).
+
+### 소셜 로그인 (Google / Naver / LINE)
+
+`application.yml`에 세 provider가 모두 등록돼 있어, `application-local.yml`의
+`spring.security.oauth2.client.registration` 아래에 **세 개 모두 `client-id`/`client-secret`이
+채워져 있어야 앱이 부팅됩니다.** 값이 비면 기동 시
+`Failed to bind properties under 'spring.security.oauth2.client.registration.<provider>'`로 실패.
+
+당장 실행만 필요하면 미사용 provider는 더미값이라도 넣으면 됩니다(해당 버튼만 눌렀을 때 에러).
+
+```yaml
+          line:
+            client-id: dummy-line-client-id
+            client-secret: dummy-line-client-secret
+```
