@@ -338,7 +338,11 @@
 
       <div class="legend" id="legend"></div>
 
-      <div class="grid-wrapper" style="overflow-x: auto; overflow-y: hidden;">
+      <!-- 상단 스크롤바 -->
+      <div id="top-scroll-wrapper" style="overflow-x: auto; overflow-y: hidden; margin-bottom: 2px;">
+        <div id="top-scroll-dummy" style="height: 1px;"></div>
+      </div>
+      <div class="grid-wrapper" id="main-scroll-wrapper" style="overflow-x: auto; overflow-y: hidden;">
         <div style="min-width: max-content;">
           <div class="grid-head" id="grid-head"></div>
           <div class="grid-body" id="grid-body" style="position:relative;"></div>

@@ -159,7 +159,44 @@
             col.addEventListener('dragover', e => e.preventDefault());
             col.addEventListener('drop', onDropToColumn);
         });
+        
+        // Sync top scrollbar dummy width
+        const mainScroll = document.getElementById('main-scroll-wrapper');
+        const topDummy = document.getElementById('top-scroll-dummy');
+        if (mainScroll && topDummy) {
+            // Need setTimeout because DOM rendering of new grid columns takes a tick
+            setTimeout(() => {
+                topDummy.style.width = mainScroll.firstElementChild.scrollWidth + 'px';
+            }, 0);
+        }
     }
+    
+    // Add scroll sync event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        const topScroll = document.getElementById('top-scroll-wrapper');
+        const mainScroll = document.getElementById('main-scroll-wrapper');
+        
+        if (topScroll && mainScroll) {
+            let isSyncingLeftScroll = false;
+            let isSyncingRightScroll = false;
+            
+            topScroll.addEventListener('scroll', function(e) {
+                if (!isSyncingLeftScroll) {
+                    isSyncingRightScroll = true;
+                    mainScroll.scrollLeft = this.scrollLeft;
+                }
+                isSyncingLeftScroll = false;
+            });
+            
+            mainScroll.addEventListener('scroll', function(e) {
+                if (!isSyncingRightScroll) {
+                    isSyncingLeftScroll = true;
+                    topScroll.scrollLeft = this.scrollLeft;
+                }
+                isSyncingRightScroll = false;
+            });
+        }
+    });
 
     /* ---------------------------------------------------------------------
        렌더링
