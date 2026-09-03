@@ -2,7 +2,7 @@
  * 여행 도우미 마스코트 위젯 - Live2D 캐릭터 렌더링 + 채팅 UI.
  */
 (function () {
-    const MODEL_URL = '/model/vivian/%E8%96%87%E8%96%87%E5%AE%89.model3.json?v=2';
+    const MODEL_URL = '/model/mimi/dog.model3.json';
     const STORAGE_KEY = 'tanoshimi_companion_chat_history';
     const MAX_STORED_TURNS = 20;
 
