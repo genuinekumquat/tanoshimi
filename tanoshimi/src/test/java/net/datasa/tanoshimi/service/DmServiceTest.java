@@ -95,7 +95,7 @@ class DmServiceTest {
         when(chatRoomMemberRepository.findOtherMember(room, me)).thenReturn(Optional.empty());
 
         assertThat(dmService.isOtherBlockedByMe(room, me)).isFalse();
-        verify(blockService, never()).isBlockedByMe(any(), any());
+        verify(blockService, never()).isBlockedByMe(any(UserEntity.class), any(UserEntity.class));
     }
 
     @Test

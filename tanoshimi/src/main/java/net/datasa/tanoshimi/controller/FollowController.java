@@ -22,16 +22,14 @@ public class FollowController {
     @PostMapping("/{targetId}")
     public ApiResponse<Void> follow(@PathVariable Long targetId, @AuthenticationPrincipal CustomUserDetails principal) {
         UserEntity me = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        UserEntity target = userRepository.findById(targetId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        followService.follow(me, target);
+        followService.follow(me, targetId);
         return ApiResponse.okMessage("팔로우했습니다.");
     }
 
     @DeleteMapping("/{targetId}")
     public ApiResponse<Void> unfollow(@PathVariable Long targetId, @AuthenticationPrincipal CustomUserDetails principal) {
         UserEntity me = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        UserEntity target = userRepository.findById(targetId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        followService.unfollow(me, target);
+        followService.unfollow(me, targetId);
         return ApiResponse.okMessage("언팔로우했습니다.");
     }
 }
