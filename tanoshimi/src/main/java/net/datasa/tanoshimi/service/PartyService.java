@@ -90,6 +90,12 @@ public class PartyService {
         }
     }
 
+    /** 이 파티의 전용 채팅방(파티 생성 시 함께 만들어진다 - createParty 참고). 옛날 데이터는 없을 수 있어 Optional. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<ChatRoomEntity> chatRoomOf(PartyEntity party) {
+        return chatRoomRepository.findByParty(party);
+    }
+
     /** 파티 만들기 폼에서 고를 수 있는 패키지(투어) 목록. */
     @Transactional(readOnly = true)
     public List<TourEntity> selectableTours() {
