@@ -92,6 +92,10 @@ spring:
             # sub/name/picture/email 를 구글과 같은 최상위 형태로 내려준다(OAuthAttributes 참고).
             # email 은 LINE 비즈니스 계정의 이메일 권한 심사가 통과해야만 내려온다.
             user-info-uri: https://api.line.me/oauth2/v2.1/userinfo
+            # scope에 openid가 있어서 Spring Security가 이 로그인을 OIDC로 인식하고 LINE이
+            # 내려주는 id_token(서명된 JWT)의 서명을 검증하려 한다 - 이 공개키 주소가 없으면
+            # "missing_signature_verifier" 에러로 로그인 자체가 실패한다.
+            jwk-set-uri: https://api.line.me/oauth2/v2.1/certs
             user-name-attribute: sub
 
 server:

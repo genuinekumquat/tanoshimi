@@ -1,21 +1,22 @@
 package net.datasa.tanoshimi.auth.oauth;
 
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
-import net.datasa.tanoshimi.repository.UserRepository;
-import java.util.Optional;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * google/naver 처럼 openid 스코프가 없는(=일반 OAuth2) 소셜 로그인 전용.
+ * openid 스코프가 있는 line은 Spring Security가 OIDC 로그인으로 취급해서 이 서비스가 아니라
+ * CustomOidcUserService 를 탄다 - SecurityConfig 의 oidcUserService()로 별도 연결돼 있다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,8 +25,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     // SecurityConfig 가 빈으로 등록해준 것을 주입받는다 - 예전엔 필드에서 직접 new 해서
     // 테스트에서 delegate.loadUser()(실제 HTTP 호출)를 mock으로 바꿔치기할 방법이 없었다.
     private final DefaultOAuth2UserService delegate;
-    private final UserRepository userRepository;
-    private final HttpSession httpSession;
+    private final SocialLoginResolver socialLoginResolver;
 
     @Override
     @Transactional(readOnly = true)
@@ -34,25 +34,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
         OAuthAttributes attrs = OAuthAttributes.of(registrationId, oAuth2User.getAttributes());
 
-        // 소셜ID 로 이미 연결된 계정이면 바로 로그인
-        Optional<UserEntity> linked = userRepository.findBySocialProviderAndSocialId(attrs.provider(), attrs.socialId());
-        if (linked.isPresent()) {
-            UserEntity user = linked.get();
-            if (!user.isActive()) {
-                throw new OAuth2AuthenticationException(new OAuth2Error(SocialErrorCodes.ACCOUNT_SUSPENDED), "정지 계정");
-            }
-            return new CustomUserDetails(user, oAuth2User.getAttributes());
-        }
-
-        // 이메일이 이미 로컬/다른 소셜로 가입돼 있으면 자동 연결하지 않고 막는다(계정 탈취 방지)
-        if (attrs.email() != null && userRepository.existsByEmail(attrs.email())) {
-            throw new OAuth2AuthenticationException(new OAuth2Error(SocialErrorCodes.EMAIL_ALREADY_USED), "이메일 중복");
-        }
-
-        httpSession.setAttribute(PendingSocialSignup.SESSION_KEY,
-                new PendingSocialSignup(attrs.provider(), attrs.socialId(), attrs.email(), attrs.name()));
-        log.info("신규 소셜 사용자 -> 추가정보 입력 유도 provider={}", attrs.provider());
-
-        throw new OAuth2AuthenticationException(new OAuth2Error(SocialErrorCodes.SIGNUP_REQUIRED), "추가정보 입력 필요");
+        UserEntity user = socialLoginResolver.resolveOrRequireSignup(attrs);
+        return new CustomUserDetails(user, oAuth2User.getAttributes());
     }
 }

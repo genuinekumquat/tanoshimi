@@ -1,10 +1,15 @@
 package net.datasa.tanoshimi.config;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetailsService;
 import net.datasa.tanoshimi.auth.handler.LoginFailureHandler;
 import net.datasa.tanoshimi.auth.handler.LoginSuccessHandler;
 import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
+import net.datasa.tanoshimi.auth.oauth.CustomOidcUserService;
 import net.datasa.tanoshimi.auth.oauth.OAuth2FailureHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,7 +18,19 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenDecoderFactory;
+import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenValidator;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -24,6 +41,7 @@ public class  SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final CustomOAuth2UserService oAuth2UserService;
+    private final CustomOidcUserService oidcUserService;
     private final LoginSuccessHandler loginSuccessHandler;
     private final LoginFailureHandler loginFailureHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
@@ -40,6 +58,39 @@ public class  SecurityConfig {
     @Bean
     public static DefaultOAuth2UserService defaultOAuth2UserService() {
         return new DefaultOAuth2UserService();
+    }
+
+    // openid 스코프가 있는 line 로그인은 OidcUserService가 델리게이트로 필요하다 - 위와 같은 이유로 static.
+    @Bean
+    public static OidcUserService oidcUserServiceDelegate() {
+        return new OidcUserService();
+    }
+
+    // LINE 채널의 id_token은 jwk-set-uri(RS256 공개키)가 아니라 채널 시크릿 기반 HS256으로
+    // 서명되어 내려온다. 기본 OidcIdTokenDecoderFactory는 JWKS로만 검증기를 만들기 때문에
+    // "Another algorithm expected, or no matching key(s) found" 로 항상 실패한다 - LINE만
+    // 채널 시크릿으로 HS256 검증하도록 우회하고, 나머지(google)는 기본 동작을 그대로 쓴다.
+    @Bean
+    public JwtDecoderFactory<ClientRegistration> idTokenDecoderFactory() {
+        OidcIdTokenDecoderFactory defaultFactory = new OidcIdTokenDecoderFactory();
+        Map<String, JwtDecoder> lineDecoders = new ConcurrentHashMap<>();
+
+        return clientRegistration -> {
+            if (!"line".equals(clientRegistration.getRegistrationId())) {
+                return defaultFactory.createDecoder(clientRegistration);
+            }
+            return lineDecoders.computeIfAbsent(clientRegistration.getRegistrationId(), id -> {
+                SecretKeySpec secretKey = new SecretKeySpec(
+                        clientRegistration.getClientSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+                NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKey)
+                        .macAlgorithm(MacAlgorithm.HS256)
+                        .build();
+                OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
+                        new JwtTimestampValidator(), new OidcIdTokenValidator(clientRegistration));
+                decoder.setJwtValidator(validator);
+                return decoder;
+            });
+        };
     }
 
     @Bean
@@ -70,7 +121,10 @@ public class  SecurityConfig {
                 )
                 .oauth2Login(oauth -> oauth
                         .loginPage("/login")
-                        .userInfoEndpoint(userInfo -> userInfo.userService(oAuth2UserService))
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(oAuth2UserService)
+                                .oidcUserService(oidcUserService)
+                        )
                         .successHandler(loginSuccessHandler)
                         .failureHandler(oAuth2FailureHandler)
                 )
