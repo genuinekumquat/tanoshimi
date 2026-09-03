@@ -12,11 +12,9 @@ import net.datasa.tanoshimi.domain.entity.MyTripEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
-import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.repository.UserRepository;
 import jakarta.servlet.http.HttpSession;
 import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
-import net.datasa.tanoshimi.repository.UserBlockRepository;
 import net.datasa.tanoshimi.service.UserNotificationSettingsService;
 import net.datasa.tanoshimi.service.FileStorageService;
 import net.datasa.tanoshimi.service.FollowService;
@@ -64,7 +62,7 @@ public class MyPageController {
     private static final int TRIP_PAGE_SIZE = 20;
 
     private final UserRepository userRepository;
-    private final PartyMemberRepository partyMemberRepository;
+    private final net.datasa.tanoshimi.service.PartyService partyService;
     private final PostService postService;
     private final FollowService followService;
     private final FileStorageService fileStorageService;
@@ -72,7 +70,6 @@ public class MyPageController {
     private final TravelHeatmapService travelHeatmapService;
     private final MyTripService myTripService;
     private final net.datasa.tanoshimi.service.BlockService blockService;
-    private final UserBlockRepository userBlockRepository;
     private final UserNotificationSettingsService userNotificationSettingsService;
     private final UserService userService;
 
@@ -108,7 +105,7 @@ public class MyPageController {
         model.addAttribute("myTripTotal", tripViews.size());
 
         model.addAttribute("me", me);
-        model.addAttribute("myParties", partyMemberRepository.findByUserOrderByJoinedAtDesc(me));
+        model.addAttribute("myParties", partyService.myMemberships(me));
         model.addAttribute("myPosts", postService.myPosts(me, PageRequest.of(0, 12)));
         // 지도에서 지역에 마우스를 올렸을 때 띄울 스냅(지역 태그가 붙은 내 글).
         // 피드보다 넓게 가져오되, 지도 위에 최대 10장만 뿌리므로 60개면 충분하다.
@@ -233,7 +230,7 @@ public class MyPageController {
 
         model.addAttribute("me", me);
         model.addAttribute("notificationSettings", userNotificationSettingsService.current(me));
-        model.addAttribute("blockedUsers", userBlockRepository.findBlockedUsersByBlocker(me));
+        model.addAttribute("blockedUsers", blockService.blockedUsers(me));
 
         return "mypage/account";
     }
@@ -336,8 +333,7 @@ public class MyPageController {
 
     @GetMapping("/users/{id}")
     public String publicProfile(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
-        UserEntity target = userRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        return renderProfile(target, principal, model);
+        return renderProfile(userService.getById(id), principal, model);
     }
 
     /**

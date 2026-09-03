@@ -36,6 +36,12 @@ public class ReservationService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    /** 이 파티에 연결된 예약(있으면). 파티방 화면에서 예약 여부/정보를 보여주는 용도. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<ReservationEntity> forParty(PartyEntity party) {
+        return reservationRepository.findByParty(party);
+    }
+
     /** 예약 전 미리보기 - 화면에서 예약하기 누르기 전에 이 결과로 날씨 경고 다이얼로그를 띄운다 */
     @Transactional(readOnly = true)
     public WeatherAdviceDTO previewWeather(Long tourId, LocalDate departureDate) {

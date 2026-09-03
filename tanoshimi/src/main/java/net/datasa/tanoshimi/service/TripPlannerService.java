@@ -85,6 +85,42 @@ public class TripPlannerService {
         }
     }
 
+    // ---------------------------------------------------------------- 조회 (컨트롤러가 Repository 를 직접 부르지 않도록 여기로 모음)
+
+    /** 계획표 1건. 없으면 SCHEDULE_NOT_FOUND. */
+    @Transactional(readOnly = true)
+    public TripScheduleEntity getSchedule(Long id) {
+        return scheduleRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+    }
+
+    /** 계획표 1건 + reservation/tour 까지 fetch (플래너 화면·AI 기능이 tour 정보를 바로 씀). */
+    @Transactional(readOnly = true)
+    public TripScheduleEntity getScheduleWithContext(Long id) {
+        return scheduleRepository.findWithReservationAndTourById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+    }
+
+    /**
+     * 저장된 일정 항목 원본(엔티티) - AI 검증/리포트가 항목 id·GPS·activity 를 직접 다뤄야 해서
+     * 화면용 View(getItems) 가 아니라 엔티티가 필요하다.
+     */
+    @Transactional(readOnly = true)
+    public List<TripScheduleItemEntity> rawItems(TripScheduleEntity schedule) {
+        return itemRepository.findByScheduleOrderByDayIndexAscStartMinuteAsc(schedule);
+    }
+
+    /** AI 검증이 새 일정으로 갈아끼우기 전, 고정(package_default) 아닌 항목을 전부 지운다. */
+    @Transactional
+    public void clearNonFixedItems(TripScheduleEntity schedule) {
+        for (TripScheduleItemEntity it : itemRepository.findByScheduleOrderByDayIndexAscStartMinuteAsc(schedule)) {
+            if (!it.isFixed()) {
+                itemRepository.delete(it);
+            }
+        }
+        itemRepository.flush();
+    }
+
     @Transactional(readOnly = true)
     public List<ScheduleItemView> getItems(TripScheduleEntity schedule) {
         return itemRepository.findByScheduleOrderByDayIndexAscStartMinuteAsc(schedule).stream()
