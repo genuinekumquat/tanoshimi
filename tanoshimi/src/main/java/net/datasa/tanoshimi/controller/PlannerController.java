@@ -327,6 +327,27 @@ public class PlannerController {
         }
     }
 
+
+    @PatchMapping("/api/planner/{scheduleId}/days")
+    @ResponseBody
+    public ApiResponse<Object> updateDurationDays(@PathVariable Long scheduleId, @RequestParam int days, @AuthenticationPrincipal CustomUserDetails principal) {
+        TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
+        if (!schedule.isLockedBy(principal.getId())) throw new BusinessException(ErrorCode.LOCK_NOT_HELD);
+        
+        schedule.setDurationDays(days);
+        scheduleRepository.save(schedule);
+        
+        List<TripScheduleItemEntity> items = itemRepository.findByScheduleOrderByDayIndexAscStartMinuteAsc(schedule);
+        for (TripScheduleItemEntity it : items) {
+            if (it.getDayIndex() > days) {
+                itemRepository.delete(it);
+            }
+        }
+        itemRepository.flush();
+        
+        return ApiResponse.ok(java.util.Map.of("durationDays", days));
+    }
+
     @PostMapping("/api/planner/{scheduleId}/submit")
     @ResponseBody
     public ApiResponse<Void> submit(@PathVariable Long scheduleId) {

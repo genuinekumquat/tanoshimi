@@ -327,6 +327,8 @@
           <div style="font-weight:700; font-size:16px; color:var(--sash); display:inline-flex; align-items:center; margin-right:6px;">
             Total: <span id="total-price" style="letter-spacing:-0.5px; margin-left:4px;">0</span> ¥
           </div>
+          <button type="button" class="btn btn-outline btn-sm" id="btn-add-day" th:if="${isLockHolder}">+ 일수</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btn-remove-day" th:if="${isLockHolder}">- 일수</button>
           <button class="btn btn-primary btn-sm" id="btn-add" th:text="#{planner.add.blank}">일정추가</button>
           <button class="btn btn-ghost btn-sm" id="btn-clear">전체 비우기</button>
           <button type="button" id="btn-submit" class="btn btn-primary btn-sm" th:if="${schedule.status.name() == 'draft'}" th:text="#{planner.submit}" th:attr="data-schedule-id=${schedule.id}">계획표 제출하기</button>
@@ -383,7 +385,8 @@
 /*<![CDATA[*/
 const SCHEDULE_ID = /*[[${schedule.id}]]*/ 1;
 const TOUR_REGION = /*[[${tour != null ? tour.region : schedule.party?.region}]]*/ '';
-const DURATION_NIGHTS = /*[[${tour != null ? tour.durationNights : 2}]]*/ 2;
+const DURATION_NIGHTS = /*[[${tour != null ? tour.durationNights : (schedule.party != null ? schedule.party.durationDays - 1 : 2)}]]*/ 2;
+const SCHEDULE_DAYS = /*[[${schedule.durationDays != null ? schedule.durationDays : (schedule.party != null ? schedule.party.durationDays : (tour != null ? tour.durationNights + 1 : 3))}]]*/ 3;
 const SCHEDULE_STATUS = /*[[${schedule.status}]]*/ 'draft';
 const IS_PARTY_OWNER = /*[[${isPartyOwner}]]*/ false;
 const IS_LOCK_HOLDER = /*[[${isLockHolder}]]*/ false;

@@ -48,6 +48,13 @@ public class TripScheduleEntity {
     @Column(name = "last_saved_at")
     private LocalDateTime lastSavedAt;
 
+    @Column(name = "duration_days")
+    private Integer durationDays;
+    
+    public void setDurationDays(Integer durationDays) {
+        this.durationDays = durationDays;
+    }
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private ScheduleStatus status;

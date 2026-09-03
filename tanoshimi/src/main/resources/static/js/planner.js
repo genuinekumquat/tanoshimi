@@ -90,13 +90,18 @@
     const START_HOUR = 6;
     const END_HOUR = 24;
     const SLOTS = (END_HOUR - START_HOUR) * (60 / SLOT_MIN);
-    const DAY_COUNT = typeof DURATION_NIGHTS !== 'undefined' ? DURATION_NIGHTS + 1 : 4;
+    let DAY_COUNT = typeof SCHEDULE_DAYS !== 'undefined' ? SCHEDULE_DAYS : (typeof DURATION_NIGHTS !== 'undefined' ? DURATION_NIGHTS + 1 : 4);
 
-    const DAYS = Array.from({length: DAY_COUNT}, (_, i) => ({
-        key: 'd' + (i + 1),
-        date: (i + 1) + '일',
-        week: ''
-    }));
+
+        let DAYS = [];
+    function buildDays() {
+        DAYS = Array.from({length: Math.max(DAY_COUNT, 1)}, (_, i) => ({
+            key: 'd' + (i + 1),
+            date: (i + 1) + '일차',
+            week: ''
+        }));
+    }
+    buildDays();
 
     let items = [];
 
@@ -468,6 +473,29 @@
     }
 
     
+    
+    document.getElementById('btn-add-day')?.addEventListener('click', async () => {
+        if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
+        DAY_COUNT++;
+        buildDays();
+        buildGrid();
+        await window.api.patch(`/api/planner/${SCHEDULE_ID}/days?days=${DAY_COUNT}`);
+        reload();
+    });
+    document.getElementById('btn-remove-day')?.addEventListener('click', async () => {
+        if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
+        if (DAY_COUNT <= 1) {
+            alert('최소 1일은 있어야 합니다.');
+            return;
+        }
+        if (confirm(`정말 마지막 날(${DAY_COUNT}일차)을 삭제하시겠습니까? 해당 일차의 모든 일정이 삭제될 수 있습니다.`)) {
+            DAY_COUNT--;
+            buildDays();
+            buildGrid();
+            await window.api.patch(`/api/planner/${SCHEDULE_ID}/days?days=${DAY_COUNT}`);
+            reload();
+        }
+    });
     document.getElementById('btn-add')?.addEventListener('click', () => {
         if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
         showEditModal('', '', '#4b6b4a', async (newTitle, newMemo, newColor) => {
