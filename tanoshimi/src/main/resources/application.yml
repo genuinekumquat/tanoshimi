@@ -55,6 +55,10 @@ spring:
   security:
     oauth2:
       client:
+        # TODO: google/naver/line client-id·client-secret 전부 지금은 각자 개인 명의로 발급받아
+        # application-local.yml에 넣어 쓰는 중 - 배포/QA 공유 환경에서는 리다이렉트 URI가
+        # 고정돼야 하고, 담당자가 바뀌어도 접근 권한이 끊기면 안 되니 팀(회사) 명의 앱으로
+        # 다시 발급받아 공용 계정으로 옮겨야 할 가능성이 높다. SMTP 계정과 동일한 이슈.
         registration:
           google:
             client-id: ${GOOGLE_CLIENT_ID:}
