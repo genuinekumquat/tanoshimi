@@ -52,32 +52,43 @@
             const APP_HEIGHT = 320;
 
             const app = new PIXI.Application({
-                view: canvas, transparent: true, autoStart: true,
-                width: APP_WIDTH, height: APP_HEIGHT, preserveDrawingBuffer: true,
-                resolution: Math.max(window.devicePixelRatio || 1, 2) * 2.5,
-                autoDensity: true,
+                view: canvas,
+                transparent: true,
+                width: APP_WIDTH,
+                height: APP_HEIGHT,
+                autoStart: true,
+                antialias: true
             });
             let model;
             try {
-                model = await PIXI.live2d.Live2DModel.from(MODEL_URL);
+                // Initialize model with standard options
+                model = await PIXI.live2d.Live2DModel.from(MODEL_URL, { autoInteract: true });
                 app.stage.addChild(model);
             } catch (err) {
                 console.error("Live2D Load Error:", err);
                 return;
             }
 
-            // Calculate scale carefully
-            const baseScale = Math.min(APP_WIDTH / model.internalModel.width, APP_HEIGHT / model.internalModel.height) * 0.9;
+            // Fallback sizes if internalModel properties are missing
+            const iw = model.internalModel.width || 1000;
+            const ih = model.internalModel.height || 1000;
+            
+            // Just scale it nicely to fit the 240x320 box
+            const scaleX = APP_WIDTH / iw;
+            const scaleY = APP_HEIGHT / ih;
+            const baseScale = Math.min(scaleX, scaleY) * 0.95;
+            
             model.scale.set(baseScale);
             
-            // Re-read width after scaling
-            const finalWidth = model.internalModel.width * baseScale;
-            const finalHeight = model.internalModel.height * baseScale;
+            // Position carefully in the center
+            model.x = (APP_WIDTH - iw * baseScale) / 2;
+            model.y = (APP_HEIGHT - ih * baseScale) / 2;
             
-            model.x = (APP_WIDTH - finalWidth) / 2;
-            model.y = Math.max((APP_HEIGHT - finalHeight) / 2, 0); // Center Y instead of bottom aligning, dog might have weird bounds
+            // Workaround for some Pixi6+Live2D issues: Force an update on the internal model, and explicitly make it visible
+            model.visible = true;
+            model.alpha = 1;
             
-            console.log(`Mimi Model Loaded! internalSize=${model.internalModel.width}x${model.internalModel.height}, baseScale=${baseScale}, POS=${model.x},${model.y}`);
+            console.log(`Mimi Re-Loaded! size=${iw}x${ih}, scale=${baseScale}, pos=${model.x},${model.y}`);
 
 
             function updateScale(uiScale) {
@@ -122,11 +133,7 @@
 
             live2dModel = model;
             
-            live2dModel.internalModel.on('beforeModelUpdate', () => {
-                if (window.currentVivianEmotion && live2dModel.internalModel.coreModel) {
-                    live2dModel.internalModel.coreModel.addParameterValueById(window.currentVivianEmotion, 1.0);
-                }
-            });
+            
 
                                     window.isDraggingVivian = false;
 
@@ -143,95 +150,7 @@
                 // For character, we want exact pixel hover detection
                 if (elId === "companion-character-wrap") {
                     handle.style.pointerEvents = 'none'; // Default to transparent
-                    window.addEventListener('pointermove', (e) => {
-                        if (window.isDraggingVivian) {
-                            handle.style.pointerEvents = 'auto';
-                            return;
-                        }
-
-                        const rect = handle.getBoundingClientRect();
-                        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-                            handle.style.pointerEvents = 'none';
-                            return;
-                        }
-
-                        const gl = handle.getContext('webgl2') || handle.getContext('webgl');
-                        if (!gl) return;
-                        
-                        try {
-                            const pixels = new Uint8Array(4);
-                            const px = (e.clientX - rect.left) * (handle.width / rect.width);
-                            const py = (e.clientY - rect.top) * (handle.height / rect.height);
-                            gl.readPixels(px, handle.height - py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-                            handle.style.pointerEvents = (pixels[3] === 0) ? 'none' : 'auto';
-                        } catch(err) {}
-                    }, { passive: true });
-                }
-
-                handle.addEventListener('pointerdown', (e) => {
-                    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
-                    isDown = true;
-                    if (elId === "companion-character-wrap") window.isDraggingVivian = true;
                     
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    const rect = el.getBoundingClientRect();
-                    startLeft = rect.left;
-                    startTop = rect.top;
-                    el.style.right = 'auto';
-                    el.style.bottom = 'auto';
-                    el.style.left = startLeft + 'px';
-                    el.style.top = startTop + 'px';
-                    handle.style.cursor = 'grabbing';
-                    
-                    if(elId === "companion-character-wrap") {
-                        handle.classList.add("dangle-animate");
-                        handle.style.filter = "drop-shadow(0px 10px 15px rgba(0,0,0,0.4))";
-                        react('shy');
-                    }
-                });
-                
-                window.addEventListener('pointermove', (e) => {
-                    if (!isDown) return;
-                    e.preventDefault();
-                    el.style.left = (startLeft + e.clientX - startX) + 'px';
-                    el.style.top = (startTop + e.clientY - startY) + 'px';
-                }, { passive: false });
-                
-                window.addEventListener('pointerup', () => {
-                    if(el.id === "companion-character-wrap") {
-                        handle.classList.remove("dangle-animate");
-                        handle.style.filter = "drop-shadow(0px 4px 6px rgba(0,0,0,0.2))";
-                        react('normal');
-                        if (isDown) window.isDraggingVivian = false;
-                    }
-
-                    if (isDown) {
-                        isDown = false;
-                        handle.style.cursor = 'grab';
-                        try {
-                            const rect = el.getBoundingClientRect();
-                            const pos = { left: rect.left, top: rect.top };
-                            localStorage.setItem(storageKey, JSON.stringify(pos));
-                        } catch (e) {}
-                    }
-                });
-
-                if (elId === "companion-character-wrap") {
-                    handle.addEventListener('dblclick', (e) => {
-                        react('angry');
-                    });
-                }
-            }
-
-            makeDraggable('companion-character-wrap', 'companion-canvas', 'companion_pos_char');
-            makeDraggable('companion-chat-panel', 'companion-chat-drag-handle', 'companion_pos_chat');
-            
-
-            window.addEventListener('pointermove', (e) => {
-                const rect = canvas.getBoundingClientRect();
-                model.focus(e.clientX - rect.left, e.clientY - rect.top);
-            });
 
             const chatOpenBtn = document.getElementById('companion-chat-open');
             if (chatOpenBtn) {
