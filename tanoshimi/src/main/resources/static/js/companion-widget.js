@@ -66,10 +66,19 @@
                 return;
             }
 
-            const baseScale = Math.min(APP_WIDTH / model.width, APP_HEIGHT / model.height);
+            // Calculate scale carefully
+            const baseScale = Math.min(APP_WIDTH / model.internalModel.width, APP_HEIGHT / model.internalModel.height) * 0.9;
             model.scale.set(baseScale);
-            model.x = (APP_WIDTH - (model.width)) / 2;
-            model.y = (APP_HEIGHT - model.height);
+            
+            // Re-read width after scaling
+            const finalWidth = model.internalModel.width * baseScale;
+            const finalHeight = model.internalModel.height * baseScale;
+            
+            model.x = (APP_WIDTH - finalWidth) / 2;
+            model.y = Math.max((APP_HEIGHT - finalHeight) / 2, 0); // Center Y instead of bottom aligning, dog might have weird bounds
+            
+            console.log(`Mimi Model Loaded! internalSize=${model.internalModel.width}x${model.internalModel.height}, baseScale=${baseScale}, POS=${model.x},${model.y}`);
+
 
             function updateScale(uiScale) {
                 canvas.style.setProperty('--vivian-scale', uiScale);
