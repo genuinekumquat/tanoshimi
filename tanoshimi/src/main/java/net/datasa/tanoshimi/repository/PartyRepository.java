@@ -1,5 +1,7 @@
 package net.datasa.tanoshimi.repository;
 
+import net.datasa.tanoshimi.domain.entity.GenderRestriction;
+import net.datasa.tanoshimi.domain.entity.NationalityRestriction;
 import net.datasa.tanoshimi.domain.entity.PartyEntity;
 import net.datasa.tanoshimi.domain.entity.PartyStatus;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
@@ -46,6 +48,29 @@ public interface PartyRepository extends JpaRepository<PartyEntity, Long> {
             """)
     List<PartyEntity> searchRecruiting(@Param("status") PartyStatus status, @Param("keyword") String keyword,
                                        @Param("from") LocalDate from);
+
+    /**
+     * 파티 게시판 조건 필터(TNSM-54) - 지역/키워드/성별·국적 조건/연령을 전부 선택적으로 조합한다.
+     * 파라미터가 null이면 그 조건은 무시(전체)한다. age는 "이 나이대에 신청 가능한 파티만" 기준으로,
+     * ageMin/ageMax가 null인 쪽은 그 경계가 없는 것으로 취급한다.
+     * "지난 모임 보기" 탭에는 적용하지 않는다(PartyService.listBoard 참고 - 기존 정책 유지).
+     */
+    @Query("""
+            select p from PartyEntity p
+            where p.status = :status and p.blinded = false
+              and p.departureDate >= :from
+              and (:region is null or p.region = :region)
+              and (:keyword is null or p.title like concat('%', :keyword, '%') or p.region like concat('%', :keyword, '%'))
+              and (:gender is null or p.genderRestriction = :gender)
+              and (:nationality is null or p.nationalityRestriction = :nationality)
+              and (:age is null or (p.ageMin is null or p.ageMin <= :age) and (p.ageMax is null or p.ageMax >= :age))
+            order by p.departureDate asc
+            """)
+    List<PartyEntity> searchBoard(@Param("status") PartyStatus status, @Param("from") LocalDate from,
+                                  @Param("region") String region, @Param("keyword") String keyword,
+                                  @Param("gender") GenderRestriction gender,
+                                  @Param("nationality") NationalityRestriction nationality,
+                                  @Param("age") Integer age);
 
     /**
      * [v16 신규] 파티 완료 자동처리 스케줄러 전용 - 아직 completed 가 아니고
