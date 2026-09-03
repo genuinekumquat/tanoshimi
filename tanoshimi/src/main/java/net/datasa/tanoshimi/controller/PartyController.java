@@ -10,7 +10,6 @@ import net.datasa.tanoshimi.domain.dto.PartyApplyRequest;
 import net.datasa.tanoshimi.domain.dto.PartyCreateRequest;
 import net.datasa.tanoshimi.domain.entity.ActiveStatus;
 import net.datasa.tanoshimi.domain.entity.PartyEntity;
-import net.datasa.tanoshimi.domain.entity.PartyStatus;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
@@ -46,17 +45,13 @@ public class PartyController {
 
     @GetMapping("/party-board")
     public String board(@RequestParam(required = false) String region,
-                        @RequestParam(required = false) String q, Model model) {
-        List<PartyEntity> parties;
-        if (q != null && !q.isBlank()) {
-            parties = partyRepository.searchRecruiting(PartyStatus.recruiting, q.trim());
-        } else {
-            parties = (region == null || region.isBlank())
-                ? partyRepository.findByStatusAndBlindedFalseOrderByDepartureDateAsc(PartyStatus.recruiting)
-                : partyRepository.findByRegionAndStatusAndBlindedFalse(region, PartyStatus.recruiting);
-        }
-        model.addAttribute("parties", parties);
+                        @RequestParam(required = false) String q,
+                        @RequestParam(required = false, defaultValue = "false") boolean past,
+                        Model model) {
+        model.addAttribute("parties", partyService.listBoard(region, q, past));
         model.addAttribute("keyword", q);
+        model.addAttribute("region", region);
+        model.addAttribute("showingPast", past);
         return "party/board";
     }
 
