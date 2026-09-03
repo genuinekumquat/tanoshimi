@@ -3,32 +3,25 @@ package net.datasa.tanoshimi.controller;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
-import net.datasa.tanoshimi.domain.entity.SupportCommentEntity;
 import net.datasa.tanoshimi.domain.entity.SupportEntity;
-import net.datasa.tanoshimi.repository.SupportCommentRepository;
-import net.datasa.tanoshimi.repository.SupportRepository;
+import net.datasa.tanoshimi.service.SupportService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.util.List;
-
 @Controller
 @RequestMapping("/support")
 @RequiredArgsConstructor
 public class SupportController {
 
-    private final SupportRepository supportRepository;
-    private final SupportCommentRepository supportCommentRepository;
+    private final SupportService supportService;
 
     @GetMapping
     public String list(Model model, @AuthenticationPrincipal CustomUserDetails principal) {
-        List<SupportEntity> posts = supportRepository.findAllByOrderByIdDesc();
-        boolean isAdmin = (principal != null && principal.isAdmin());
-        model.addAttribute("posts", posts);
-        model.addAttribute("isAdmin", isAdmin);
+        model.addAttribute("posts", supportService.listNewestFirst());
+        model.addAttribute("isAdmin", principal != null && principal.isAdmin());
         return "support/list";
     }
 
@@ -43,13 +36,7 @@ public class SupportController {
             @RequestParam String guestPassword,
             @RequestParam String title,
             @RequestParam String content) {
-        SupportEntity post = SupportEntity.builder()
-                .guestId(guestId)
-                .guestPassword(guestPassword)
-                .title(title)
-                .content(content)
-                .build();
-        supportRepository.save(post);
+        supportService.write(guestId, guestPassword, title, content);
         return "redirect:/support";
     }
 
@@ -58,10 +45,9 @@ public class SupportController {
         if (principal != null && principal.isAdmin()) {
             return "redirect:/support/" + id + "/view";
         }
-        
+
         // If already authenticated this session for this post
-        Boolean authenticated = (Boolean) session.getAttribute("support_auth_" + id);
-        if (Boolean.TRUE.equals(authenticated)) {
+        if (Boolean.TRUE.equals(session.getAttribute("support_auth_" + id))) {
             return "redirect:/support/" + id + "/view";
         }
 
@@ -70,13 +56,12 @@ public class SupportController {
     }
 
     @PostMapping("/{id}/auth")
-    public String authorize(@PathVariable Long id, 
-                            @RequestParam String guestId, 
+    public String authorize(@PathVariable Long id,
+                            @RequestParam String guestId,
                             @RequestParam String guestPassword,
                             HttpSession session,
                             RedirectAttributes rttr) {
-        SupportEntity post = supportRepository.findById(id).orElse(null);
-        if (post != null && post.getGuestId().equals(guestId) && post.getGuestPassword().equals(guestPassword)) {
+        if (supportService.verifyGuest(id, guestId, guestPassword)) {
             session.setAttribute("support_auth_" + id, true);
             return "redirect:/support/" + id + "/view";
         }
@@ -86,19 +71,11 @@ public class SupportController {
 
     @GetMapping("/{id}/view")
     public String view(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal, HttpSession session, Model model) {
-        SupportEntity post = supportRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Invalid post ID"));
-        
-        boolean isAdmin = (principal != null && principal.isAdmin());
-        boolean isAuthenticated = Boolean.TRUE.equals(session.getAttribute("support_auth_" + id));
-        
-        if (!isAdmin && !isAuthenticated) {
+        if (!canRead(id, principal, session)) {
             return "redirect:/support/" + id;
         }
-
-        List<SupportCommentEntity> comments = supportCommentRepository.findBySupportIdAndParentCommentIsNullOrderByCreatedAtAsc(id);
-
-        model.addAttribute("post", post);
-        model.addAttribute("comments", comments);
+        model.addAttribute("post", supportService.get(id));
+        model.addAttribute("comments", supportService.topLevelComments(id));
         return "support/detail";
     }
 
@@ -108,31 +85,20 @@ public class SupportController {
                              @RequestParam(required = false) Long parentId,
                              @AuthenticationPrincipal CustomUserDetails principal,
                              HttpSession session) {
-        SupportEntity post = supportRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Invalid post ID"));
-
-        boolean isAdmin = (principal != null && principal.isAdmin());
-        boolean isAuthenticated = Boolean.TRUE.equals(session.getAttribute("support_auth_" + id));
-
-        if (!isAdmin && !isAuthenticated) {
+        if (!canRead(id, principal, session)) {
             return "redirect:/support/" + id;
         }
-
+        boolean isAdmin = principal != null && principal.isAdmin();
+        SupportEntity post = supportService.get(id);
         String writerName = isAdmin ? "관리자" : post.getGuestId();
-
-        SupportCommentEntity parent = null;
-        if (parentId != null) {
-            parent = supportCommentRepository.findById(parentId).orElse(null);
-        }
-
-        SupportCommentEntity comment = SupportCommentEntity.builder()
-                .support(post)
-                .content(content)
-                .writerName(writerName)
-                .parentComment(parent)
-                .build();
-        
-        supportCommentRepository.save(comment);
-
+        supportService.addComment(id, content, parentId, writerName);
         return "redirect:/support/" + id + "/view";
+    }
+
+    /** 관리자이거나, 이 세션에서 비회원 본인 확인을 통과한 경우에만 문의글을 읽을 수 있다. */
+    private boolean canRead(Long id, CustomUserDetails principal, HttpSession session) {
+        boolean isAdmin = principal != null && principal.isAdmin();
+        boolean isAuthenticated = Boolean.TRUE.equals(session.getAttribute("support_auth_" + id));
+        return isAdmin || isAuthenticated;
     }
 }
