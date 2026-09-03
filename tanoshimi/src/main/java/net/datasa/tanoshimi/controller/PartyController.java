@@ -9,6 +9,8 @@ import net.datasa.tanoshimi.domain.dto.ApiResponse;
 import net.datasa.tanoshimi.domain.dto.PartyApplyRequest;
 import net.datasa.tanoshimi.domain.dto.PartyCreateRequest;
 import net.datasa.tanoshimi.domain.entity.ActiveStatus;
+import net.datasa.tanoshimi.domain.entity.GenderRestriction;
+import net.datasa.tanoshimi.domain.entity.NationalityRestriction;
 import net.datasa.tanoshimi.domain.entity.PartyEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
@@ -47,11 +49,19 @@ public class PartyController {
     public String board(@RequestParam(required = false) String region,
                         @RequestParam(required = false) String q,
                         @RequestParam(required = false, defaultValue = "false") boolean past,
+                        @RequestParam(required = false) String gender,
+                        @RequestParam(required = false) String nationality,
+                        @RequestParam(required = false) Integer age,
                         Model model) {
-        model.addAttribute("parties", partyService.listBoard(region, q, past));
+        GenderRestriction genderFilter = (gender == null || gender.isBlank()) ? null : GenderRestriction.valueOf(gender);
+        NationalityRestriction nationalityFilter = (nationality == null || nationality.isBlank()) ? null : NationalityRestriction.valueOf(nationality);
+        model.addAttribute("parties", partyService.listBoard(region, q, past, genderFilter, nationalityFilter, age));
         model.addAttribute("keyword", q);
         model.addAttribute("region", region);
         model.addAttribute("showingPast", past);
+        model.addAttribute("selectedGender", gender);
+        model.addAttribute("selectedNationality", nationality);
+        model.addAttribute("selectedAge", age);
         return "party/board";
     }
 

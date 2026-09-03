@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head th:replace="~{fragments/layout :: head(#{nav.party} + ' | Tanoshimi')}"></head>
+<head>
+  <th:block th:replace="~{fragments/layout :: head(#{nav.party} + ' | Tanoshimi')}"></th:block>
+  <link rel="stylesheet" th:href="@{/css/party-board-filter.css}">
+</head>
 <body>
 <header th:replace="~{fragments/layout :: header}"></header>
 
@@ -164,14 +167,46 @@
     </section>
 
     <!-- 오른쪽 검색 패널 -->
-    <aside style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; position:sticky; top:20px;">
-      <h2 style="font-size:16px; margin:0 0 16px;">[[#{party.search.title}]]</h2>
-      
+    <aside class="filter-panel">
+      <h2>[[#{party.search.title}]]</h2>
+
       <form action="/party-board" method="get">
-        <label style="display:block; font-size:12px; font-weight:700; color:var(--ink-soft); margin-bottom:6px;">[[#{party.search.keyword}]]</label>
-        <div style="display:flex; gap:6px; margin-bottom:20px;">
-          <input type="text" name="q" th:value="${keyword}" th:placeholder="#{party.search.placeholder}" style="flex:1; padding:10px; border:1px solid var(--line); border-radius:8px;">
-          <button type="submit" class="btn btn-primary" style="padding:10px;">검색</button>
+        <label class="filter-label">[[#{party.search.keyword}]]</label>
+        <div class="filter-row">
+          <input type="text" name="q" th:value="${keyword}" th:placeholder="#{party.search.placeholder}" class="filter-input">
+        </div>
+
+        <label class="filter-label">[[#{party.region}]]</label>
+        <select name="region" class="filter-select">
+          <option value="" th:selected="${region == null or region.isEmpty()}">전체 지역</option>
+          <option value="오사카" th:selected="${region == '오사카'}">오사카</option>
+          <option value="도쿄" th:selected="${region == '도쿄'}">도쿄</option>
+          <option value="교토" th:selected="${region == '교토'}">교토</option>
+          <option value="후쿠오카" th:selected="${region == '후쿠오카'}">후쿠오카</option>
+          <option value="홋카이도" th:selected="${region == '홋카이도'}">홋카이도</option>
+          <option value="오키나와" th:selected="${region == '오키나와'}">오키나와</option>
+        </select>
+
+        <label class="filter-label">[[#{party.gender}]]</label>
+        <select name="gender" class="filter-select">
+          <option value="" th:selected="${selectedGender == null or selectedGender.isEmpty()}">전체</option>
+          <option value="all" th:selected="${selectedGender == 'all'}" th:text="#{party.gender.all}">성별 무관</option>
+          <option value="male_only" th:selected="${selectedGender == 'male_only'}" th:text="#{party.gender.male_only}">남자만</option>
+          <option value="female_only" th:selected="${selectedGender == 'female_only'}" th:text="#{party.gender.female_only}">여자만</option>
+        </select>
+
+        <label class="filter-label">[[#{party.nationality}]]</label>
+        <select name="nationality" class="filter-select">
+          <option value="" th:selected="${selectedNationality == null or selectedNationality.isEmpty()}">전체</option>
+          <option value="all" th:selected="${selectedNationality == 'all'}" th:text="#{party.nationality.all}">국적 무관</option>
+          <option value="kr_only" th:selected="${selectedNationality == 'kr_only'}" th:text="#{party.nationality.kr_only}">한국인만</option>
+          <option value="jp_only" th:selected="${selectedNationality == 'jp_only'}" th:text="#{party.nationality.jp_only}">일본인만</option>
+        </select>
+
+        <label class="filter-label">내 나이 (연령 조건에 맞는 파티만)</label>
+        <div class="filter-row filter-row-submit">
+          <input type="number" name="age" min="1" max="120" th:value="${selectedAge}" placeholder="예: 27" class="filter-input">
+          <button type="submit" class="btn btn-primary filter-submit-btn">검색</button>
         </div>
       </form>
 

@@ -62,6 +62,29 @@ public class PartyService {
                         region, PartyStatus.recruiting, today);
     }
 
+    /**
+     * TNSM-54: 위 3-인자 listBoard 에 성별/국적 조건, 연령 필터를 추가한 버전.
+     * 기존 listBoard(region, keyword, includePast)와 그 테스트(PartyServiceTest)는 정확한
+     * 리포지토리 메서드 호출을 검증하고 있어 그대로 두고, 조건 필터가 필요한 이 새 경로만
+     * PartyRepository.searchBoard 로 분리했다. "지난 모임 보기" 탭은 기존과 동일하게
+     * 조건 필터를 적용하지 않는다.
+     */
+    @Transactional(readOnly = true)
+    public List<PartyEntity> listBoard(String region, String keyword, boolean includePast,
+                                        GenderRestriction gender, NationalityRestriction nationality, Integer age) {
+        if (gender == null && nationality == null && age == null) {
+            return listBoard(region, keyword, includePast);
+        }
+        LocalDate today = LocalDate.now();
+        if (includePast) {
+            return partyRepository.findByBlindedFalseAndDepartureDateLessThanOrderByDepartureDateDesc(today);
+        }
+        return partyRepository.searchBoard(PartyStatus.recruiting, today,
+                (region == null || region.isBlank()) ? null : region,
+                (keyword == null || keyword.isBlank()) ? null : keyword.trim(),
+                gender, nationality, age);
+    }
+
     @Transactional
     public Long createParty(UserEntity owner, PartyCreateRequest req) {
         TourEntity tour = req.tourId() == null ? null : tourRepository.findById(req.tourId()).orElse(null);

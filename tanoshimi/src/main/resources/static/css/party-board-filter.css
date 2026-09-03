@@ -1,0 +1,53 @@
+/* party/board.html 오른쪽 검색/필터 패널 (TNSM-54). 새로 만드는 화면은 인라인 스타일 대신
+   별도 CSS 파일로 분리하기로 한 방침에 따라 이 필터 UI에 쓰인 스타일을 여기로 뺀다. */
+
+.filter-panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    position: sticky;
+    top: 20px;
+}
+
+.filter-panel h2 {
+    font-size: 16px;
+    margin: 0 0 16px;
+}
+
+.filter-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+}
+
+.filter-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.filter-row.filter-row-submit {
+    margin-bottom: 20px;
+}
+
+.filter-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+.filter-select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.filter-submit-btn {
+    padding: 10px;
+}
