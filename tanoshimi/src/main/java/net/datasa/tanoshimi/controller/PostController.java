@@ -58,6 +58,7 @@ public class PostController {
         model.addAttribute("post", post);
         model.addAttribute("comments", visibleComments(post, principal));
         model.addAttribute("isOwner", principal != null && post.getUser().getId().equals(principal.getId()));
+        model.addAttribute("myId", principal != null ? principal.getId() : null);
         return "board/detail";
     }
 
