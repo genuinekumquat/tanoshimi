@@ -133,8 +133,14 @@
           })
         );
         
+        // Set CSS grid dynamically
+        gridHead.style.display = 'grid';
+        gridHead.style.gridTemplateColumns = `56px repeat(${DAY_COUNT}, minmax(140px, 1fr))`;
+        gridBody.style.display = 'grid';
+        gridBody.style.gridTemplateColumns = `56px repeat(${DAY_COUNT}, minmax(140px, 1fr))`;
+
         // body
-        let bodyHtml = '<div class="time-col">';
+        let bodyHtml = '<div class="time-col" style="min-width: 56px;">';
         for(let i=0; i<SLOTS; i++) {
             bodyHtml += `<div class="slot">${slotToTime(i)}</div>`;
         }

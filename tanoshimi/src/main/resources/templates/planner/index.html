@@ -338,8 +338,12 @@
 
       <div class="legend" id="legend"></div>
 
-      <div class="grid-head" id="grid-head"></div>
-      <div class="grid-body" id="grid-body"></div>
+      <div class="grid-wrapper" style="overflow-x: auto; overflow-y: hidden;">
+        <div style="min-width: max-content;">
+          <div class="grid-head" id="grid-head"></div>
+          <div class="grid-body" id="grid-body" style="position:relative;"></div>
+        </div>
+      </div>
 
       <div class="board-foot">
         <span id="summary">아직 채워진 일정이 없습니다.</span>
