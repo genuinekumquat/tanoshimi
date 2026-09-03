@@ -160,7 +160,7 @@
                     handle.style.cursor = 'grabbing';
                     
                     if(elId === "companion-character-wrap") {
-                        handle.classList.add("dangle-animate");
+                        
                         handle.style.filter = "drop-shadow(0px 10px 15px rgba(0,0,0,0.4))";
                         react('shy');
                     }
@@ -175,7 +175,7 @@
                 
                 window.addEventListener('pointerup', () => {
                     if(el.id === "companion-character-wrap") {
-                        handle.classList.remove("dangle-animate");
+                        
                         handle.style.filter = "drop-shadow(0px 4px 6px rgba(0,0,0,0.2))";
                         react('normal');
                     }
