@@ -33,9 +33,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class PartyRoomController {
 
-    private final PartyRepository partyRepository;
-    private final PartyMemberRepository partyMemberRepository;
     private final UserRepository userRepository;
+    // TODO(리팩터링 Phase 4/6): 아래 chat/reservation/post 조회도 각 도메인 서비스로 옮긴다.
     private final ReservationRepository reservationRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatService chatService;
@@ -46,13 +45,13 @@ public class PartyRoomController {
 
     @GetMapping("/party-board/{id}/room")
     public String room(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
-        PartyEntity party = partyRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
+        PartyEntity party = partyService.getParty(id);
         UserEntity me = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        assertMember(party, me);
+        partyService.assertMember(party, me);
 
         model.addAttribute("party", party);
         model.addAttribute("isOwner", party.getOwner().getId().equals(me.getId()));
-        model.addAttribute("members", partyMemberRepository.findByParty(party));
+        model.addAttribute("members", partyService.members(party));
 
         chatRoomRepository.findByParty(party).ifPresent(room -> {
             model.addAttribute("roomId", room.getId());
@@ -85,7 +84,7 @@ public class PartyRoomController {
     @ResponseBody
     public ApiResponse<Void> approve(@PathVariable Long partyId, @PathVariable Long applicationId,
                                      @AuthenticationPrincipal CustomUserDetails principal) {
-        PartyEntity party = partyRepository.findById(partyId).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
+        PartyEntity party = partyService.getParty(partyId);
         assertOwner(party, principal.getId());
         partyApplicationService.approve(applicationId);
         return ApiResponse.okMessage("승인했습니다.");
@@ -95,16 +94,10 @@ public class PartyRoomController {
     @ResponseBody
     public ApiResponse<Void> reject(@PathVariable Long partyId, @PathVariable Long applicationId,
                                     @AuthenticationPrincipal CustomUserDetails principal) {
-        PartyEntity party = partyRepository.findById(partyId).orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
+        PartyEntity party = partyService.getParty(partyId);
         assertOwner(party, principal.getId());
         partyApplicationService.reject(applicationId);
         return ApiResponse.okMessage("거절했습니다.");
-    }
-
-    private void assertMember(PartyEntity party, UserEntity user) {
-        if (!partyMemberRepository.existsByPartyAndUser(party, user)) {
-            throw new BusinessException(ErrorCode.NOT_PARTY_MEMBER);
-        }
     }
 
     private void assertOwner(PartyEntity party, Long userId) {

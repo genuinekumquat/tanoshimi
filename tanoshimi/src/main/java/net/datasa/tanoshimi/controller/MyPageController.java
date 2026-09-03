@@ -12,7 +12,6 @@ import net.datasa.tanoshimi.domain.entity.MyTripEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
-import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.repository.UserRepository;
 import jakarta.servlet.http.HttpSession;
 import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
@@ -64,7 +63,7 @@ public class MyPageController {
     private static final int TRIP_PAGE_SIZE = 20;
 
     private final UserRepository userRepository;
-    private final PartyMemberRepository partyMemberRepository;
+    private final net.datasa.tanoshimi.service.PartyService partyService;
     private final PostService postService;
     private final FollowService followService;
     private final FileStorageService fileStorageService;
@@ -108,7 +107,7 @@ public class MyPageController {
         model.addAttribute("myTripTotal", tripViews.size());
 
         model.addAttribute("me", me);
-        model.addAttribute("myParties", partyMemberRepository.findByUserOrderByJoinedAtDesc(me));
+        model.addAttribute("myParties", partyService.myMemberships(me));
         model.addAttribute("myPosts", postService.myPosts(me, PageRequest.of(0, 12)));
         // 지도에서 지역에 마우스를 올렸을 때 띄울 스냅(지역 태그가 붙은 내 글).
         // 피드보다 넓게 가져오되, 지도 위에 최대 10장만 뿌리므로 60개면 충분하다.
