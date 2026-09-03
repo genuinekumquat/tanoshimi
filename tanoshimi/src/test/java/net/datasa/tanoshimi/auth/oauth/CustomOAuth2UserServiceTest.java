@@ -1,48 +1,41 @@
 package net.datasa.tanoshimi.auth.oauth;
 
-import jakarta.servlet.http.HttpSession;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.entity.Gender;
 import net.datasa.tanoshimi.domain.entity.Nationality;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
-import net.datasa.tanoshimi.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * CustomOAuth2UserService 는 "성공 로그인"과 "추가정보 필요/이메일 중복/정지 계정" 을 전부
- * OAuth2AuthenticationException 으로 흘려보내는 특이한 제어 흐름을 쓴다(Spring Security 의
- * oauth2Login().failureHandler() 가 실제로는 "신규가입 유도" 같은 정상 분기까지 처리하게 됨).
- * 그래서 이 서비스는 "예외가 안 나는 성공 케이스"와 "에러 코드별로 다른 예외가 나는 케이스" 를
- * 전부 커버해야 실제로 안전하다.
- *
- * DefaultOAuth2UserService.loadUser() 는 실제 HTTP 호출을 하므로, delegate 를 생성자 주입으로
- * 바꿔서(이번 변경) mock 으로 대체했다 - 예전에는 필드에서 직접 new 해서 테스트 자체가 불가능했다.
+ * google/naver(=openid 스코프 없는 일반 OAuth2) 전용. 계정 연결/신규가입 판단 자체는
+ * SocialLoginResolver 로 옮겨졌으니(SocialLoginResolverTest 참고), 여기서는 delegate가 준
+ * 응답을 OAuthAttributes로 정확히 변환해서 resolver에 넘기고, 그 결과를 CustomUserDetails로
+ * 감싸서 돌려주는지 + resolver가 던지는 예외를 그대로 전파하는지만 본다.
  */
 @ExtendWith(MockitoExtension.class)
 class CustomOAuth2UserServiceTest {
@@ -50,15 +43,13 @@ class CustomOAuth2UserServiceTest {
     @Mock
     private DefaultOAuth2UserService delegate;
     @Mock
-    private UserRepository userRepository;
-    @Mock
-    private HttpSession httpSession;
+    private SocialLoginResolver socialLoginResolver;
 
     private CustomOAuth2UserService service;
 
     @BeforeEach
     void setUp() {
-        service = new CustomOAuth2UserService(delegate, userRepository, httpSession);
+        service = new CustomOAuth2UserService(delegate, socialLoginResolver);
     }
 
     private OAuth2UserRequest googleRequest(Map<String, Object> attributes) {
@@ -88,63 +79,25 @@ class CustomOAuth2UserServiceTest {
     }
 
     @Test
-    void 이미_연결된_활성_계정이면_CustomUserDetails를_반환한다() {
+    void 구글_속성을_변환해서_resolver에_넘기고_CustomUserDetails로_감싼다() {
         OAuth2UserRequest request = googleRequest(Map.of("sub", "google-uid-1", "email", "user@test.com", "name", "유자차"));
         UserEntity user = newSocialUser("google", "google-uid-1");
-        when(userRepository.findBySocialProviderAndSocialId("google", "google-uid-1")).thenReturn(Optional.of(user));
+        when(socialLoginResolver.resolveOrRequireSignup(any())).thenReturn(user);
 
         OAuth2User result = service.loadUser(request);
 
         assertThat(result).isInstanceOf(CustomUserDetails.class);
         assertThat(((CustomUserDetails) result).getEmail()).isEqualTo("user@test.com");
-    }
 
-    @Test
-    void 이미_연결됐지만_정지된_계정이면_ACCOUNT_SUSPENDED_예외() {
-        OAuth2UserRequest request = googleRequest(Map.of("sub", "google-uid-1", "email", "user@test.com", "name", "유자차"));
-        UserEntity user = newSocialUser("google", "google-uid-1");
-        user.suspend(LocalDateTime.now().plusDays(7));
-        when(userRepository.findBySocialProviderAndSocialId("google", "google-uid-1")).thenReturn(Optional.of(user));
-
-        assertThatThrownBy(() -> service.loadUser(request))
-                .isInstanceOf(OAuth2AuthenticationException.class)
-                .extracting(e -> ((OAuth2AuthenticationException) e).getError().getErrorCode())
-                .isEqualTo(SocialErrorCodes.ACCOUNT_SUSPENDED);
-    }
-
-    @Test
-    void 연결안된_소셜이지만_같은_이메일이_이미_가입돼있으면_EMAIL_ALREADY_USED_예외() {
-        // 계정 탈취 방지 - 로컬로 먼저 가입한 이메일에 몰래 소셜 계정을 자동 연결시키지 않는다.
-        OAuth2UserRequest request = googleRequest(Map.of("sub", "google-uid-new", "email", "user@test.com", "name", "유자차"));
-        when(userRepository.findBySocialProviderAndSocialId("google", "google-uid-new")).thenReturn(Optional.empty());
-        when(userRepository.existsByEmail("user@test.com")).thenReturn(true);
-
-        assertThatThrownBy(() -> service.loadUser(request))
-                .isInstanceOf(OAuth2AuthenticationException.class)
-                .extracting(e -> ((OAuth2AuthenticationException) e).getError().getErrorCode())
-                .isEqualTo(SocialErrorCodes.EMAIL_ALREADY_USED);
-    }
-
-    @Test
-    void 완전히_새로운_사용자면_세션에_pending정보를_저장하고_SIGNUP_REQUIRED_예외() {
-        OAuth2UserRequest request = googleRequest(Map.of("sub", "google-uid-brand-new", "email", "new@test.com", "name", "유자차"));
-        when(userRepository.findBySocialProviderAndSocialId("google", "google-uid-brand-new")).thenReturn(Optional.empty());
-        when(userRepository.existsByEmail("new@test.com")).thenReturn(false);
-
-        assertThatThrownBy(() -> service.loadUser(request))
-                .isInstanceOf(OAuth2AuthenticationException.class)
-                .extracting(e -> ((OAuth2AuthenticationException) e).getError().getErrorCode())
-                .isEqualTo(SocialErrorCodes.SIGNUP_REQUIRED);
-
-        org.mockito.ArgumentCaptor<PendingSocialSignup> captor = org.mockito.ArgumentCaptor.forClass(PendingSocialSignup.class);
-        org.mockito.Mockito.verify(httpSession).setAttribute(org.mockito.ArgumentMatchers.eq(PendingSocialSignup.SESSION_KEY), captor.capture());
+        ArgumentCaptor<OAuthAttributes> captor = ArgumentCaptor.forClass(OAuthAttributes.class);
+        verify(socialLoginResolver).resolveOrRequireSignup(captor.capture());
         assertThat(captor.getValue().provider()).isEqualTo("google");
-        assertThat(captor.getValue().socialId()).isEqualTo("google-uid-brand-new");
-        assertThat(captor.getValue().email()).isEqualTo("new@test.com");
+        assertThat(captor.getValue().socialId()).isEqualTo("google-uid-1");
+        assertThat(captor.getValue().email()).isEqualTo("user@test.com");
     }
 
     @Test
-    void 네이버_중첩응답도_동일한_흐름으로_동작한다() {
+    void 네이버_중첩응답도_정상적으로_변환해서_resolver에_넘긴다() {
         ClientRegistration registration = ClientRegistration.withRegistrationId("naver")
                 .clientId("client-id")
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
@@ -168,50 +121,29 @@ class CustomOAuth2UserServiceTest {
         OAuth2UserRequest request = new OAuth2UserRequest(registration, accessToken);
 
         UserEntity user = newSocialUser("naver", "naver-uid-1");
-        when(userRepository.findBySocialProviderAndSocialId("naver", "naver-uid-1")).thenReturn(Optional.of(user));
+        when(socialLoginResolver.resolveOrRequireSignup(any())).thenReturn(user);
 
         OAuth2User result = service.loadUser(request);
 
         assertThat(result).isInstanceOf(CustomUserDetails.class);
+        ArgumentCaptor<OAuthAttributes> captor = ArgumentCaptor.forClass(OAuthAttributes.class);
+        verify(socialLoginResolver).resolveOrRequireSignup(captor.capture());
+        assertThat(captor.getValue().provider()).isEqualTo("naver");
+        assertThat(captor.getValue().socialId()).isEqualTo("naver-uid-1");
+        assertThat(captor.getValue().email()).isEqualTo("user@test.com");
     }
 
     @Test
-    void 라인은_이메일_스코프_심사_전이면_email없이_pending정보를_저장한다() {
-        // LINE 채널이 이메일 권한 심사를 통과하지 못했으면 email 자체가 안 내려온다 -
-        // 이 경우도 회원가입 유도(signup-social, needEmailInput=true)로 정상 진행돼야 한다.
-        ClientRegistration registration = ClientRegistration.withRegistrationId("line")
-                .clientId("client-id")
-                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
-                .authorizationGrantType(org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
-                .authorizationUri("https://access.line.me/oauth2/v2.1/authorize")
-                .tokenUri("https://api.line.me/oauth2/v2.1/token")
-                .userInfoUri("https://api.line.me/oauth2/v2.1/userinfo")
-                .userNameAttributeName("sub")
-                .clientName("LINE")
-                .build();
-        OAuth2AccessToken accessToken = new OAuth2AccessToken(
-                OAuth2AccessToken.TokenType.BEARER, "dummy-token", Instant.now(), Instant.now().plusSeconds(3600));
-        Map<String, Object> attributes = Map.of("sub", "line-uid-1", "name", "유자차");
-        OAuth2User rawUser = new DefaultOAuth2User(
-                List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")),
-                attributes, "sub");
-        when(delegate.loadUser(any())).thenReturn(rawUser);
-        OAuth2UserRequest request = new OAuth2UserRequest(registration, accessToken);
-
-        when(userRepository.findBySocialProviderAndSocialId("line", "line-uid-1")).thenReturn(Optional.empty());
+    void resolver가_던지는_예외를_그대로_전파한다() {
+        // SIGNUP_REQUIRED/EMAIL_ALREADY_USED/ACCOUNT_SUSPENDED 같은 resolver의 제어 흐름은
+        // 그대로 흘러나와야 OAuth2FailureHandler가 화면 분기를 정상적으로 처리할 수 있다.
+        OAuth2UserRequest request = googleRequest(Map.of("sub", "google-uid-2", "email", "new@test.com", "name", "유자차"));
+        when(socialLoginResolver.resolveOrRequireSignup(any()))
+                .thenThrow(new OAuth2AuthenticationException(new OAuth2Error(SocialErrorCodes.SIGNUP_REQUIRED), "추가정보 입력 필요"));
 
         assertThatThrownBy(() -> service.loadUser(request))
                 .isInstanceOf(OAuth2AuthenticationException.class)
                 .extracting(e -> ((OAuth2AuthenticationException) e).getError().getErrorCode())
                 .isEqualTo(SocialErrorCodes.SIGNUP_REQUIRED);
-
-        org.mockito.ArgumentCaptor<PendingSocialSignup> captor = org.mockito.ArgumentCaptor.forClass(PendingSocialSignup.class);
-        org.mockito.Mockito.verify(httpSession).setAttribute(org.mockito.ArgumentMatchers.eq(PendingSocialSignup.SESSION_KEY), captor.capture());
-        assertThat(captor.getValue().provider()).isEqualTo("line");
-        assertThat(captor.getValue().socialId()).isEqualTo("line-uid-1");
-        assertThat(captor.getValue().email()).isNull();
-        // userRepository.existsByEmail 은 email이 null이면 호출될 필요가 없다(CustomOAuth2UserService 참고).
-        org.mockito.Mockito.verify(userRepository, org.mockito.Mockito.never()).existsByEmail(any());
     }
 }
