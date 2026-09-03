@@ -27,6 +27,43 @@ public class PostService {
     private final BlockService blockService;
     private final RegionCatalog regionCatalog;
 
+    // ---------------------------------------------------------------- 단건/댓글 조회 (컨트롤러가 Repository 를 직접 부르지 않도록 여기로 모음)
+
+    /** 게시글 1건 (작성자 fetch). 없으면 INVALID_INPUT. */
+    @Transactional(readOnly = true)
+    public PostEntity getWithUser(Long id) {
+        return postRepository.findWithUserById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
+    }
+
+    /** 게시글 1건. 없으면 INVALID_INPUT. */
+    @Transactional(readOnly = true)
+    public PostEntity getPost(Long id) {
+        return postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
+    }
+
+    /**
+     * TNSM-96: 글의 댓글 중 viewer 와 차단 관계인 작성자의 댓글을 걸러낸 목록.
+     * viewer 가 null(비로그인)이면 전부 보여준다.
+     */
+    @Transactional(readOnly = true)
+    public List<PostCommentEntity> visibleComments(PostEntity post, UserEntity viewer) {
+        List<PostCommentEntity> comments = postCommentRepository.findByPostOrderByCreatedAtAsc(post);
+        if (viewer == null) return comments;
+        var blockedIds = blockService.relatedBlockedUserIds(viewer);
+        if (blockedIds.isEmpty()) return comments;
+        return comments.stream().filter(c -> !blockedIds.contains(c.getUser().getId())).toList();
+    }
+
+    /** 파티 전용 사진첩(파티방 화면) - 그 파티에 묶인 글 중 썸네일 있는 것만 최신순. */
+    @Transactional(readOnly = true)
+    public List<PostEntity> partyPhotos(PartyEntity party) {
+        return postRepository.findByPartyOrderByCreatedAtDesc(party).stream()
+                .filter(p -> p.getThumbnailUrl() != null && !p.getThumbnailUrl().isBlank())
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public Page<PostEntity> boardList(String region, Pageable pageable) {
         return (region == null || region.isBlank())
