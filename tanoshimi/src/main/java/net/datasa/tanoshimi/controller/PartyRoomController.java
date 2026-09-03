@@ -1,6 +1,5 @@
 package net.datasa.tanoshimi.controller;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.dto.ApiResponse;
@@ -12,6 +11,7 @@ import net.datasa.tanoshimi.repository.*;
 import net.datasa.tanoshimi.service.ChatService;
 import net.datasa.tanoshimi.service.PartyApplicationService;
 import net.datasa.tanoshimi.service.PartyService;
+import net.datasa.tanoshimi.service.PostService;
 import net.datasa.tanoshimi.service.TripScheduleVoteService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -34,14 +34,14 @@ import org.springframework.web.bind.annotation.*;
 public class PartyRoomController {
 
     private final UserRepository userRepository;
-    // TODO(리팩터링 Phase 4/6): 아래 chat/reservation/post 조회도 각 도메인 서비스로 옮긴다.
+    // TODO(리팩터링 Phase 4/6): 아래 chat/reservation 조회도 각 도메인 서비스로 옮긴다.
     private final ReservationRepository reservationRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatService chatService;
     private final PartyApplicationService partyApplicationService;
     private final PartyService partyService;
+    private final PostService postService;
     private final TripScheduleVoteService voteService;
-    private final PostRepository postRepository;
 
     @GetMapping("/party-board/{id}/room")
     public String room(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
@@ -67,11 +67,7 @@ public class PartyRoomController {
         reservationRepository.findByParty(party).ifPresent(reservation -> model.addAttribute("reservation", reservation));
 
         // 파티 전용 게시판(사진첩)
-        
-        java.util.List<PostEntity> photos = postRepository.findByPartyOrderByCreatedAtDesc(party).stream()
-            .filter(p -> p.getThumbnailUrl() != null && !p.getThumbnailUrl().isBlank())
-            .toList();
-        model.addAttribute("partyPosts", photos);
+        model.addAttribute("partyPosts", postService.partyPhotos(party));
 
 
         if (party.getOwner().getId().equals(me.getId())) {
