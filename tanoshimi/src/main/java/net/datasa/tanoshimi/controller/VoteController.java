@@ -8,8 +8,8 @@ import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.domain.entity.VoteType;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
-import net.datasa.tanoshimi.repository.TripScheduleRepository;
 import net.datasa.tanoshimi.repository.UserRepository;
+import net.datasa.tanoshimi.service.TripPlannerService;
 import net.datasa.tanoshimi.service.TripScheduleVoteService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -20,15 +20,14 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class VoteController {
 
-    private final TripScheduleRepository scheduleRepository;
     private final UserRepository userRepository;
+    private final TripPlannerService plannerService;
     private final TripScheduleVoteService voteService;
 
     @PostMapping
     public ApiResponse<Void> vote(@PathVariable Long scheduleId, @RequestParam VoteType type,
                                   @AuthenticationPrincipal CustomUserDetails principal) {
-        TripScheduleEntity schedule = scheduleRepository.findById(scheduleId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+        TripScheduleEntity schedule = plannerService.getSchedule(scheduleId);
         UserEntity user = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         voteService.vote(schedule, user, type);
         return ApiResponse.okMessage("투표했습니다.");
@@ -36,8 +35,6 @@ public class VoteController {
 
     @GetMapping("/tally")
     public ApiResponse<TripScheduleVoteService.Tally> tally(@PathVariable Long scheduleId) {
-        TripScheduleEntity schedule = scheduleRepository.findById(scheduleId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        return ApiResponse.ok(voteService.tally(schedule));
+        return ApiResponse.ok(voteService.tally(plannerService.getSchedule(scheduleId)));
     }
 }

@@ -73,6 +73,15 @@ public class PartyService {
         return partyMemberRepository.findByUserOrderByJoinedAtDesc(user);
     }
 
+    /** 파티원 중 지정한 유저(보통 본인)를 뺀 나머지 유저 목록 - 계획표 편집권 위임 대상 등. */
+    @Transactional(readOnly = true)
+    public List<UserEntity> otherMembers(PartyEntity party, Long excludeUserId) {
+        return partyMemberRepository.findByParty(party).stream()
+                .filter(m -> !m.getUser().getId().equals(excludeUserId))
+                .map(PartyMemberEntity::getUser)
+                .toList();
+    }
+
     /** URL 만 알고 들어온 비파티원을 막는 최종 방어선. 파티 전용 화면 진입 시 호출. */
     @Transactional(readOnly = true)
     public void assertMember(PartyEntity party, UserEntity user) {

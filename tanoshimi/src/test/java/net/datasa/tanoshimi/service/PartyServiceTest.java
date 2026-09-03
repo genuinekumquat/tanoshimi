@@ -160,6 +160,28 @@ class PartyServiceTest {
                 .isEqualTo(ErrorCode.PARTY_NOT_FOUND);
     }
 
+    // ---------------------------------------------------------------- otherMembers
+
+    @Test
+    void otherMembers_는_지정한_유저를_뺀_나머지_파티원_유저를_돌려준다() {
+        PartyEntity p = mock(PartyEntity.class);
+        UserEntity u1 = mock(UserEntity.class);
+        UserEntity me = mock(UserEntity.class);
+        UserEntity u3 = mock(UserEntity.class);
+        when(u1.getId()).thenReturn(1L);
+        when(me.getId()).thenReturn(2L);
+        when(u3.getId()).thenReturn(3L);
+        net.datasa.tanoshimi.domain.entity.PartyMemberEntity m1 = mock(net.datasa.tanoshimi.domain.entity.PartyMemberEntity.class);
+        net.datasa.tanoshimi.domain.entity.PartyMemberEntity m2 = mock(net.datasa.tanoshimi.domain.entity.PartyMemberEntity.class);
+        net.datasa.tanoshimi.domain.entity.PartyMemberEntity m3 = mock(net.datasa.tanoshimi.domain.entity.PartyMemberEntity.class);
+        when(m1.getUser()).thenReturn(u1);
+        when(m2.getUser()).thenReturn(me);
+        when(m3.getUser()).thenReturn(u3);
+        when(partyMemberRepository.findByParty(p)).thenReturn(List.of(m1, m2, m3));
+
+        assertThat(partyService().otherMembers(p, 2L)).containsExactly(u1, u3);
+    }
+
     // ---------------------------------------------------------------- urgentPartyCards
 
     @Test
