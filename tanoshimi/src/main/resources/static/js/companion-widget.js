@@ -51,43 +51,41 @@
             const APP_WIDTH = 240;
             const APP_HEIGHT = 320;
 
-            const app = new PIXI.Application({
+                        const app = new PIXI.Application({
                 view: canvas,
-                transparent: true,
+                backgroundAlpha: 0,
                 width: APP_WIDTH,
                 height: APP_HEIGHT,
                 autoStart: true,
-                antialias: true
+                preserveDrawingBuffer: true,
+                resolution: window.devicePixelRatio || 1
             });
             let model;
             try {
-                // Initialize model with standard options
-                model = await PIXI.live2d.Live2DModel.from(MODEL_URL, { autoInteract: true });
+                model = await PIXI.live2d.Live2DModel.from(MODEL_URL, { autoUpdate: true, autoInteract: false });
                 app.stage.addChild(model);
+                
+                // Extremely fail-safe scaling for ANY model
+                const scaleX = APP_WIDTH / model.width;
+                const scaleY = APP_HEIGHT / model.height;
+                const fitScale = Math.min(scaleX, scaleY) * 0.95;
+                
+                model.scale.set(fitScale);
+                model.x = (APP_WIDTH - model.width) / 2;
+                model.y = Math.max(APP_HEIGHT - model.height, 0); // Bottom align usually better
+                
+                // Force visibility and let it update
+                model.visible = true;
+                model.alpha = 1;
+                
+                console.log(`Mimi PIXI! w=${model.width} h=${model.height} scale=${fitScale}`);
+                
+                // Force an emotion or idle parameter just to make sure it wakes up
+                try { model.motion("tap_body"); } catch(e) {}
             } catch (err) {
                 console.error("Live2D Load Error:", err);
                 return;
             }
-
-            const iw = model.internalModel.width || 1000;
-            const ih = model.internalModel.height || 1000;
-            
-            // Just scale it nicely to fit the 240x320 box
-            const scaleX = APP_WIDTH / iw;
-            const scaleY = APP_HEIGHT / ih;
-            const baseScale = Math.min(scaleX, scaleY) * 0.95;
-            
-            model.scale.set(baseScale);
-            
-            // Position carefully in the center
-            model.x = (APP_WIDTH - iw * baseScale) / 2;
-            model.y = (APP_HEIGHT - ih * baseScale) / 2;
-            
-            // Workaround for some Pixi6+Live2D issues: Force an update on the internal model, and explicitly make it visible
-            model.visible = true;
-            model.alpha = 1;
-            
-            console.log(`Mimi Re-Loaded! size=${iw}x${ih}, scale=${baseScale}, pos=${model.x},${model.y}`);
 
             function updateScale(uiScale) {
                 canvas.style.setProperty('--vivian-scale', uiScale);
@@ -137,13 +135,7 @@
                 }
             });
 
-                                    window.isDraggingVivian = false;
-
-                        window.isDraggingVivian = false;
-
-                        window.isDraggingVivian = false;
-
-            function makeDraggable(elId, handleId, storageKey) {
+                                    function makeDraggable(elId, handleId, storageKey) {
                 const el = document.getElementById(elId);
                 const handle = document.getElementById(handleId);
                 if (!el || !handle) return;
@@ -186,8 +178,7 @@
                         handle.classList.remove("dangle-animate");
                         handle.style.filter = "drop-shadow(0px 4px 6px rgba(0,0,0,0.2))";
                         react('normal');
-                        if (isDown) window.isDraggingVivian = false;
-                    }
+                        if (isDown) }
 
                     if (isDown) {
                         isDown = false;
@@ -347,10 +338,9 @@
     };
     
     
-    const savedHidden = localStorage.getItem('companion_hidden_state');
-    if (savedHidden === 'true') {
-        window.toggleCharacterVisibility(true);
-    }
+    // FORCE VISIBLE
+    localStorage.removeItem('companion_hidden_state');
+    window.toggleCharacterVisibility(false);
 
     toggleBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
