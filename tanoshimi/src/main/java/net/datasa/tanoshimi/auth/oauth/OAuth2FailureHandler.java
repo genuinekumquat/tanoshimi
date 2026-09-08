@@ -22,7 +22,11 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
         String code = (exception instanceof OAuth2AuthenticationException e) ? e.getError().getErrorCode() : "";
         String target = switch (code) {
             case SocialErrorCodes.SIGNUP_REQUIRED -> "/signup/social";
-            case SocialErrorCodes.EMAIL_ALREADY_USED -> "/login?error=" + enc("이미 가입된 이메일입니다.");
+            // 자동으로 계정을 합치면 이메일 아이디부만 같고 실소유자가 다른 계정이 남의 계정에
+            // 잘못 연결될 위험이 있어(2026-09-04 OAuth 계정 통합 논의) 자동 통합은 하지 않는다.
+            // 대신 로그인 후 마이페이지 > 계정 관리 > 소셜 연동에서 본인이 직접 연동하게 안내한다
+            // (이미 구현돼 있는 수동 연동 기능 - handleAccountLink 참고).
+            case SocialErrorCodes.EMAIL_ALREADY_USED -> "/login?error=" + enc("이미 가입된 이메일이에요. 로그인 후 마이페이지 > 계정 관리 > 소셜 연동에서 연동해 주세요.");
             case SocialErrorCodes.ACCOUNT_SUSPENDED -> "/login?error=" + enc("정지된 계정입니다.");
             // [social-link 신규] 연동 실패(다른 계정에 이미 연동된 소셜) - loadUser 가 예외를 던지는
             // 시점에 스프링 시큐리티가 이미 SecurityContext 를 지워버려서(표준 필터 동작) 원래
