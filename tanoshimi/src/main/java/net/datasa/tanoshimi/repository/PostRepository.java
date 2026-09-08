@@ -67,6 +67,33 @@ public interface PostRepository extends JpaRepository<PostEntity, Long> {
     List<PostEntity> findByTripAndBlindedFalseOrderByCreatedAtDesc(MyTripEntity trip);
 
     /**
+     * [TNSM-52] 게시판 검색 - 제목/내용에 키워드가 포함된 글, 지역 필터와 조합 가능.
+     * region 이 null 이면 지역 무관.
+     */
+    @EntityGraph(attributePaths = {"user"})
+    @Query("""
+            select p from PostEntity p
+            where p.blinded = false
+              and (:region is null or p.region = :region)
+              and (p.title like concat('%', :keyword, '%') or p.content like concat('%', :keyword, '%'))
+            order by p.createdAt desc
+            """)
+    Page<PostEntity> searchBoard(@Param("region") String region, @Param("keyword") String keyword, Pageable pageable);
+
+    /** 위 검색과 동일하되 TNSM-96 차단 유저 제외까지. blockedUserIds 가 비어있지 않을 때만 사용. */
+    @EntityGraph(attributePaths = {"user"})
+    @Query("""
+            select p from PostEntity p
+            where p.blinded = false
+              and (:region is null or p.region = :region)
+              and (p.title like concat('%', :keyword, '%') or p.content like concat('%', :keyword, '%'))
+              and p.user.id not in :blockedUserIds
+            order by p.createdAt desc
+            """)
+    Page<PostEntity> searchBoardExcludingUsers(@Param("region") String region, @Param("keyword") String keyword,
+                                               @Param("blockedUserIds") List<Long> blockedUserIds, Pageable pageable);
+
+    /**
      * [TNSM-53] 홈 화면 SNAP 피드 - 실제 업로드된 사진이 있는 최신 글만 최신순으로.
      * 기본 테마 이미지(ph1~ph4)만 있는 글은 "사진 후기"로 보기 어려워 제외한다.
      */

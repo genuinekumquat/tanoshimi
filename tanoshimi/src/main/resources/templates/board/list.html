@@ -73,11 +73,19 @@
       <button class="on" id="btn-grid">▦ 썸네일</button>
       <button id="btn-list">☰ 제목</button>
     </div>
-    <select class="filter-select" id="f-region">
-      <option value="">전체 지역</option>
-      <option>오사카</option><option>도쿄</option><option>교토</option>
-      <option>후쿠오카</option><option>홋카이도</option><option>오키나와</option>
-    </select>
+    <div style="display:flex; gap:8px;">
+      <input type="text" class="filter-select" id="f-keyword" placeholder="제목/내용 검색" style="width:200px;">
+      <select class="filter-select" id="f-region">
+        <option value="">전체 지역</option>
+        <option>오사카</option><option>도쿄</option><option>교토</option>
+        <option>후쿠오카</option><option>홋카이도</option><option>오키나와</option>
+      </select>
+    </div>
+  </div>
+
+  <div th:if="${#lists.isEmpty(posts.content)}" style="padding:80px 0; text-align:center; color:var(--ink-soft); font-size:14px;">
+    <span th:if="${keyword != null and !keyword.isEmpty()}" th:text="'\'' + ${keyword} + '\' 검색 결과가 없습니다.'">검색 결과가 없습니다.</span>
+    <span th:unless="${keyword != null and !keyword.isEmpty()}">아직 게시글이 없습니다.</span>
   </div>
 
   <div class="feed-grid" id="feed-grid">
@@ -117,16 +125,16 @@
   </div>
 
   <nav class="pagination" th:if="${posts.totalPages > 1}">
-    <a th:if="${posts.hasPrevious()}" th:href="@{/board(region=${region}, page=${posts.number - 1})}" class="page-link">‹</a>
+    <a th:if="${posts.hasPrevious()}" th:href="@{/board(region=${region}, q=${keyword}, page=${posts.number - 1})}" class="page-link">‹</a>
     <span th:unless="${posts.hasPrevious()}" class="page-link disabled">‹</span>
 
     <a th:each="i : ${#numbers.sequence(0, posts.totalPages - 1)}"
-       th:href="@{/board(region=${region}, page=${i})}"
+       th:href="@{/board(region=${region}, q=${keyword}, page=${i})}"
        th:text="${i + 1}"
        th:classappend="${i == posts.number} ? 'on' : ''"
        class="page-link">1</a>
 
-    <a th:if="${posts.hasNext()}" th:href="@{/board(region=${region}, page=${posts.number + 1})}" class="page-link">›</a>
+    <a th:if="${posts.hasNext()}" th:href="@{/board(region=${region}, q=${keyword}, page=${posts.number + 1})}" class="page-link">›</a>
     <span th:unless="${posts.hasNext()}" class="page-link disabled">›</span>
   </nav>
 
@@ -172,24 +180,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 지역 필터 - URL 파라미터 적용 및 변경 시 이동
+    // 지역 필터 + 검색 - URL 파라미터 적용, 변경/검색 시 이동 (둘 다 유지한 채 페이지는 1로 리셋)
     const regionSelect = document.getElementById('f-region');
+    const keywordInput = document.getElementById('f-keyword');
     const urlParams = new URLSearchParams(window.location.search);
     const currentRegion = urlParams.get('region');
-    
-    if (currentRegion && regionSelect) {
-        regionSelect.value = currentRegion;
+    const currentKeyword = urlParams.get('q');
+
+    if (currentRegion && regionSelect) regionSelect.value = currentRegion;
+    if (currentKeyword && keywordInput) keywordInput.value = currentKeyword;
+
+    function goSearch() {
+        const params = new URLSearchParams();
+        if (regionSelect && regionSelect.value) params.set('region', regionSelect.value);
+        if (keywordInput && keywordInput.value.trim()) params.set('q', keywordInput.value.trim());
+        const qs = params.toString();
+        window.location.href = qs ? ('?' + qs) : window.location.pathname;
     }
 
-    if (regionSelect) {
-        regionSelect.addEventListener('change', (e) => {
-            if (e.target.value) {
-                window.location.href = '?region=' + encodeURIComponent(e.target.value);
-            } else {
-                window.location.href = window.location.pathname;
-            }
-        });
-    }
+    regionSelect?.addEventListener('change', goSearch);
+    keywordInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') goSearch();
+    });
 });
 </script>
 <div th:replace="~{fragments/layout :: companion}"></div>

@@ -35,10 +35,12 @@ public class PostController {
 
     @GetMapping("/board")
     public String board(@RequestParam(required = false) String region,
+                        @RequestParam(required = false) String q,
                         @RequestParam(defaultValue = "0") int page,
                         @AuthenticationPrincipal CustomUserDetails principal, Model model) {
-        model.addAttribute("posts", postService.boardList(region, PageRequest.of(page, 12), currentUserOrNull(principal)));
+        model.addAttribute("posts", postService.boardList(region, q, PageRequest.of(page, 12), currentUserOrNull(principal)));
         model.addAttribute("region", region);
+        model.addAttribute("keyword", q);
         return "board/list";
     }
     @GetMapping("/board/{id}")
@@ -86,6 +88,15 @@ public class PostController {
         UserEntity author = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         return ApiResponse.ok(postService.write(author, request));
     }
+    @PutMapping("/api/posts/{id}")
+    @ResponseBody
+    public ApiResponse<Void> update(@PathVariable Long id, @Valid @RequestBody PostRequest request,
+                                    @AuthenticationPrincipal CustomUserDetails principal) {
+        UserEntity user = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        postService.update(id, user, request);
+        return ApiResponse.okMessage("수정되었습니다.");
+    }
+
     @PostMapping("/api/posts/{id}/like")
     @ResponseBody
     public ApiResponse<Void> like(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal) {
