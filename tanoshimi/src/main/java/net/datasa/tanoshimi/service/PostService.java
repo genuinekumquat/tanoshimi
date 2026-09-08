@@ -101,6 +101,14 @@ public class PostService {
                 .toList();
     }
 
+    /** [TNSM-53] 홈 화면 "스냅사진 둘러보기" 피드 - 사진 있는 최신 글. */
+    @Transactional(readOnly = true)
+    public List<net.datasa.tanoshimi.domain.dto.PostSnapCardView> recentSnaps(int limit) {
+        return postRepository.findRecentSnapPosts(PageRequest.of(0, limit)).stream()
+                .map(net.datasa.tanoshimi.domain.dto.PostSnapCardView::of)
+                .toList();
+    }
+
     /** regionSnaps 가 훑어볼 최근 글 수. 한 사람이 이보다 많은 스냅을 올릴 규모가 아니다. */
     private static final int REGION_SNAPS_SCAN_LIMIT = 500;
 

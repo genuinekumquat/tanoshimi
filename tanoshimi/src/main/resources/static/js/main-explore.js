@@ -184,82 +184,32 @@
   document.getElementById('explore-btn-jp')?.addEventListener('click', () => setExploreMapMode('jp'));
   document.getElementById('explore-btn-kr')?.addEventListener('click', () => setExploreMapMode('kr'));
 
-  setupMap(); 
-
-  const TAGS = [
-    { key: '전체', label: '전체' },
-    { key: '먹거리',  label: '🍕 먹거리' },
-    { key: '축제', label: '🎉 축제' },
-    { key: '문화체험', label: '👘 문화체험' },
-    { key: '액티비티', label: '🏄‍♂️ 액티비티' },
-    { key: '힐링', label: '☕ 힐링' }
-  ];
-
-  let activeTag = '전체';
-
-  const tagRow = document.getElementById('tag-row');
-  if (tagRow) {
-      tagRow.innerHTML = TAGS.map(t => `
-        <div class="tag-pill ${t.key === '전체' ? 'on' : ''}" data-tag="${t.key}">
-          <span>${t.label}</span>
-        </div>`).join('');
-
-      document.querySelectorAll('.tag-pill').forEach(el => {
-        el.addEventListener('click', () => {
-          activeTag = el.dataset.tag;
-          document.querySelectorAll('.tag-pill').forEach(p => p.classList.toggle('on', p.dataset.tag === activeTag));
-          renderSnapGrid();
-        });
-      });
-  }
+  setupMap();
 
   function escapeHtml(s) {
     if (!s) return '';
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  const PH_CYCLE = ['ph1', 'ph2', 'ph3', 'ph4'];
-
   function renderSnapGrid() {
-    if (typeof SERVER_PARTIES === 'undefined' || !SERVER_PARTIES || !Array.isArray(SERVER_PARTIES)) {
-      const grid = document.getElementById('snap-grid');
-      const empty = document.getElementById('snap-empty');
-      if (grid) grid.innerHTML = '';
-      if (empty) empty.style.display = 'block';
-      return;
-    }
-    
-    let list = SERVER_PARTIES.filter(p => activeTag === '전체' || (p.styleTag && p.styleTag === activeTag));
-    list = list.slice(0, 20);
-
     const grid = document.getElementById('snap-grid');
     const empty = document.getElementById('snap-empty');
     if (!grid) return;
 
-    if (!list.length) {
+    if (typeof SERVER_SNAPS === 'undefined' || !SERVER_SNAPS || !Array.isArray(SERVER_SNAPS) || !SERVER_SNAPS.length) {
       grid.innerHTML = '';
       if (empty) empty.style.display = 'block';
       return;
     }
     if (empty) empty.style.display = 'none';
 
-    grid.innerHTML = list.map((p, i) => {
-      const isUpload = p.thumbnailUrl && !p.thumbnailUrl.startsWith('ph');
-      const phClass = isUpload ? PH_CYCLE[i % PH_CYCLE.length] : (p.thumbnailUrl || PH_CYCLE[i % PH_CYCLE.length]);
-      let thumbSrc = isUpload ? p.thumbnailUrl : '';
-      if (isUpload && !thumbSrc.startsWith('http') && !thumbSrc.startsWith('/')) {
-         thumbSrc = '/uploads/' + thumbSrc;
-      }
-      const thumbInner = isUpload
-        ? `<img src="${thumbSrc}" onerror="this.style.display='none';">`
-        : `<div class="ph ${phClass}"></div>`;
-        
+    grid.innerHTML = SERVER_SNAPS.map((p) => {
       return `
-      <a class="snap-card" href="/party-board/${p.id}">
-        ${thumbInner}
+      <a class="snap-card" href="/board/${p.id}">
+        <img src="${p.thumbnailUrl}" onerror="this.style.display='none';">
         <div class="snap-overlay">
           <p class="t">${escapeHtml(p.title)}</p>
-          <div class="m">📍 ${escapeHtml(p.region)} <br> 멤버 ${p.joinedCount || 0}/${p.capacity}</div>
+          <div class="m">📍 ${escapeHtml(p.region || '지역미정')} · ❤️ ${p.likeCount || 0}</div>
         </div>
       </a>`;
     }).join('');

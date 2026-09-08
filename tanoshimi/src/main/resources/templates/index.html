@@ -208,15 +208,12 @@
     </form>
   </div>
 
-  <!-- 3. 카테고리 태그 필터 -->
-  <div class="tag-scroll" id="tag-row"></div>
-
-  <!-- 4. 액티비티 광고 배너 (자동 슬라이드) -->
-  <!-- 5. 스냅사진 바둑판 형식 -->
+  <!-- 3. 액티비티 광고 배너 (자동 슬라이드) -->
+  <!-- 4. 스냅사진 바둑판 형식 -->
   <div>
       <h2 class="snap-sec-title">스냅사진 둘러보기</h2>
       <div class="snap-grid" id="snap-grid"></div>
-      <p id="snap-empty" style="text-align:center; padding:60px 0; color:#999; display:none; font-size:15px; font-weight:600;">조건에 맞는 파티사진이 없습니다.</p>
+      <p id="snap-empty" style="text-align:center; padding:60px 0; color:#999; display:none; font-size:15px; font-weight:600;">아직 등록된 사진 후기가 없습니다.</p>
   </div>
 </div>
 
@@ -247,7 +244,7 @@
 
 <script th:inline="javascript">
 /*<![CDATA[*/
-const SERVER_PARTIES = /*[[${urgentParties != null ? urgentParties : null}]]*/ null; 
+const SERVER_SNAPS = /*[[${recentSnaps != null ? recentSnaps : null}]]*/ null;
 /*]]>*/
 
 // 슬라이드 배너 스크립트 실행

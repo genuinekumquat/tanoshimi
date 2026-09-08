@@ -67,6 +67,14 @@ public interface PostRepository extends JpaRepository<PostEntity, Long> {
     List<PostEntity> findByTripAndBlindedFalseOrderByCreatedAtDesc(MyTripEntity trip);
 
     /**
+     * [TNSM-53] 홈 화면 SNAP 피드 - 실제 업로드된 사진이 있는 최신 글만 최신순으로.
+     * 기본 테마 이미지(ph1~ph4)만 있는 글은 "사진 후기"로 보기 어려워 제외한다.
+     */
+    @EntityGraph(attributePaths = {"user"})
+    @Query("select p from PostEntity p where p.blinded = false and p.thumbnailUrl like '/uploads/%' order by p.createdAt desc")
+    List<PostEntity> findRecentSnapPosts(Pageable pageable);
+
+    /**
      * 게시글 상세(board/detail.html)에서 post.user.name 을 바로 찍어 쓰기 때문에,
      * open-in-view:false 상태에서 렌더링 시점에 LazyInitializationException 이 나지 않도록
      * user 를 미리 JOIN FETCH 해서 가져온다.
