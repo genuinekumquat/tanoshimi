@@ -67,6 +67,33 @@ public interface PostRepository extends JpaRepository<PostEntity, Long> {
     List<PostEntity> findByTripAndBlindedFalseOrderByCreatedAtDesc(MyTripEntity trip);
 
     /**
+     * [TNSM-52] 게시판 검색 - 제목/내용에 키워드가 포함된 글, 지역 필터와 조합 가능.
+     * region 이 null 이면 지역 무관.
+     */
+    @EntityGraph(attributePaths = {"user"})
+    @Query("""
+            select p from PostEntity p
+            where p.blinded = false
+              and (:region is null or p.region = :region)
+              and (p.title like concat('%', :keyword, '%') or p.content like concat('%', :keyword, '%'))
+            order by p.createdAt desc
+            """)
+    Page<PostEntity> searchBoard(@Param("region") String region, @Param("keyword") String keyword, Pageable pageable);
+
+    /** 위 검색과 동일하되 TNSM-96 차단 유저 제외까지. blockedUserIds 가 비어있지 않을 때만 사용. */
+    @EntityGraph(attributePaths = {"user"})
+    @Query("""
+            select p from PostEntity p
+            where p.blinded = false
+              and (:region is null or p.region = :region)
+              and (p.title like concat('%', :keyword, '%') or p.content like concat('%', :keyword, '%'))
+              and p.user.id not in :blockedUserIds
+            order by p.createdAt desc
+            """)
+    Page<PostEntity> searchBoardExcludingUsers(@Param("region") String region, @Param("keyword") String keyword,
+                                               @Param("blockedUserIds") List<Long> blockedUserIds, Pageable pageable);
+
+    /**
      * 게시글 상세(board/detail.html)에서 post.user.name 을 바로 찍어 쓰기 때문에,
      * open-in-view:false 상태에서 렌더링 시점에 LazyInitializationException 이 나지 않도록
      * user 를 미리 JOIN FETCH 해서 가져온다.

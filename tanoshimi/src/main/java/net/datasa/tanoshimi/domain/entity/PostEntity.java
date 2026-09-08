@@ -81,9 +81,10 @@ public class PostEntity {
         this.likeCount = 0;
     }
 
-    public void edit(String title, String content, String thumbnailUrl) {
+    public void edit(String title, String content, String region, String thumbnailUrl) {
         this.title = title;
         this.content = content;
+        this.region = region;
         this.thumbnailUrl = thumbnailUrl;
     }
 

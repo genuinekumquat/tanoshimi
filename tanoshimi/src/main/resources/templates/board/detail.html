@@ -87,8 +87,11 @@
     <button type="button" th:unless="${isOwner}" sec:authorize="isAuthenticated()"
             th:attr="data-report-type='post',data-report-id=${post.id},data-report-label=${post.title}"
             style="font-size:12px; color:var(--ink-soft); background:none; border:none; cursor:pointer;">🚨 신고</button>
+    <button type="button" id="btn-edit-post" th:if="${isOwner}"
+            th:attr="data-post-id=${post.id},data-title=${post.title},data-content=${post.content},data-region=${post.region},data-thumbnail=${post.thumbnailUrl}"
+            style="margin-left:auto; font-size:12px; color:var(--ink-soft); background:none; border:none; cursor:pointer;">수정</button>
     <button type="button" id="btn-delete-post" th:if="${isOwner}" th:attr="data-post-id=${post.id}"
-            style="margin-left:auto; font-size:12px; color:var(--danger); background:none; border:none; cursor:pointer;">삭제하기</button>
+            style="font-size:12px; color:var(--danger); background:none; border:none; cursor:pointer;">삭제하기</button>
   </div>
 
   <h2 style="font-size:15px;margin-bottom:12px;">댓글 <span class="comment-count" id="comment-count" th:text="'(' + ${#lists.size(comments)} + ')'">(0)</span></h2>
@@ -100,6 +103,22 @@
 
   <div class="comment-list" id="comment-list" th:attr="data-post-id=${post.id},data-my-id=${myId}"></div>
 </main>
+
+<div id="edit-modal" th:if="${isOwner}" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:60; align-items:center; justify-content:center;">
+  <div class="card" style="width:420px; padding:20px;">
+    <h2 style="font-size:16px;">글 수정</h2>
+    <input type="text" id="e-title" placeholder="제목" style="width:100%; padding:9px; margin-bottom:8px; border:1px solid var(--line); border-radius:8px;">
+    <textarea id="e-content" placeholder="내용을 입력하세요" style="width:100%; min-height:120px; padding:9px; border:1px solid var(--line); border-radius:8px;"></textarea>
+    <input type="text" id="e-region" placeholder="지역(선택)" style="width:100%; padding:9px; margin-top:8px; border:1px solid var(--line); border-radius:8px;">
+    <label style="display:block; font-size:12px; font-weight:700; margin-top:10px; margin-bottom:4px;">사진 (선택, 바꾸지 않으면 기존 사진 유지)</label>
+    <input type="file" id="e-thumbnail" accept="image/png,image/jpeg,image/gif,image/webp" style="width:100%; font-size:12.5px;">
+    <img id="e-thumbnail-preview" style="display:none; width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-top:8px;">
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <button type="button" id="btn-edit-cancel" class="btn" style="flex:1; background:#fff; border:1px solid var(--line);">취소</button>
+      <button type="button" id="btn-edit-submit" class="btn btn-primary" style="flex:1;">저장</button>
+    </div>
+  </div>
+</div>
 
 <script th:src="@{/js/post-detail.js}" defer></script>
 <div th:replace="~{fragments/layout :: companion}"></div>
