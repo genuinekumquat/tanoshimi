@@ -38,6 +38,7 @@ public class PostController {
                         @RequestParam(defaultValue = "0") int page,
                         @AuthenticationPrincipal CustomUserDetails principal, Model model) {
         model.addAttribute("posts", postService.boardList(region, PageRequest.of(page, 12), currentUserOrNull(principal)));
+        model.addAttribute("region", region);
         return "board/list";
     }
     @GetMapping("/board/{id}")
