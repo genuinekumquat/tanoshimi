@@ -115,15 +115,25 @@
     }
     if (empty) empty.style.display = 'none';
 
-    grid.innerHTML = list.map((p) => {
-      let thumbSrc = p.thumbnailUrl || '';
-      if (thumbSrc && !thumbSrc.startsWith('http') && !thumbSrc.startsWith('/')) {
-        thumbSrc = '/uploads/' + thumbSrc;
+    grid.innerHTML = list.map((p, i) => {
+      // board/list.html 과 동일하게: thumbnailUrl 이 실제 경로가 아니면(과거 'ph1' 등 시드값)
+      // 업로드 이미지가 아니라 팔레트 플레이스홀더로 취급한다.
+      const isUpload = p.thumbnailUrl && !p.thumbnailUrl.startsWith('ph');
+      let thumbInner;
+      if (isUpload) {
+        let thumbSrc = p.thumbnailUrl;
+        if (!thumbSrc.startsWith('http') && !thumbSrc.startsWith('/')) {
+          thumbSrc = '/uploads/' + thumbSrc;
+        }
+        thumbInner = `<img src="${thumbSrc}" alt="" onerror="this.style.display='none';">`;
+      } else {
+        const phClass = (p.thumbnailUrl && p.thumbnailUrl.startsWith('ph')) ? p.thumbnailUrl : PH_CYCLE[i % PH_CYCLE.length];
+        thumbInner = `<div class="ph ${phClass}"></div>`;
       }
       const region = p.region ? `📍 ${escapeHtml(p.region)} · ` : '';
       return `
       <a class="snap-card" href="/board/${p.id}">
-        <img src="${thumbSrc}" alt="" onerror="this.style.display='none';">
+        ${thumbInner}
         <div class="snap-overlay">
           <p class="t">${escapeHtml(p.title)}</p>
           <div class="m">${region}❤️ ${p.likeCount || 0}</div>
