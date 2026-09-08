@@ -1,240 +1,75 @@
-﻿(function() {
-  function getClosestRegion(clickX, clickY, mapType, regionsMap) {
-    let closestId = null;
-    let closestName = null;
-    let minDist = Infinity;
-    
-    let targetRegions = Object.assign({}, regionsMap);
-    
-    if (mapType === 'jp' && typeof JAPAN_REGIONS !== 'undefined') {
-        targetRegions['hok_1'] = { name: '홋카이도', cx: 80, cy: 10, realId: 'hokkaido' };
-    }
-    
-    for (const uid in targetRegions) {
-      const r = targetRegions[uid];
-      const dx = clickX - r.cx;
-      const dy = clickY - r.cy;
-      const dist = (dx*dx) + (dy*dy);
-      
-      if (dist < minDist) {
-        minDist = dist;
-        closestId = r.realId ? r.realId : uid;
-        closestName = r.name;
-      }
-    }
-    
-    if (minDist > 200) { 
-        return { id: null, name: null };
-    }
-    
-    return { id: closestId, name: closestName };
+/**
+ * 메인 페이지 카드 그리드 렌더링.
+ *
+ * <p>이 파일은 예전엔 인터랙티브 지도(일본/한국 SVG, 명소 오버레이)까지 담당했지만,
+ * 지도 영역이 파티 찾기 흐름과 직접 연결되지 않아 index.html 개편(feature/main-page-revamp)에서
+ * 통째로 제거했다. 지금 하는 일은 두 가지뿐이다.
+ *
+ * <ol>
+ *   <li>태그 필터 pill 렌더링 + 클릭 시 "모집 마감 임박 파티" 그리드 재필터</li>
+ *   <li>서버가 내려준 두 목록을 카드로 렌더링
+ *     <ul>
+ *       <li>{@code HOT_PARTIES}  → #hot-party-grid : 잔여석 적은 순 모집중 파티(모집글). 클릭 시 /party-board/{id}</li>
+ *       <li>{@code POPULAR_SNAPS} → #snap-grid      : 좋아요순 커뮤니티 사진 글. 클릭 시 /board/{id}</li>
+ *     </ul>
+ *   </li>
+ * </ol>
+ *
+ * <p>{@code HOT_PARTIES}/{@code POPULAR_SNAPS} 는 index.html 하단 th:inline 스크립트가
+ * 이 파일보다 먼저(파싱 중) 전역에 정의한다 - defer 로 로드되는 이 파일은 그 이후에 실행된다.
+ */
+(function() {
+
+  function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
+  window.escapeHtml = escapeHtml;
 
-  function handleMapInteraction(e, mapType, frameId, isClick) {
-    const frame = document.getElementById(frameId);
-    if (!frame) return;
-    
-    const rect = frame.getBoundingClientRect();
-    const xRatio = (e.clientX - rect.left) / rect.width;
-    const yRatio = (e.clientY - rect.top) / rect.height;
-    
-    const viewBoxW = 100;
-    const viewBoxH = mapType === 'kr' ? 140 : 100;
-    
-    const clickX = xRatio * viewBoxW;
-    const clickY = yRatio * viewBoxH;
-    
-    const regionsMap = mapType === 'kr' ? (typeof KOREA_REGIONS !== 'undefined' ? KOREA_REGIONS : {}) 
-                                        : (typeof JAPAN_REGIONS !== 'undefined' ? JAPAN_REGIONS : {});
-                                        
-    const closest = getClosestRegion(clickX, clickY, mapType, regionsMap);
-    
-    const tooltip = document.getElementById('map-tooltip');
-    
-    if (isClick) {
-        if (closest.id) openSpotOverlay(closest.id, closest.name);
-    } else {
-        if (tooltip) {
-            if (closest.name && !document.getElementById('spot-overlay').classList.contains('on')) {
-                tooltip.style.opacity = '1';
-                tooltip.textContent = closest.name;
-                
-                const innerRect = document.getElementById('map-explore-inner').getBoundingClientRect();
-                const mouseX = e.clientX - innerRect.left;
-                const mouseY = e.clientY - innerRect.top;
-                
-                tooltip.style.left = mouseX + 'px';
-                tooltip.style.top = (mouseY - 10) + 'px';
-            } else {
-                tooltip.style.opacity = '0';
-            }
-        }
-    }
-  }
-
-  function setupMap() {
-    const svgKr = document.getElementById('explore-kr');
-    if(svgKr) svgKr.innerHTML = '';
-    const svgJp = document.getElementById('explore-jp');
-    if(svgJp) svgJp.innerHTML = '';
-
-    const frameKr = document.getElementById('explore-frame-kr');
-    if (frameKr) {
-      frameKr.addEventListener('click', (e) => handleMapInteraction(e, 'kr', 'explore-frame-kr', true));
-      frameKr.addEventListener('mousemove', (e) => handleMapInteraction(e, 'kr', 'explore-frame-kr', false));
-      frameKr.addEventListener('mouseleave', () => {
-          const t = document.getElementById('map-tooltip');
-          if (t) t.style.opacity = '0';
-      });
-    }
-
-    const frameJp = document.getElementById('explore-frame-jp');
-    if (frameJp) {
-      frameJp.addEventListener('click', (e) => handleMapInteraction(e, 'jp', 'explore-frame-jp', true));
-      frameJp.addEventListener('mousemove', (e) => handleMapInteraction(e, 'jp', 'explore-frame-jp', false));
-      frameJp.addEventListener('mouseleave', () => {
-          const t = document.getElementById('map-tooltip');
-          if (t) t.style.opacity = '0';
-      });
-    }
-  }
-
-  function openSpotOverlay(regionId, regionName) {
-    const overlay = document.getElementById('spot-overlay');
-    const inner = document.getElementById('map-explore-inner');
-    const orbit = document.getElementById('spot-orbit');
-    const title = document.getElementById('spot-title');
-    const tooltip = document.getElementById('map-tooltip');
-    
-    if(!overlay) return;
-    if(tooltip) tooltip.style.opacity = '0'; 
-
-    title.textContent = regionName;
-    const places = (typeof FAMOUS_PLACES !== 'undefined') ? FAMOUS_PLACES[regionId] : null;
-
-    if (!places || places.length === 0) {
-      orbit.innerHTML = `<p class="spot-empty" style="text-align:center;color:#666; font-size:16px; font-weight:700;">추천 명소를 발굴하고 있어요!</p>`;
-    } else {
-      const n = places.length;
-      const radiusX = Math.min(orbit.clientWidth || 380, 460) / 2 - 60;
-      const radiusY = Math.min(orbit.clientHeight || 280, 340) / 2 - 55;
-
-      orbit.innerHTML = places.map((p, i) => {
-        const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
-        const tx = Math.cos(angle) * radiusX;
-        const ty = Math.sin(angle) * radiusY;
-        
-        const fallbackImg = `https://picsum.photos/seed/${encodeURIComponent(p.name)}/400/300`;
-        const imgUrl = p.img ? p.img : fallbackImg;
-        
-        return `
-          <div class="spot-card" data-name="${escapeHtml(p.name)}" data-desc="${escapeHtml(p.desc)}" data-img="${imgUrl}" style="transition-delay:${i * 60}ms; --tx:${tx}px; --ty:${ty}px;">
-            <div class="ph" style="background-image:url('${imgUrl}')"></div>
-            <div class="info">
-              <p class="t">${p.name}</p>
-              <p class="d">${p.desc}</p>
-            </div>
-          </div>`;
-      }).join('');
-    }
-
-    inner.classList.add('dimmed');
-    overlay.classList.add('on');
-
-    requestAnimationFrame(() => {
-      document.querySelectorAll('.spot-card').forEach(card => {
-        card.style.transform = `translate(var(--tx), var(--ty)) scale(1)`;
-        card.addEventListener('click', function(e) {
-            e.stopPropagation();
-            if (typeof window.openSpotDetailModal === 'function') {
-                window.openSpotDetailModal(this.dataset.name, this.dataset.desc, this.dataset.img);
-            }
-        });
-      });
-    });
-  }
-
-  function closeSpotOverlay() {
-    const overlay = document.getElementById('spot-overlay');
-    if (!overlay) return;
-    overlay.classList.remove('on');
-    document.getElementById('map-explore-inner')?.classList.remove('dimmed');
-    document.querySelectorAll('.spot-card').forEach(card => { 
-        if(card.style) card.style.transform = 'translate(0,0) scale(.4)'; 
-    });
-  }
-
-  document.getElementById('spot-close')?.addEventListener('click', closeSpotOverlay);
-  document.getElementById('spot-overlay')?.addEventListener('click', e => {
-    if (e.target.id === 'spot-overlay') closeSpotOverlay();
-  });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSpotOverlay(); });
-
-  function setExploreMapMode(mode) {
-    document.getElementById('explore-toggle')?.classList.toggle('kr-active', mode === 'kr');
-    document.getElementById('explore-btn-jp')?.classList.toggle('on', mode === 'jp');
-    document.getElementById('explore-btn-kr')?.classList.toggle('on', mode === 'kr');
-    if(document.getElementById('explore-frame-jp')) document.getElementById('explore-frame-jp').style.display = mode === 'jp' ? '' : 'none';
-    if(document.getElementById('explore-frame-kr')) document.getElementById('explore-frame-kr').style.display = mode === 'kr' ? '' : 'none';
-    closeSpotOverlay();
-    const tooltip = document.getElementById('map-tooltip');
-    if(tooltip) tooltip.style.opacity = '0';
-  }
-  
-  document.getElementById('explore-btn-jp')?.addEventListener('click', () => setExploreMapMode('jp'));
-  document.getElementById('explore-btn-kr')?.addEventListener('click', () => setExploreMapMode('kr'));
-
-  setupMap(); 
-
+  /* ================= 태그 필터 ================= *
+   * key 값은 PartyEntity.styleTag(= party/create.html select 옵션)와 정확히 일치한다.
+   * 지금은 이미 내려받은 HOT_PARTIES 안에서만 클라이언트 필터링한다 - 전체 파티보드 대상
+   * 서버 검색이 필요하면 /party-board?q=... 로 넘기는 방식으로 확장할 수 있다(별도 작업).
+   */
   const TAGS = [
-    { key: '전체', label: '전체' },
-    { key: '먹거리',  label: '🍕 먹거리' },
-    { key: '축제', label: '🎉 축제' },
-    { key: '문화체험', label: '👘 문화체험' },
-    { key: '액티비티', label: '🏄‍♂️ 액티비티' },
-    { key: '힐링', label: '☕ 힐링' }
+    { key: '전체',      label: '전체' },
+    { key: '먹거리',    label: '🍕 먹거리' },
+    { key: '축제',      label: '🎉 축제' },
+    { key: '문화체험',  label: '👘 문화체험' },
+    { key: '액티비티',  label: '🏄‍♂️ 액티비티' },
+    { key: '힐링',      label: '☕ 힐링' }
   ];
 
   let activeTag = '전체';
 
   const tagRow = document.getElementById('tag-row');
   if (tagRow) {
-      tagRow.innerHTML = TAGS.map(t => `
-        <div class="tag-pill ${t.key === '전체' ? 'on' : ''}" data-tag="${t.key}">
-          <span>${t.label}</span>
-        </div>`).join('');
+    tagRow.innerHTML = TAGS.map(t => `
+      <div class="tag-pill ${t.key === '전체' ? 'on' : ''}" data-tag="${t.key}">
+        <span>${t.label}</span>
+      </div>`).join('');
 
-      document.querySelectorAll('.tag-pill').forEach(el => {
-        el.addEventListener('click', () => {
-          activeTag = el.dataset.tag;
-          document.querySelectorAll('.tag-pill').forEach(p => p.classList.toggle('on', p.dataset.tag === activeTag));
-          renderSnapGrid();
-        });
+    tagRow.querySelectorAll('.tag-pill').forEach(el => {
+      el.addEventListener('click', () => {
+        activeTag = el.dataset.tag;
+        tagRow.querySelectorAll('.tag-pill').forEach(p => p.classList.toggle('on', p.dataset.tag === activeTag));
+        renderHotPartyGrid();
       });
+    });
   }
 
-  function escapeHtml(s) {
-    if (!s) return '';
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-
+  /* ================= 1. 모집 마감 임박 파티 그리드 ================= */
   const PH_CYCLE = ['ph1', 'ph2', 'ph3', 'ph4'];
 
-  function renderSnapGrid() {
-    if (typeof SERVER_PARTIES === 'undefined' || !SERVER_PARTIES || !Array.isArray(SERVER_PARTIES)) {
-      const grid = document.getElementById('snap-grid');
-      const empty = document.getElementById('snap-empty');
-      if (grid) grid.innerHTML = '';
-      if (empty) empty.style.display = 'block';
-      return;
-    }
-    
-    let list = SERVER_PARTIES.filter(p => activeTag === '전체' || (p.styleTag && p.styleTag === activeTag));
-    list = list.slice(0, 20);
-
-    const grid = document.getElementById('snap-grid');
-    const empty = document.getElementById('snap-empty');
+  function renderHotPartyGrid() {
+    const grid = document.getElementById('hot-party-grid');
+    const empty = document.getElementById('hot-party-empty');
     if (!grid) return;
+
+    const source = (typeof HOT_PARTIES !== 'undefined' && Array.isArray(HOT_PARTIES)) ? HOT_PARTIES : [];
+    const list = source
+      .filter(p => activeTag === '전체' || (p.styleTag && p.styleTag === activeTag))
+      .slice(0, 20);
 
     if (!list.length) {
       grid.innerHTML = '';
@@ -248,12 +83,12 @@
       const phClass = isUpload ? PH_CYCLE[i % PH_CYCLE.length] : (p.thumbnailUrl || PH_CYCLE[i % PH_CYCLE.length]);
       let thumbSrc = isUpload ? p.thumbnailUrl : '';
       if (isUpload && !thumbSrc.startsWith('http') && !thumbSrc.startsWith('/')) {
-         thumbSrc = '/uploads/' + thumbSrc;
+        thumbSrc = '/uploads/' + thumbSrc;
       }
       const thumbInner = isUpload
-        ? `<img src="${thumbSrc}" onerror="this.style.display='none';">`
+        ? `<img src="${thumbSrc}" alt="" onerror="this.style.display='none';">`
         : `<div class="ph ${phClass}"></div>`;
-        
+
       return `
       <a class="snap-card" href="/party-board/${p.id}">
         ${thumbInner}
@@ -265,8 +100,49 @@
     }).join('');
   }
 
-  window.escapeHtml = escapeHtml;
+  /* ================= 2. 인기 스냅 그리드 (커뮤니티 사진 글) ================= */
+  function renderSnapGrid() {
+    const grid = document.getElementById('snap-grid');
+    const empty = document.getElementById('snap-empty');
+    if (!grid) return;
 
-  setTimeout(() => renderSnapGrid(), 0);
+    const list = (typeof POPULAR_SNAPS !== 'undefined' && Array.isArray(POPULAR_SNAPS)) ? POPULAR_SNAPS : [];
+
+    if (!list.length) {
+      grid.innerHTML = '';
+      if (empty) empty.style.display = 'block';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    grid.innerHTML = list.map((p, i) => {
+      // board/list.html 과 동일하게: thumbnailUrl 이 실제 경로가 아니면(과거 'ph1' 등 시드값)
+      // 업로드 이미지가 아니라 팔레트 플레이스홀더로 취급한다.
+      const isUpload = p.thumbnailUrl && !p.thumbnailUrl.startsWith('ph');
+      let thumbInner;
+      if (isUpload) {
+        let thumbSrc = p.thumbnailUrl;
+        if (!thumbSrc.startsWith('http') && !thumbSrc.startsWith('/')) {
+          thumbSrc = '/uploads/' + thumbSrc;
+        }
+        thumbInner = `<img src="${thumbSrc}" alt="" onerror="this.style.display='none';">`;
+      } else {
+        const phClass = (p.thumbnailUrl && p.thumbnailUrl.startsWith('ph')) ? p.thumbnailUrl : PH_CYCLE[i % PH_CYCLE.length];
+        thumbInner = `<div class="ph ${phClass}"></div>`;
+      }
+      const region = p.region ? `📍 ${escapeHtml(p.region)} · ` : '';
+      return `
+      <a class="snap-card" href="/board/${p.id}">
+        ${thumbInner}
+        <div class="snap-overlay">
+          <p class="t">${escapeHtml(p.title)}</p>
+          <div class="m">${region}❤️ ${p.likeCount || 0}</div>
+        </div>
+      </a>`;
+    }).join('');
+  }
+
+  renderHotPartyGrid();
+  renderSnapGrid();
 
 })();
