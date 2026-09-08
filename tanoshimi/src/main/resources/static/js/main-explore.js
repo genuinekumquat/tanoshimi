@@ -110,6 +110,13 @@
     if(tooltip) tooltip.style.opacity = '0'; 
 
     title.textContent = regionName;
+
+    // [TNSM-53] 이 지역 SNAP(사진 후기) 목록으로 이동하는 링크. board 목록의 지역 필터를
+    // 그대로 재사용한다(정확히 일치하는 region 값 기준 - 상위 지역/하위 지역 매칭까지는
+    // 하지 않는다. 마이페이지 지도의 RegionCatalog 기반 매칭과는 별개 범위).
+    const snapLink = document.getElementById('spot-snap-link');
+    if (snapLink) snapLink.href = '/board?region=' + encodeURIComponent(regionName);
+
     const places = (typeof FAMOUS_PLACES !== 'undefined') ? FAMOUS_PLACES[regionId] : null;
 
     if (!places || places.length === 0) {
