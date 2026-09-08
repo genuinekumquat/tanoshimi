@@ -128,6 +128,83 @@
         });
     }
 
+    // TNSM-52: 게시글 수정 모달
+    const editBtn = document.getElementById('btn-edit-post');
+    const editModal = document.getElementById('edit-modal');
+    if (editBtn && editModal) {
+        const eTitle = document.getElementById('e-title');
+        const eContent = document.getElementById('e-content');
+        const eRegion = document.getElementById('e-region');
+        const eFile = document.getElementById('e-thumbnail');
+        const ePreview = document.getElementById('e-thumbnail-preview');
+
+        editBtn.addEventListener('click', () => {
+            eTitle.value = editBtn.dataset.title || '';
+            eContent.value = editBtn.dataset.content || '';
+            eRegion.value = editBtn.dataset.region || '';
+            eFile.value = '';
+            ePreview.style.display = 'none';
+            editModal.style.display = 'flex';
+        });
+
+        document.getElementById('btn-edit-cancel').addEventListener('click', () => {
+            editModal.style.display = 'none';
+        });
+
+        eFile.addEventListener('change', () => {
+            const file = eFile.files[0];
+            if (!file) { ePreview.style.display = 'none'; return; }
+            ePreview.src = URL.createObjectURL(file);
+            ePreview.style.display = 'block';
+        });
+
+        document.getElementById('btn-edit-submit').addEventListener('click', async () => {
+            const title = eTitle.value.trim();
+            const content = eContent.value.trim();
+            const region = eRegion.value.trim();
+            if (!title || !content) { alert('제목과 내용을 입력해 주세요.'); return; }
+
+            const submitBtn = document.getElementById('btn-edit-submit');
+            submitBtn.disabled = true;
+            let csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
+            let csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+
+            let thumbnailUrl = editBtn.dataset.thumbnail || null;
+            const file = eFile.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+                try {
+                    const uploadRes = await fetch('/api/uploads/image', {
+                        method: 'POST', body: formData, headers: csrfToken ? { [csrfHeader]: csrfToken } : {}
+                    });
+                    const uploadJson = await uploadRes.json();
+                    if (!uploadJson.success) { alert(uploadJson.message || '사진 업로드에 실패했습니다.'); submitBtn.disabled = false; return; }
+                    thumbnailUrl = uploadJson.data;
+                } catch (e) {
+                    alert('사진 업로드 중 오류가 발생했습니다.');
+                    submitBtn.disabled = false;
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch(`/api/posts/${editBtn.dataset.postId}`, {
+                    method: 'PUT',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, csrfToken ? { [csrfHeader]: csrfToken } : {}),
+                    body: JSON.stringify({ title, content, region: region || null, thumbnailUrl, partyId: null, tripId: null })
+                });
+                const result = await response.json();
+                submitBtn.disabled = false;
+                if (result.success) location.reload(); else alert(result.message || '수정에 실패했습니다.');
+            } catch (e) {
+                console.error('게시글 수정 오류:', e);
+                alert('수정 중 오류가 발생했습니다.');
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
     const deleteBtn = document.getElementById('btn-delete-post');
     if (deleteBtn) {
         deleteBtn.addEventListener('click', async () => {

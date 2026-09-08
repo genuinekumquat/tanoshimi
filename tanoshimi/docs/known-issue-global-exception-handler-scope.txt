@@ -1,9 +1,14 @@
-알려진 이슈 — GlobalExceptionHandler 스코프 누락
+[해결됨 — 2026-09-08 확인] 알려진 이슈 — GlobalExceptionHandler 스코프 누락
 발견일: 2026-09-01
 발견 경위: TNSM-96(유저 차단) 기능 테스트 중, 파티 신청 차단(BLOCKED_USER) 응답을
            브라우저에서 확인하다가 우연히 발견함. 특정 담당자의 실수가 아니라
-           구조적으로 처음부터 스코프가 좁게 잡혀 있던 문제로 보임.
-상태: 미수정, 보류 (허수연 팀장 판단 - 당장은 두고, 필요시 별도 처리)
+           구조적으로 처음부터 스코프가 좁게 잡혀 있던 문제로 보였다.
+상태: 해결됨. main에 GlobalExceptionHandler가 @ControllerAdvice(스코프 제한 없음)로
+      바뀌었고, 실제로 예외를 던진 핸들러 메서드가 @ResponseBody인지(또는 클래스가
+      @RestController인지) HandlerMethod로 그때그때 판별해서 API 요청일 때만 JSON으로
+      응답하도록 고쳐졌다(GlobalExceptionHandlerTest 추가됨). 화면 렌더링 메서드는 예외를
+      그대로 다시 던져 기존 /error 처리 그대로 유지 - 아래 "해결 방향 1"이 그대로 적용된
+      형태다. feature/community에 2026-09-08 main 병합으로 반영 확인.
 
 ===============================================================
 증상

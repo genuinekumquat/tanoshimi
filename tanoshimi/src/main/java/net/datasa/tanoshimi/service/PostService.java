@@ -83,6 +83,23 @@ public class PostService {
                 : postRepository.findByBlindedFalseAndRegionAndUserIdNotInOrderByCreatedAtDesc(region, blockedIds, pageable);
     }
     
+    /** [TNSM-52] 키워드가 있으면 검색, 없으면 기존 boardList(region, pageable, viewer)로 위임. */
+    @Transactional(readOnly = true)
+    public Page<PostEntity> boardList(String region, String keyword, Pageable pageable, UserEntity viewer) {
+        if (keyword == null || keyword.isBlank()) {
+            return boardList(region, pageable, viewer);
+        }
+        String kw = keyword.trim();
+        String reg = (region == null || region.isBlank()) ? null : region;
+        if (viewer == null) {
+            return postRepository.searchBoard(reg, kw, pageable);
+        }
+        var blockedIds = blockService.relatedBlockedUserIds(viewer);
+        return blockedIds.isEmpty()
+                ? postRepository.searchBoard(reg, kw, pageable)
+                : postRepository.searchBoardExcludingUsers(reg, kw, blockedIds, pageable);
+    }
+
     @Transactional(readOnly = true)
     public Page<PostEntity> myPosts(UserEntity user, Pageable pageable) {
         return postRepository.findByUserOrderByCreatedAtDesc(user, pageable);
@@ -178,7 +195,18 @@ public class PostService {
         fileStorageService.markActive(req.thumbnailUrl());
         return id;
     }
-    
+
+    /** [TNSM-52] 게시글 수정 - 작성자 본인 또는 관리자만. party/trip 연결은 수정 대상에서 뺀다(생성 시에만 정하는 값). */
+    @Transactional
+    public void update(Long postId, UserEntity requester, PostRequest req) {
+        PostEntity post = getPost(postId);
+        if (!post.getUser().getId().equals(requester.getId()) && !requester.isAdmin()) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
+        post.edit(req.title(), req.content(), req.region(), req.thumbnailUrl());
+        fileStorageService.markActive(req.thumbnailUrl());
+    }
+
     @Transactional
     public void toggleLike(PostEntity post, UserEntity user) {
         if (postLikeRepository.existsByPostAndUser(post, user)) {
