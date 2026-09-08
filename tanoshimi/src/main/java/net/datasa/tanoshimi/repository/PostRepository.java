@@ -73,4 +73,15 @@ public interface PostRepository extends JpaRepository<PostEntity, Long> {
      */
     @Query("select p from PostEntity p join fetch p.user where p.id = :id")
     Optional<PostEntity> findWithUserById(@Param("id") Long id);
+
+    /**
+     * 메인 페이지 "인기 스냅" 섹션 - 커뮤니티에 올라온 실제 사진 글을 좋아요순(같으면 최신순)으로.
+     * 파티 모집글이 아니라 posts 테이블의 사진 글이 대상이라, 썸네일이 있는 글만(빈 문자열 제외)
+     * 그리고 블라인드 처리된 글은 제외한다. 카드에 작성자명을 찍으므로 user 는 함께 가져온다.
+     */
+    @EntityGraph(attributePaths = {"user"})
+    @Query("select p from PostEntity p "
+            + "where p.blinded = false and p.thumbnailUrl is not null and p.thumbnailUrl <> '' "
+            + "order by p.likeCount desc, p.createdAt desc")
+    List<PostEntity> findPopularSnaps(Pageable pageable);
 }

@@ -2,6 +2,7 @@ package net.datasa.tanoshimi.service;
 
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.domain.dto.PostRequest;
+import net.datasa.tanoshimi.domain.dto.SnapCardView;
 import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
@@ -85,6 +86,19 @@ public class PostService {
     @Transactional(readOnly = true)
     public Page<PostEntity> myPosts(UserEntity user, Pageable pageable) {
         return postRepository.findByUserOrderByCreatedAtDesc(user, pageable);
+    }
+
+    /**
+     * [메인 페이지] "인기 스냅" 섹션 - 좋아요가 많은 사진 글 상위 {@code limit} 개.
+     * 블라인드 글과 썸네일 없는 글은 리포지토리 쿼리에서 이미 제외된다.
+     */
+    @Transactional(readOnly = true)
+    public List<SnapCardView> popularSnapCards(int limit) {
+        return postRepository.findPopularSnaps(PageRequest.of(0, limit)).stream()
+                .map(p -> new SnapCardView(
+                        p.getId(), p.getTitle(), p.getRegion(),
+                        p.getThumbnailUrl(), p.getLikeCount(), p.getUser().getName()))
+                .toList();
     }
 
     /**
