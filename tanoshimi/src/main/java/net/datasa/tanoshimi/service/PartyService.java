@@ -20,9 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 파티 전용 채팅방(chat_rooms, type=party)도 함께 생성된다 - data.sql 의 더미 파티들과
  * 똑같은 구조를 서비스 코드로도 재현한 것.
  *
- * <p>계획표(trip_schedules)도 이 시점에 바로 만든다 - "항공/숙박 예약 전에도 미리 계획을
- * 짜볼 수 있게" 하기 위해서다. 아직 reservation 이 없는 초안 상태이며, 나중에 패키지를
- * 예약하면 ReservationService 가 이 계획표에 reservation 을 연결한다.
+ * <p>계획표(trip_schedules)도 이 시점에 바로 만든다 - 파티원이 곧바로 함께 일정을
+ * 짜볼 수 있게 하기 위해서다. 초안(draft) 상태로 시작한다.
  */
 @Service
 @RequiredArgsConstructor

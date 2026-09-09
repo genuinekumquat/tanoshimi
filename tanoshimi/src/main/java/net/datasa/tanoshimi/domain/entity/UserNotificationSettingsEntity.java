@@ -17,9 +17,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
  * 효과는 아직 없다. 발송 인프라가 생기면 그때 이 값들을 참조하도록 연결한다.
  *
  * <p>이벤트 타입별 토글은 NotificationService.notify(...) 호출부(FollowService,
- * PartyApplicationService, PartyService, PostService, TripReminderScheduler)에서 실제 쓰이는
- * type 문자열을 grep 해서 확정한 7종이다: new_follower, new_comment, party_application,
- * party_approved, party_rejected, party_kicked, trip_reminder.
+ * PartyApplicationService, PartyService, PostService)에서 실제 쓰이는 type 문자열을 grep 해서
+ * 확정한 7종이다: new_follower, new_comment, party_application, party_approved, party_rejected,
+ * party_kicked, trip_reminder. (trip_reminder 는 결제·예약 제거로 발행 주체였던
+ * TripReminderScheduler 가 함께 없어져 현재 발행되지 않는다. 토글은 향후 재도입 대비로 남겨둠.)
  */
 @Entity
 @Getter
