@@ -4,13 +4,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.crypto.spec.SecretKeySpec;
+import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetailsService;
+import net.datasa.tanoshimi.auth.OAuth2AwareRememberMeServices;
 import net.datasa.tanoshimi.auth.handler.LoginFailureHandler;
 import net.datasa.tanoshimi.auth.handler.LoginSuccessHandler;
 import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
 import net.datasa.tanoshimi.auth.oauth.CustomOidcUserService;
 import net.datasa.tanoshimi.auth.oauth.OAuth2FailureHandler;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -33,6 +36,9 @@ import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.RememberMeServices;
+import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
+import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
 
 @Configuration
 @EnableWebSecurity
@@ -46,10 +52,38 @@ public class  SecurityConfig {
     private final LoginSuccessHandler loginSuccessHandler;
     private final LoginFailureHandler loginFailureHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final DataSource dataSource;
+
+    @Value("${app.login.remember-me.key}")
+    private String rememberMeKey;
+
+    @Value("${app.login.remember-me.validity-days}")
+    private int rememberMeValidityDays;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(10);
+    }
+
+    // 자동 로그인(체크박스) 세션을 저장하는 저장소 - persistent_logins 테이블(v21 마이그레이션)에
+    // series/token을 저장/조회한다.
+    @Bean
+    public PersistentTokenRepository persistentTokenRepository() {
+        JdbcTokenRepositoryImpl repository = new JdbcTokenRepositoryImpl();
+        repository.setDataSource(dataSource);
+        return repository;
+    }
+
+    // 자동 로그인마다 토큰을 갱신(rotate)하는 방식 - 로그아웃 시 이 서비스가 LogoutHandler로도
+    // 자동 등록돼(RememberMeConfigurer) persistent_logins에서 해당 계정 행을 지우고 쿠키도 만료시킨다.
+    // OAuth2AwareRememberMeServices: 폼 로그인은 화면의 토글(remember-me 파라미터)을 따르지만,
+    // 소셜 로그인(OAuth2 콜백)은 파라미터 유무와 상관없이 항상 자동 로그인이 적용된다.
+    @Bean
+    public RememberMeServices rememberMeServices() {
+        OAuth2AwareRememberMeServices services = new OAuth2AwareRememberMeServices(
+                rememberMeKey, userDetailsService, persistentTokenRepository());
+        services.setTokenValiditySeconds(rememberMeValidityDays * 24 * 60 * 60);
+        return services;
     }
 
     // CustomOAuth2UserService 가 생성자로 주입받아 테스트에서 mock으로 대체할 수 있게 빈으로 뺐다.
@@ -132,6 +166,9 @@ public class  SecurityConfig {
                         )
                         .successHandler(loginSuccessHandler)
                         .failureHandler(oAuth2FailureHandler)
+                )
+                .rememberMe(rememberMe -> rememberMe
+                        .rememberMeServices(rememberMeServices())
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
