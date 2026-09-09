@@ -77,7 +77,7 @@ public class  SecurityConfig {
     // 자동 로그인마다 토큰을 갱신(rotate)하는 방식 - 로그아웃 시 이 서비스가 LogoutHandler로도
     // 자동 등록돼(RememberMeConfigurer) persistent_logins에서 해당 계정 행을 지우고 쿠키도 만료시킨다.
     // OAuth2AwareRememberMeServices: 폼 로그인은 화면의 토글(remember-me 파라미터)을 따르지만,
-    // 소셜 로그인(OAuth2 콜백)은 팀 결정(2026-09-09)에 따라 파라미터 유무와 상관없이 항상 적용된다.
+    // 소셜 로그인(OAuth2 콜백)은 파라미터 유무와 상관없이 항상 자동 로그인이 적용된다.
     @Bean
     public RememberMeServices rememberMeServices() {
         OAuth2AwareRememberMeServices services = new OAuth2AwareRememberMeServices(
