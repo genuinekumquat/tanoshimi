@@ -7,6 +7,7 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetailsService;
+import net.datasa.tanoshimi.auth.OAuth2AwareRememberMeServices;
 import net.datasa.tanoshimi.auth.handler.LoginFailureHandler;
 import net.datasa.tanoshimi.auth.handler.LoginSuccessHandler;
 import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
@@ -37,7 +38,6 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
-import org.springframework.security.web.authentication.rememberme.PersistentTokenBasedRememberMeServices;
 import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
 
 @Configuration
@@ -76,9 +76,11 @@ public class  SecurityConfig {
 
     // 자동 로그인마다 토큰을 갱신(rotate)하는 방식 - 로그아웃 시 이 서비스가 LogoutHandler로도
     // 자동 등록돼(RememberMeConfigurer) persistent_logins에서 해당 계정 행을 지우고 쿠키도 만료시킨다.
+    // OAuth2AwareRememberMeServices: 폼 로그인은 화면의 토글(remember-me 파라미터)을 따르지만,
+    // 소셜 로그인(OAuth2 콜백)은 팀 결정(2026-09-09)에 따라 파라미터 유무와 상관없이 항상 적용된다.
     @Bean
     public RememberMeServices rememberMeServices() {
-        PersistentTokenBasedRememberMeServices services = new PersistentTokenBasedRememberMeServices(
+        OAuth2AwareRememberMeServices services = new OAuth2AwareRememberMeServices(
                 rememberMeKey, userDetailsService, persistentTokenRepository());
         services.setTokenValiditySeconds(rememberMeValidityDays * 24 * 60 * 60);
         return services;
