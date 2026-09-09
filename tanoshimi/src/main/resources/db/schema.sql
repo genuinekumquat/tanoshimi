@@ -547,3 +547,18 @@ CREATE TABLE IF NOT EXISTS user_notification_settings (
     UNIQUE KEY uk_uns_user (user_id),
     CONSTRAINT fk_uns_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- 23. persistent_logins (자동 로그인 "로그인 상태 유지" 세션 저장소)
+-- Spring Security JdbcTokenRepositoryImpl 표준 스키마 - 컬럼 이름/타입을 바꾸면 라이브러리
+-- 내장 쿼리가 깨진다. 이 테이블이 없으면 로그아웃 시 DELETE 쿼리가 SQL 오류로 500 이 난다
+-- (JPA 엔티티가 없어 ddl-auto 로도 안 생김 - 반드시 여기 정의가 있어야 한다).
+-- 별도 이력: migration_v22_remember_me.sql (기존 DB 업데이트용, 내용 동일).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS persistent_logins (
+    username    VARCHAR(255) NOT NULL COMMENT 'users.email과 동일 - 로그인 ID',
+    series      VARCHAR(64)  NOT NULL COMMENT '기기(브라우저)별 로그인 세션 식별자',
+    token       VARCHAR(64)  NOT NULL COMMENT '자동 로그인마다 갱신되는 1회용 토큰',
+    last_used   TIMESTAMP    NOT NULL COMMENT '이 토큰이 마지막으로 사용된 시각',
+    PRIMARY KEY (series)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
