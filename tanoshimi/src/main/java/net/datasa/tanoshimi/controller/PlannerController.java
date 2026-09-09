@@ -165,10 +165,17 @@ public class PlannerController {
     public ApiResponse<Void> optimizeRoute(@PathVariable Long scheduleId, @RequestParam int dayIndex,
                                            @AuthenticationPrincipal CustomUserDetails principal) {
         UserEntity user = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        TripScheduleEntity schedule = getSchedule(scheduleId);
+        // 일정 순서를 바꾸는 변경이므로 편집권 보유자만 실행 가능(다른 변경 엔드포인트와 동일).
+        if (!schedule.isLockedBy(principal.getId())) {
+            throw new BusinessException(ErrorCode.LOCK_NOT_HELD);
+        }
         if (!aiCreditService.tryConsume(user)) {
             throw new BusinessException(ErrorCode.AI_CREDIT_EXCEEDED);
         }
-        routeOptimizationService.optimizeDay(getSchedule(scheduleId), (byte) dayIndex);
+        // 재배치는 파괴적이라 실행 직전 스냅샷을 남겨 롤백으로 되돌릴 수 있게 한다.
+        lockService.save(scheduleId, user, SnapshotTrigger.manual);
+        routeOptimizationService.optimizeDay(schedule, (byte) dayIndex);
         broadcast(scheduleId);
         return ApiResponse.okMessage("동선을 최적화했습니다.");
     }
