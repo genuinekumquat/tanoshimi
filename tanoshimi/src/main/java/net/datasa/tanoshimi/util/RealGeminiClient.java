@@ -72,15 +72,14 @@ public class RealGeminiClient implements GeminiClient {
             return extractText(response);
         } catch (Exception e) {
             log.error("Gemini Real API call failed", e);
-            String errMsg = e.getMessage().replace("\"", "'");
-            if (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException) {
-                org.springframework.web.reactive.function.client.WebClientResponseException we = (org.springframework.web.reactive.function.client.WebClientResponseException) e;
+            if (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException we) {
                 if (we.getStatusCode().value() == 429) {
                     return "{\"briefing\": \"구글 할배가 화가 단단히 난 데스! (429 Rate Limit) 무료 API 한도를 초과해서 잠시 막힌 테치. 딱 1분만 숨 참고 다시 눌러보는 데스웅~\", \"newSchedule\": []}";
                 }
-                errMsg = we.getResponseBodyAsString().replace("\"", "'").replace("\n", " ");
             }
-            return "{\"briefing\": \"API 오류: " + errMsg + "\", \"newSchedule\": []}";
+            // 원본 에러(키 만료·네트워크 등)는 로그에만 남기고, 사용자에게는 안내 + 빈 일정을 돌려준다.
+            // newSchedule 이 비어 있으므로 aiValidate 는 일정을 바꾸지 않고 briefing 만 보여준다.
+            return "{\"briefing\": \"지금은 AI가 잠깐 쉬고 있어요. 잠시 후 다시 시도해 주세요.\", \"newSchedule\": []}";
         }
     }
 
