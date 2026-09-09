@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service for managing trip plans and completing payment streams.
+ * Service for managing trip plans.
  */
 @Service
 @RequiredArgsConstructor
@@ -21,19 +21,14 @@ public class TripPlannerService {
 
     private final TripScheduleRepository scheduleRepository;
     private final TripScheduleItemRepository itemRepository;
-    private final TripSchedulePaymentRepository paymentRepository;
     private final ActivityRepository activityRepository;
-    private final PartyMemberRepository partyMemberRepository;
-    private final UserRepository userRepository;
     private final TripPlannerLockService lockService;
 
     @Transactional
     public void initializeDefaults(TripScheduleEntity schedule, UserEntity creator) {
-        // [v16] 예약(reservation) 기능이 화면에서 빠지면서, 이제 예약 없이도 파티가 만들어질 수 있다.
-        // reservation 이 있으면(레거시 호환) 그쪽 tour 를, 없으면 파티에 직접 연결된 tour 를 사용한다.
-        // 둘 다 없으면(패키지 없이 순수 계획표만 쓰는 경우) 기본 항공/체크인 블록 없이 빈 계획표로 시작한다.
-        TourEntity tour = schedule.getReservation() != null ? schedule.getReservation().getTour()
-                : (schedule.getParty() != null ? schedule.getParty().getTour() : null);
+        // 파티에 연결된 tour 가 있으면 기본 항공/체크인 블록을 깐다.
+        // tour 가 없으면(패키지 없이 순수 계획표만 쓰는 경우) 빈 계획표로 시작한다.
+        TourEntity tour = schedule.getParty() != null ? schedule.getParty().getTour() : null;
         if (tour == null) {
             return;
         }
@@ -94,10 +89,10 @@ public class TripPlannerService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
     }
 
-    /** 계획표 1건 + reservation/tour 까지 fetch (플래너 화면·AI 기능이 tour 정보를 바로 씀). */
+    /** 계획표 1건 + party/tour 까지 fetch (플래너 화면·AI 기능이 tour 정보를 바로 씀). */
     @Transactional(readOnly = true)
     public TripScheduleEntity getScheduleWithContext(Long id) {
-        return scheduleRepository.findWithReservationAndTourById(id)
+        return scheduleRepository.findWithContextById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
     }
 
@@ -202,51 +197,18 @@ public class TripPlannerService {
         itemRepository.flush();
     }
 
+    /** 계획표 최종 확정. draft 상태에서만 호출 가능하며 submitted -> confirmed 로 한 번에 넘긴다. */
     @Transactional
-    public void submitForPayment(TripScheduleEntity schedule) {
+    public void finalizeSchedule(TripScheduleEntity schedule) {
         if (!schedule.isDraft()) {
-            throw new net.datasa.tanoshimi.exception.BusinessException(net.datasa.tanoshimi.exception.ErrorCode.INVALID_INPUT, "이미 제출 완료된 시간표입니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 제출 완료된 시간표입니다.");
         }
-        schedule.submit();  // Optional: logical transition
-        schedule.confirm(); // Directly confirm without payment
+        schedule.submit();  // 논리적 상태 전이
+        schedule.confirm();
         scheduleRepository.save(schedule);
-    }
-
-    @Transactional
-    public void pay(TripScheduleEntity schedule, UserEntity payer) {
-        TripSchedulePaymentEntity payment = paymentRepository.findByScheduleAndUser(schedule, payer)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
-        if (!payer.deductPoints(payment.getCurrency(), payment.getAmount())) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_POINTS);
-        }
-        payment.markPaid();
-        userRepository.save(payer);
-
-        boolean allPaid = paymentRepository.findBySchedule(schedule).stream()
-                .allMatch(p -> p.getStatus() == PaymentStatus.paid);
-        if (allPaid) {
-            schedule.confirm();
-            scheduleRepository.save(schedule);
-        }
     }
 
     private short toMinute(LocalTime time) {
         return (short) (time.getHour() * 60 + time.getMinute());
-    }
-
-    private PartyEntity resolveParty(TripScheduleEntity schedule) {
-        if (schedule.getParty() != null) return schedule.getParty();
-        if (schedule.getReservation() != null) return schedule.getReservation().getParty();
-        return null;
-    }
-
-    private List<UserEntity> resolveMembers(TripScheduleEntity schedule, PartyEntity party) {
-        if (party != null) {
-            return partyMemberRepository.findByParty(party).stream().map(PartyMemberEntity::getUser).toList();
-        }
-        if (schedule.getReservation() != null) {
-            return List.of(schedule.getReservation().getBookedBy());
-        }
-        return List.of();
     }
 }

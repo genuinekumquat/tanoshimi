@@ -24,10 +24,7 @@ class TripPlannerServiceTest {
 
     // 나머지 생성자 의존성은 이 테스트가 건드리지 않으므로 목만 채운다.
     @Mock private net.datasa.tanoshimi.repository.TripScheduleRepository scheduleRepository;
-    @Mock private net.datasa.tanoshimi.repository.TripSchedulePaymentRepository paymentRepository;
     @Mock private net.datasa.tanoshimi.repository.ActivityRepository activityRepository;
-    @Mock private net.datasa.tanoshimi.repository.PartyMemberRepository partyMemberRepository;
-    @Mock private net.datasa.tanoshimi.repository.UserRepository userRepository;
     @Mock private TripPlannerLockService lockService;
 
     @InjectMocks

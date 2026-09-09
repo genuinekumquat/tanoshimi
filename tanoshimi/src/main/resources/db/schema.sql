@@ -226,52 +226,11 @@ CREATE TABLE IF NOT EXISTS party_applications (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 9. reservations (패키지 예약)
--- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS reservations (
-    id                  BIGINT      NOT NULL AUTO_INCREMENT,
-    party_id            BIGINT      NULL COMMENT '파티 없이 혼자 예약하는 개인 이용자는 NULL',
-    booked_by_user_id   BIGINT      NOT NULL COMMENT '예약 버튼을 누른 사람(파티장 또는 개인)',
-    tour_id             BIGINT      NOT NULL,
-    people_count        TINYINT     NOT NULL,
-    reservation_number  VARCHAR(30) NOT NULL,
-    departure_date      DATE        NOT NULL,
-    status              ENUM('pending','confirmed','cancelled') NOT NULL DEFAULT 'pending',
-    weather_ack         BOOLEAN     NOT NULL DEFAULT FALSE COMMENT 'AI가 날씨 비추천했는데도 사용자가 감수하고 진행',
-    weather_ack_note    VARCHAR(200) NULL COMMENT '예약 시점 날씨 요약(참고용 스냅샷, 실시간 재조회 안 함)',
-    created_at          DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    cancelled_at        DATETIME    NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_reservation_number (reservation_number),
-    CONSTRAINT fk_res_party FOREIGN KEY (party_id) REFERENCES parties(id),
-    CONSTRAINT fk_res_booker FOREIGN KEY (booked_by_user_id) REFERENCES users(id),
-    CONSTRAINT fk_res_tour FOREIGN KEY (tour_id) REFERENCES tours(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ---------------------------------------------------------------------
--- 10. reservation_payments (패키지 대금 - 인원별 KRW/JPY 분할 결제)
--- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS reservation_payments (
-    id             BIGINT NOT NULL AUTO_INCREMENT,
-    reservation_id BIGINT NOT NULL,
-    user_id        BIGINT NOT NULL,
-    currency       ENUM('KRW','JPY') NOT NULL,
-    amount         INT    NOT NULL,
-    status         ENUM('ready','paid','failed') NOT NULL DEFAULT 'ready',
-    paid_at        DATETIME NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_res_user (reservation_id, user_id),
-    CONSTRAINT fk_rp_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id),
-    CONSTRAINT fk_rp_user FOREIGN KEY (user_id) REFERENCES users(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ---------------------------------------------------------------------
--- 11. trip_schedules (계획표 - 파티 하나당 1개, 여러 명이 동시 편집)
+-- 9. trip_schedules (계획표 - 파티 하나당 1개, 여러 명이 동시 편집)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS trip_schedules (
     id             BIGINT   NOT NULL AUTO_INCREMENT,
     party_id       BIGINT   NULL,
-    reservation_id BIGINT   NULL,
     status         ENUM('draft','submitted','confirmed') NOT NULL DEFAULT 'draft',
     locked_by_user_id BIGINT NULL COMMENT '[v16] 현재 편집권을 가진 파티원. NULL이면 전원 읽기전용(자유편집 아님 - lock 도입 취지 유지)',
     last_saved_at  DATETIME NULL COMMENT '[v16] 마지막 저장(자동/수동) 시각 - 화면 상단 표시용',
@@ -281,14 +240,12 @@ CREATE TABLE IF NOT EXISTS trip_schedules (
     updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uk_schedule_party (party_id),
-    UNIQUE KEY uk_schedule_reservation (reservation_id),
     CONSTRAINT fk_ts_party FOREIGN KEY (party_id) REFERENCES parties(id),
-    CONSTRAINT fk_ts_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id),
     CONSTRAINT fk_ts_locked_by FOREIGN KEY (locked_by_user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 12. trip_schedule_items (계획표 블록 - 분(1분) 단위 시간 관리)
+-- 10. trip_schedule_items (계획표 블록 - 분(1분) 단위 시간 관리)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS trip_schedule_items (
     id              BIGINT       NOT NULL AUTO_INCREMENT,
@@ -315,24 +272,7 @@ CREATE TABLE IF NOT EXISTS trip_schedule_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 13. trip_schedule_payments (액티비티 결제 - 제출 시점에 인원별 생성)
--- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS trip_schedule_payments (
-    id          BIGINT NOT NULL AUTO_INCREMENT,
-    schedule_id BIGINT NOT NULL,
-    user_id     BIGINT NOT NULL,
-    currency    ENUM('KRW','JPY') NOT NULL,
-    amount      INT    NOT NULL,
-    status      ENUM('ready','paid','failed') NOT NULL DEFAULT 'ready',
-    paid_at     DATETIME NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_schedule_user (schedule_id, user_id),
-    CONSTRAINT fk_tsp_schedule FOREIGN KEY (schedule_id) REFERENCES trip_schedules(id),
-    CONSTRAINT fk_tsp_user FOREIGN KEY (user_id) REFERENCES users(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ---------------------------------------------------------------------
--- 14. trip_schedule_votes (완성된 계획표 찬반 투표)
+-- 11. trip_schedule_votes (완성된 계획표 찬반 투표)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS trip_schedule_votes (
     id          BIGINT   NOT NULL AUTO_INCREMENT,
@@ -370,7 +310,7 @@ CREATE TABLE IF NOT EXISTS my_trips (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 15. posts (여행 게시판 글 / 마이페이지 피드)
+-- 12. posts (여행 게시판 글 / 마이페이지 피드)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS posts (
     id            BIGINT       NOT NULL AUTO_INCREMENT,
@@ -413,7 +353,7 @@ CREATE TABLE IF NOT EXISTS post_comments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 16. follows (팔로우)
+-- 13. follows (팔로우)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS follows (
     id          BIGINT   NOT NULL AUTO_INCREMENT,
@@ -428,7 +368,7 @@ CREATE TABLE IF NOT EXISTS follows (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 17. chat_rooms / chat_room_members / chat_messages
+-- 14. chat_rooms / chat_room_members / chat_messages
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS chat_rooms (
     id         BIGINT   NOT NULL AUTO_INCREMENT,
@@ -464,7 +404,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 18. notifications (알림)
+-- 15. notifications (알림)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS notifications (
     id         BIGINT       NOT NULL AUTO_INCREMENT,
@@ -481,7 +421,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 19. reports (신고 - 게시글/파티/사용자 공용)
+-- 16. reports (신고 - 게시글/파티/사용자 공용)
 --     target_type + target_id 로 무엇을 신고했는지 가리킨다(다형 연관).
 --     서로 다른 테이블(posts/parties/users)을 가리킬 수 있어서 target_id 에는
 --     FK 를 걸지 않고, 신고 시점의 제목/이름을 target_label 에 그대로 스냅샷으로
@@ -506,7 +446,7 @@ CREATE TABLE IF NOT EXISTS reports (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 20. trip_schedule_snapshots [v16 신규] (계획표 저장 시점 스냅샷 - 롤백의 소스)
+-- 17. trip_schedule_snapshots [v16 신규] (계획표 저장 시점 스냅샷 - 롤백의 소스)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS trip_schedule_snapshots (
     id            BIGINT   NOT NULL AUTO_INCREMENT,
@@ -522,7 +462,7 @@ CREATE TABLE IF NOT EXISTS trip_schedule_snapshots (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 21. manner_temp_logs [v16 신규] (매너온도 가산/감산 이력 - 감사 로그)
+-- 18. manner_temp_logs [v16 신규] (매너온도 가산/감산 이력 - 감사 로그)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS manner_temp_logs (
     id         BIGINT       NOT NULL AUTO_INCREMENT,
@@ -537,7 +477,7 @@ CREATE TABLE IF NOT EXISTS manner_temp_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 22. ai_credit_usage [v16 신규] (사용자별 일일 AI 크레딧 사용량)
+-- 19. ai_credit_usage [v16 신규] (사용자별 일일 AI 크레딧 사용량)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ai_credit_usage (
     id          BIGINT NOT NULL AUTO_INCREMENT,
@@ -551,7 +491,7 @@ CREATE TABLE IF NOT EXISTS ai_credit_usage (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 23. user_profile_theme [v16 신규] (프로필 배경 꾸미기 설정)
+-- 20. user_profile_theme [v16 신규] (프로필 배경 꾸미기 설정)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_profile_theme (
     id         BIGINT      NOT NULL AUTO_INCREMENT,
@@ -564,7 +504,7 @@ CREATE TABLE IF NOT EXISTS user_profile_theme (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 24. user_blocks [v16 신규] (유저 차단, TNSM-96)
+-- 21. user_blocks [v16 신규] (유저 차단, TNSM-96)
 -- 차단 여부는 이 테이블에 대한 조회(EXISTS)로 그때그때 판단한다.
 -- chat_rooms 등에 별도 상태 플래그를 두지 않는다 (docs/user_blocks_design_decisions.txt 참고).
 -- ---------------------------------------------------------------------
@@ -582,7 +522,7 @@ CREATE TABLE IF NOT EXISTS user_blocks (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
--- 25. user_notification_settings [account-settings 신규] (알림 설정, 회원당 1행)
+-- 22. user_notification_settings [account-settings 신규] (알림 설정, 회원당 1행)
 -- user_profile_theme 과 같은 패턴(1:1, user_id UNIQUE). 현재는 값을 저장만 한다 -
 -- 실제 푸시/이메일 발송 인프라가 없어(notifications 테이블은 인앱 알림함 전용) 이 값들이
 -- 발송 여부를 좌우하지는 않는다. notify_* 컬럼은 NotificationService.notify(...) 호출부에서

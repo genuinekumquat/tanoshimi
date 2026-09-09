@@ -30,13 +30,9 @@ public enum ErrorCode {
     SOCIAL_ACCOUNT_NO_PASSWORD(HttpStatus.BAD_REQUEST, "소셜 로그인 계정은 비밀번호 재발급을 지원하지 않습니다. 소셜 로그인으로 이용해 주세요."),
     CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다."),
 
-    // 투어/예약/결제
+    // 투어
     TOUR_NOT_FOUND(HttpStatus.NOT_FOUND, "패키지를 찾을 수 없습니다."),
     PARTY_NOT_FOUND(HttpStatus.NOT_FOUND, "파티를 찾을 수 없습니다."),
-    RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "예약 정보를 찾을 수 없습니다."),
-    PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "결제 정보를 찾을 수 없습니다."),
-    INSUFFICIENT_POINTS(HttpStatus.BAD_REQUEST, "포인트가 부족합니다. 충전 후 다시 시도해 주세요."),
-    WEATHER_ACK_REQUIRED(HttpStatus.BAD_REQUEST, "날씨 안내를 확인하고 진행 여부를 다시 선택해 주세요."),
 
     // 파티 자격
     PARTY_GENDER_RESTRICTED(HttpStatus.FORBIDDEN, "이 파티는 성별 조건이 맞지 않아 신청할 수 없습니다."),

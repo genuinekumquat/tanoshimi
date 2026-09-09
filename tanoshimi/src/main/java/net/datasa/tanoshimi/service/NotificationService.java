@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
-/** 인앱 알림함(종 아이콘). 여행 하루 전 알림은 TripReminderScheduler 가 이 서비스를 통해 발행한다. */
+/** 인앱 알림함(종 아이콘). 팔로우·댓글·파티 신청/승인/거절/강퇴 등 이벤트가 이 서비스를 통해 발행된다. */
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
