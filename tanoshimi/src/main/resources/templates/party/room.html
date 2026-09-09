@@ -181,23 +181,16 @@
       <a th:href="@{'/planner/' + ${scheduleId}}" class="btn-write" style="display:block; text-align:center; text-decoration:none; padding:10px;">시간표 열기</a>
     </div>
 
-    <!-- 일정 픽스 투표 (예약 전 단계만) -->
-    <div class="vote-box" th:if="${scheduleId != null && reservation == null}">
+    <!-- 일정 픽스 투표 -->
+    <div class="vote-box" th:if="${scheduleId != null}">
       <h3>⛳ 일정 픽스 투표</h3>
       <p style="font-size:12px; color:var(--ink-soft); margin:0;" id="vote-tally">
          찬성 [[${voteTally != null ? voteTally.agree : 0}]] · 반대 [[${voteTally != null ? voteTally.disagree : 0}]]
       </p>
       <div class="vote-btns">
-        <button class="btn-agree" id="btn-vote-agree">👍 찬성 (예약 확정)</button>
+        <button class="btn-agree" id="btn-vote-agree">👍 찬성 (일정 확정)</button>
         <button class="btn-disagree" id="btn-vote-disagree">👎 반대</button>
       </div>
-    </div>
-    <div class="vote-box" th:if="${reservation != null}">
-      <h3 style="color:var(--forest-deep);">🎉 예약 확정 완료</h3>
-      <p style="font-size:12px; color:var(--ink-soft); margin:0;">
-        결제 상태: [[${reservation.status}]] <br>
-        모두가 찬성하여 여행 패키지 예약이 확정되었습니다!
-      </p>
     </div>
 
     <!-- 파티 채팅방 -->

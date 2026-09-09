@@ -24,10 +24,8 @@ import java.util.List;
 /**
  * "그날 날씨에 따라 추천/비추천" 챗봇 로직.
  *
- * <p>[기존] 예약 전에 이 서비스로 날씨를 확인 -> 나쁘면 경고 문구 + 대안 패키지 제시
- * -> 사용자가 "그래도 갈게요" 를 누르면 ReservationService.reserve(..., weatherAck=true) 로 진행.
- * (ReservationService, PlannerController 가 아직 이 경로를 쓰고 있어 그대로 유지 -
- *  예약/결제 코드 정리 작업 때 같이 정리될 예정, 지금은 손대지 않음)
+ * <p>adviseForTour - 파티 tour 의 날씨를 확인해 나쁘면 경고 문구 + 대안 패키지를 제시한다.
+ * PlannerController 의 AI 추천 경로에서 사용한다.
  *
  * <p>[v16 신규] checkActivityWeather - 플래너에 액티비티를 담을 때, 그 장소가 실외인데
  * 날씨가 나쁘면 경고하고 같은 지역 실내 대안을 제시한다. 날씨는 저장하지 않고 항상
@@ -43,9 +41,9 @@ public class WeatherAdvisorService {
 	private final ActivityRepository activityRepository;
 	
 	// ----------------------------------------------------------------
-	// 기존 메서드 - ReservationService, PlannerController 가 사용 중이므로 그대로 유지
+	// PlannerController 의 AI 추천 경로에서 사용
 	// ----------------------------------------------------------------
-	
+
 	public WeatherAdviceDTO adviseForTour(TourEntity tour, LocalDate date) {
 		if (tour.getLatitude() == null || tour.getLongitude() == null) {
 			// 좌표가 없는 더미데이터는 날씨 조회 자체를 생략하고 항상 추천 처리

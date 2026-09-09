@@ -1,8 +1,9 @@
 # 🗄️ ERD & 테이블 설계서
 
-원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) (2026-08-22 통합본) + `migration_v16_*`, `migration_v17_*`.
+원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) (2026-08-22 통합본) + `migration_v16_*` ~ `migration_v21_*`.
 DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 스키마 운영: `schema.sql` 단일 원본 + 번호 마이그레이션. JPA `ddl-auto: update`는 보조.
+> v21에서 결제·예약 3테이블(`reservations`, `reservation_payments`, `trip_schedule_payments`)과 `trip_schedules.reservation_id`를 **제거 완료**. 아래 목록·ERD는 제거 후 기준.
 
 ## 1. 테이블 전체 목록
 
@@ -16,36 +17,34 @@ DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 | 6 | `parties` | 파티 | 번개모임 |
 | 7 | `party_members` | 파티 | 승인된 파티원 = 전용 페이지 접근권 |
 | 8 | `party_applications` | 파티 | 참가 신청(방장 승인) |
-| 9 | `reservations` | 결제 | ⛔ **v16 제거 대상** |
-| 10 | `reservation_payments` | 결제 | ⛔ **v16 제거 대상** |
-| 11 | `trip_schedules` | 플래너 | 파티당 1개. v16: `locked_by_user_id`, `last_saved_at` |
-| 12 | `trip_schedule_items` | 플래너 | 일정 블록(분 단위). v16: `is_fixed` |
-| 13 | `trip_schedule_payments` | 결제 | ⛔ **v16 제거 대상** |
-| 14 | `trip_schedule_votes` | 플래너 | 계획표 찬반 투표 |
-| 15 | `posts` / `post_likes` / `post_comments` | 커뮤니티 | 여행 게시판 |
-| 16 | `follows` | 커뮤니티 | 팔로우 |
-| 17 | `chat_rooms` / `chat_room_members` / `chat_messages` | 커뮤니티 | 파티 채팅 + DM 공용 |
-| 18 | `notifications` | 알림 | 인앱 알림 |
-| 19 | `reports` | 신고 | post/party/user 다형 신고 |
-| 20 | `trip_schedule_snapshots` | 플래너 | v16 신규. 저장 시점 JSON 스냅샷(롤백 소스) |
-| 21 | `manner_temp_logs` | 마이페이지 | v16 신규. 매너온도 가감 이력 |
-| 22 | `ai_credit_usage` | AI | v16 신규. 사용자별 일일 AI 크레딧 |
-| 23 | `user_profile_theme` | 마이페이지 | v16 신규. 프로필 배경 테마 |
+| 9 | `trip_schedules` | 플래너 | 파티당 1개. v16: `locked_by_user_id`, `last_saved_at`. v21: `reservation_id` 제거 |
+| 10 | `trip_schedule_items` | 플래너 | 일정 블록(분 단위). v16: `is_fixed` |
+| 11 | `trip_schedule_votes` | 플래너 | 계획표 찬반 투표 |
+| 12 | `posts` / `post_likes` / `post_comments` | 커뮤니티 | 여행 게시판 |
+| 13 | `follows` | 커뮤니티 | 팔로우 |
+| 14 | `chat_rooms` / `chat_room_members` / `chat_messages` | 커뮤니티 | 파티 채팅 + DM 공용 |
+| 15 | `notifications` | 알림 | 인앱 알림 |
+| 16 | `reports` | 신고 | post/party/user 다형 신고 |
+| 17 | `trip_schedule_snapshots` | 플래너 | v16 신규. 저장 시점 JSON 스냅샷(롤백 소스) |
+| 18 | `manner_temp_logs` | 마이페이지 | v16 신규. 매너온도 가감 이력 |
+| 19 | `ai_credit_usage` | AI | v16 신규. 사용자별 일일 AI 크레딧 |
+| 20 | `user_profile_theme` | 마이페이지 | v16 신규. 프로필 배경 테마 |
+
+> **v21 제거**: `reservations`, `reservation_payments`, `trip_schedule_payments` (구 9·10·13번).
 
 ### JPA 매핑만 있고 `schema.sql`엔 별도 정의된 테이블
 
 엔티티(`@Table`)는 있으나 `schema.sql` 본문에 없는 것 — 후속 마이그레이션/`ddl-auto`로 생성:
 `banners`, `support` / `support_comment`, `recommendation`, `tour_reviews`, `file_meta`
 
-### ⛔ 결제/예약 제거 (`migration_v16_remove_payment_tables.sql`)
+### ✅ 결제/예약 제거 완료 (`migration_v21_remove_reservation_payment.sql`)
 
-v16에서 결제·예약 기능 삭제 확정. 아래 순서로 정리 예정:
-1. Java 코드 정리(`ReservationService`, `Reservation*Entity`, `TripSchedulePaymentEntity`, `trip_schedules.reservation_id` 참조)
-2. `ALTER TABLE trip_schedules DROP FK/KEY/COLUMN reservation_id`
-3. `DROP TABLE trip_schedule_payments, reservation_payments, reservations`
-4. `schema.sql`에서 해당 정의 삭제
+v16에서 삭제 확정된 결제·예약 기능을 `feature/remove-reservation-payment`에서 제거 완료:
+1. Java 코드 삭제 — `ReservationService`, `Reservation*Entity`, `TripSchedulePaymentEntity`, `TripReminderScheduler`, `MyReservationView`, `ReserveTourRequest`, 관련 Repository 3개, `TripScheduleEntity.reservation` 필드
+2. `schema.sql` — `reservations`·`reservation_payments`·`trip_schedule_payments` 테이블 및 `trip_schedules.reservation_id`(FK/KEY/COLUMN) 삭제, 섹션 번호 재정렬
+3. 기존 DB는 `migration_v21_remove_reservation_payment.sql` 한 번 실행(신규 DB는 갱신된 `schema.sql`이라 불필요)
 
-> 현재 `schema.sql`·엔티티에 잔존. ERD의 결제 파트는 회색으로 표기.
+파생: `ErrorCode`에서 `RESERVATION_NOT_FOUND`/`PAYMENT_NOT_FOUND`/`INSUFFICIENT_POINTS`/`WEATHER_ACK_REQUIRED` 제거. `TripPlannerService.submitForPayment()` → `finalizeSchedule()`(동작 동일: 제출→확정, 결제 없음).
 
 ## 2. ERD
 
@@ -92,12 +91,6 @@ erDiagram
     users ||--o{ manner_temp_logs : "대상"
     users ||--o{ ai_credit_usage : "일일 사용량"
     users ||--o| user_profile_theme : "1:1"
-
-    %% ⛔ v16 제거 대상 (참고용)
-    users ||--o{ reservations : "booked_by (제거예정)"
-    tours ||--o{ reservations : "제거예정"
-    reservations ||--o{ reservation_payments : "제거예정"
-    trip_schedules ||--o{ trip_schedule_payments : "제거예정"
 ```
 
 ## 3. 관계 요약
@@ -206,18 +199,17 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 - `party_members`: `role` ENUM(`owner`,`member`), `joined_at`. `uk_party_user(party_id,user_id)`.
 - `party_applications`: `message`(신청 사유), `status` ENUM(`pending`,`approved`,`rejected`), `applied_at`/`reviewed_at`. `uk_party_applicant(party_id,applicant_id)`.
 
-### 4.11 `trip_schedules` — 계획표
+### 4.9 `trip_schedules` — 계획표
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | `party_id` | BIGINT NULL | FK. `uk_schedule_party` (파티당 1개) |
-| `reservation_id` | BIGINT NULL | ⛔ v16 제거 대상 |
-| `status` | ENUM(`draft`,`submitted`,`confirmed`) | 제출 후 자유편집 잠금 |
+| `status` | ENUM(`draft`,`submitted`,`confirmed`) | `finalizeSchedule()`로 제출→확정, 이후 자유편집 잠금 |
 | `locked_by_user_id` | BIGINT NULL | **v16**. 현재 편집권 보유자. NULL=전원 읽기전용 |
 | `last_saved_at` | DATETIME NULL | **v16**. 마지막 저장(자동/수동) 시각 |
 | `submitted_at` / `confirmed_at` | DATETIME NULL | |
 
-### 4.12 `trip_schedule_items` — 일정 블록
+### 4.10 `trip_schedule_items` — 일정 블록
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
@@ -232,11 +224,11 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 | `price_krw` / `price_jpy` | INT | 추가 시점 가격 **스냅샷**(activities 실시간 참조 안 함) |
 | `added_by` | BIGINT | FK `users` |
 
-### 4.14 `trip_schedule_votes`
+### 4.11 `trip_schedule_votes`
 
 `schedule_id` + `user_id` (`uk_vote_schedule_user`), `vote` ENUM(`agree`,`disagree`), `voted_at`.
 
-### 4.20 `trip_schedule_snapshots` — 저장 시점 스냅샷 (v16 신규)
+### 4.17 `trip_schedule_snapshots` — 저장 시점 스냅샷 (v16 신규)
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
@@ -246,27 +238,27 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 | `created_by` | BIGINT | FK `users` |
 | 인덱스 | `idx_snapshot_schedule(schedule_id, created_at)` | |
 
-### 4.15 `posts` / `post_likes` / `post_comments`
+### 4.12 `posts` / `post_likes` / `post_comments`
 
 - `posts`: `user_id`, `party_id`(NULL 가능), `title`, `content` TEXT, `region`, `thumbnail_url`, `like_count`(비정규화 카운트).
 - `post_likes`: `uk_like_post_user(post_id,user_id)`.
 - `post_comments`: `content` VARCHAR(300).
 
-### 4.16 `follows`
+### 4.13 `follows`
 
 `follower_id`, `followee_id`. `uk_follow_pair` 유니크, `ck_follow_not_self CHECK (follower_id <> followee_id)`.
 
-### 4.17 `chat_rooms` / `chat_room_members` / `chat_messages`
+### 4.14 `chat_rooms` / `chat_room_members` / `chat_messages`
 
 - `chat_rooms`: `type` ENUM(`party`,`dm`), `party_id`(type=party일 때만).
 - `chat_room_members`: `uk_room_user(room_id,user_id)`.
 - `chat_messages`: `content` VARCHAR(1000), `original_lang` ENUM(`ko`,`ja`)(번역 버튼 source lang), `idx_room_created(room_id, created_at)`.
 
-### 4.18 `notifications`
+### 4.15 `notifications`
 
-`user_id`, `type` VARCHAR(30)(`trip_reminder`, `party_approved` 등), `title`, `message`, `link_url`, `is_read`. `idx_notif_user(user_id, is_read, created_at)`.
+`user_id`, `type` VARCHAR(30)(`party_approved`, `new_follower`, `new_comment` 등. `trip_reminder`는 v21에서 발행 주체 삭제됨), `title`, `message`, `link_url`, `is_read`. `idx_notif_user(user_id, is_read, created_at)`.
 
-### 4.19 `reports`
+### 4.16 `reports`
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
@@ -280,29 +272,23 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 | `actioned_by` | BIGINT NULL | **v16**. 조치한 관리자. FK `users` |
 | 인덱스 | `idx_report_status(status, created_at)` | |
 
-### 4.21 `manner_temp_logs` — 매너온도 이력 (v16 신규)
+### 4.18 `manner_temp_logs` — 매너온도 이력 (v16 신규)
 
 `user_id`, `delta` DECIMAL(3,1)(예 +0.5 / -1.0), `reason` ENUM(`party_complete`,`host_bonus`,`report_penalty`,`leave_penalty`), `related_id`(party_id 또는 report_id, FK 없음). `idx_mtl_user(user_id, created_at)`.
 
-### 4.22 `ai_credit_usage` — 일일 AI 크레딧 (v16 신규)
+### 4.19 `ai_credit_usage` — 일일 AI 크레딧 (v16 신규)
 
 `user_id` + `usage_date` DATE (`uk_acu_user_date` 유니크), `used_count`, `daily_limit`(전원 동일). 자정 초기화는 날짜 키로 자연 처리.
 
-### 4.23 `user_profile_theme` — 프로필 배경 (v16 신규)
+### 4.20 `user_profile_theme` — 프로필 배경 (v16 신규)
 
 `user_id` (`uk_upt_user` 유니크 = 1:1), `theme_key` VARCHAR(50)(사전 정의 스킨 키), `updated_at`.
-
-### 4.9~4.10 · 4.13 결제/예약 (⛔ v16 제거 대상, 참고용)
-
-- `reservations`: `party_id`(NULL=개인), `booked_by_user_id`, `tour_id`, `people_count`, `reservation_number`(유니크), `departure_date`, `status`(pending/confirmed/cancelled), `weather_ack`(AI 날씨 비추천 감수), `weather_ack_note`(날씨 스냅샷).
-- `reservation_payments`: `reservation_id` + `user_id`(`uk_res_user`), `currency` ENUM(`KRW`,`JPY`), `amount`, `status`(ready/paid/failed).
-- `trip_schedule_payments`: `schedule_id` + `user_id`(`uk_schedule_user`), 구조는 `reservation_payments`와 동일.
 
 ## 5. 인덱스 / 제약 요약
 
 | 종류 | 목록 |
 |---|---|
-| 유니크 | `users`(email, phone, social), `user_titles`, `titles.code`, `activities.external_place_id`, `party_members`, `party_applications`, `trip_schedules`(party), `trip_schedule_votes`, `trip_schedule_payments`, `post_likes`, `follows`, `chat_room_members`, `reservations.reservation_number`, `reservation_payments`, `ai_credit_usage`, `user_profile_theme` |
+| 유니크 | `users`(email, phone, social), `user_titles`, `titles.code`, `activities.external_place_id`, `party_members`, `party_applications`, `trip_schedules`(party), `trip_schedule_votes`, `post_likes`, `follows`, `chat_room_members`, `ai_credit_usage`, `user_profile_theme` |
 | CHECK | `tours`(가격>0), `trip_schedule_items`(start 0~1439, duration≥1), `follows`(자기 팔로우 금지) |
 | 조회 인덱스 | `phone_verifications`, `chat_messages`(room+created), `notifications`(user+read+created), `reports`(status+created), `trip_schedule_snapshots`(schedule+created), `manner_temp_logs`(user+created) |
 | 비정규화 | `posts.like_count` (좋아요 수 캐시) |
@@ -316,5 +302,5 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 | `demo_heatmap_data.sql` | 히트맵 데모용 여행/파티 데이터 |
 | `migration_v16_planner_manner_ai.sql` | 플래너 편집권/자동저장/롤백, 매너온도 이력, AI 크레딧, 장소검색 캐싱, 프로필 꾸미기, 파티 완료 처리 |
 | `migration_v16_mypage_titles.sql` | 칭호 조건을 예약 기준 → 완료 파티 기준으로 교체 |
-| `migration_v16_remove_payment_tables.sql` | ⛔ 결제·예약 3테이블 + `trip_schedules.reservation_id` 제거 |
 | `migration_v17_titles_catalog.sql` | 칭호 38종 / 8카테고리 개편 |
+| `migration_v21_remove_reservation_payment.sql` | ✅ 결제·예약 3테이블 + `trip_schedules.reservation_id` 제거. 기존 DB만 실행(신규 DB는 갱신된 `schema.sql`) |

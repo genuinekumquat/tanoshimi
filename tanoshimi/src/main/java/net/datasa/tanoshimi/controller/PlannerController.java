@@ -46,7 +46,7 @@ public class PlannerController {
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public String planner(@PathVariable Long scheduleId, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
-        TourEntity tour = schedule.getReservation() != null ? schedule.getReservation().getTour() : null;
+        TourEntity tour = schedule.getParty() != null ? schedule.getParty().getTour() : null;
 
         boolean isOwner = principal != null && schedule.getParty() != null
                 && schedule.getParty().getOwner().getId().equals(principal.getId());
@@ -187,7 +187,7 @@ public class PlannerController {
             throw new BusinessException(ErrorCode.AI_CREDIT_EXCEEDED);
         }
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
-        TourEntity tour = schedule.getReservation() != null ? schedule.getReservation().getTour() : null;
+        TourEntity tour = schedule.getParty() != null ? schedule.getParty().getTour() : null;
         String targetRegion = tour != null ? tour.getRegion() : region;
         if (targetRegion == null || targetRegion.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "지역을 선택해주세요.");
@@ -329,17 +329,9 @@ public class PlannerController {
     @PostMapping("/api/planner/{scheduleId}/submit")
     @ResponseBody
     public ApiResponse<Void> submit(@PathVariable Long scheduleId) {
-        plannerService.submitForPayment(getSchedule(scheduleId));
+        plannerService.finalizeSchedule(getSchedule(scheduleId));
         broadcast(scheduleId);
         return ApiResponse.okMessage("계획표가 최종 확정되었습니다.");
-    }
-
-    @PostMapping("/api/planner/{scheduleId}/pay")
-    @ResponseBody
-    public ApiResponse<Void> pay(@PathVariable Long scheduleId, @AuthenticationPrincipal CustomUserDetails principal) {
-        UserEntity payer = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        plannerService.pay(getSchedule(scheduleId), payer);
-        return ApiResponse.okMessage("결제가 완료되었습니다.");
     }
 
     @GetMapping("/planner/{scheduleId}/report")

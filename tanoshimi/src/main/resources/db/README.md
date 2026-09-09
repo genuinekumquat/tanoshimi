@@ -11,7 +11,6 @@ mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/schema.
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/data.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v16_mypage_titles.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v16_planner_manner_ai.sql
-mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v16_remove_payment_tables.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v17_titles_catalog.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v18_titles_distance_tiers.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v19_my_trips.sql
@@ -43,11 +42,14 @@ mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/demo_my
   참고. schema.sql만 실행하고 앱을 한 번도 안 켰다면, `data.sql`이나 `demo_mypage_seed.sql`
   실행 전에 서버를 한 번 켰다 꺼서 컬럼을 맞춰두는 게 안전하다.
 - **`data.sql`** — 기본 시드(관리자 계정 2개, 데모 유저 7명, 칭호 40종, 기본 파티 4건 등).
-- **`migration_v16_mypage_titles.sql`, `migration_v16_planner_manner_ai.sql`,
-  `migration_v16_remove_payment_tables.sql`, `migration_v17_titles_catalog.sql`,
-  `migration_v18_titles_distance_tiers.sql`, `migration_v19_my_trips.sql`** — 실제 스키마
-  변경 이력. **순서대로 실행해야 하고, 합치거나 지우지 않는다** — 지금 스키마가 어떤 과정을
-  거쳐 이 모양이 됐는지 보여주는 기록이라 마이그레이션 파일은 정리 대상이 아니다.
+- **`migration_v16_*` ~ `migration_v20_*`** — 실제 스키마 변경 이력. **순서대로 실행해야 하고,
+  합치거나 지우지 않는다** — 지금 스키마가 어떤 과정을 거쳐 이 모양이 됐는지 보여주는 기록이라
+  마이그레이션 파일은 정리 대상이 아니다.
+- **`migration_v21_remove_reservation_payment.sql`** — 결제·예약 기능 제거로 없어진
+  `reservations` / `reservation_payments` / `trip_schedule_payments` 테이블과
+  `trip_schedules.reservation_id` 컬럼을 정리한다. 위 필수 순서로 새로 만든 DB 에는 이미
+  갱신된 `schema.sql` 이 적용돼 해당 테이블이 없으므로 실행하지 않는다. **이 변경 이전에
+  만들어 둔 기존 로컬 DB 에만** 한 번 실행한다.
 - **`demo_mypage_seed.sql`** — 마이페이지(내 여행/히트맵/칭호) 확인용 데모 데이터.
   `yuja@test.com` 계정에 완료 파티 29건 + 지역 태그 스냅 21건 + SOLO 여행 2건(오사카/부산) +
   스냅 3건을 채우고, 파티 29건 전부에 스냅을 연동해서 히트맵/칭호/"내 여행" 목록이 실제로
