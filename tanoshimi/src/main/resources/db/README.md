@@ -12,12 +12,20 @@ mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/data.sq
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v16_mypage_titles.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v16_planner_manner_ai.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v17_titles_catalog.sql
+mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v18_email_verification.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v18_titles_distance_tiers.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v19_my_trips.sql
+mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v19_temporary_password.sql
+mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v20_usernames.sql
 ```
 
 여기까지가 앱을 실행하는 데 필요한 필수 순서다. 매너온도/DB 계정 등 세부 사항은 저장소 루트의
 다른 문서 참고 (`application-local.yml.example`, DB 계정은 `scit`).
+
+- **새로 만드는 DB 는 `schema.sql` 에 `persistent_logins`(자동 로그인) 정의가 포함돼 있어
+  `migration_v22_remember_me.sql` 을 실행하지 않아도 된다.** 이 마이그레이션은 이 변경 이전에
+  만들어 둔 DB 에만 한 번 돌리면 된다(안 돌리면 로그아웃 시 500).
+- `migration_v21_remove_reservation_payment.sql` 도 마찬가지로 기존 DB 전용이다(아래 참고).
 
 ## (선택) 마이페이지 데모 데이터 채우기
 
@@ -50,6 +58,10 @@ mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/demo_my
   `trip_schedules.reservation_id` 컬럼을 정리한다. 위 필수 순서로 새로 만든 DB 에는 이미
   갱신된 `schema.sql` 이 적용돼 해당 테이블이 없으므로 실행하지 않는다. **이 변경 이전에
   만들어 둔 기존 로컬 DB 에만** 한 번 실행한다.
+- **`migration_v22_remember_me.sql`** — 자동 로그인("로그인 상태 유지") 세션 저장용
+  `persistent_logins` 테이블. `schema.sql` 에도 같은 정의가 들어갔으므로 새 DB 는 실행 불필요,
+  **기존 DB 에만** 한 번 실행한다(안 하면 로그아웃 시 500). 원래 `v21` 로 만들어졌으나
+  결제·예약 제거 마이그레이션과 번호가 겹쳐 `v22` 로 옮겼다.
 - **`demo_mypage_seed.sql`** — 마이페이지(내 여행/히트맵/칭호) 확인용 데모 데이터.
   `yuja@test.com` 계정에 완료 파티 29건 + 지역 태그 스냅 21건 + SOLO 여행 2건(오사카/부산) +
   스냅 3건을 채우고, 파티 29건 전부에 스냅을 연동해서 히트맵/칭호/"내 여행" 목록이 실제로
@@ -59,7 +71,7 @@ mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/demo_my
 ## 팀원이 지금과 똑같은 데모 상태를 받으려면
 
 위 "처음 로컬 DB 세팅하는 순서" + "(선택) 마이페이지 데모 데이터 채우기"를 그대로 따라가면
-된다. 요약하면: `schema.sql` → `data.sql` → `migration_v16~v19` → `demo_mypage_seed.sql`
-1차 → 브라우저로 `/mypage` 한 번 열기 → `demo_mypage_seed.sql` 2차. 이게 끝이면 지금
+된다. 요약하면: `schema.sql` → `data.sql` → `migration_v16~v20`(위 목록 순서대로) →
+`demo_mypage_seed.sql` 1차 → 브라우저로 `/mypage` 한 번 열기 → `demo_mypage_seed.sql` 2차. 이게 끝이면 지금
 확인 중인 것과 동일한 유자차 데모 상태(히트맵 색칠, 칭호, "직접 등록"/"파티 자동 등록"
 배지 포함)를 그대로 받는다.

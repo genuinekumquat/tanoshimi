@@ -65,8 +65,8 @@ public class  SecurityConfig {
         return new BCryptPasswordEncoder(10);
     }
 
-    // 자동 로그인(체크박스) 세션을 저장하는 저장소 - persistent_logins 테이블(v21 마이그레이션)에
-    // series/token을 저장/조회한다.
+    // 자동 로그인(체크박스) 세션을 저장하는 저장소 - persistent_logins 테이블(schema.sql / v22 마이그레이션)에
+    // series/token을 저장/조회한다. 이 테이블이 없으면 로그아웃 시 DELETE 쿼리가 SQL 오류로 500 이 난다.
     @Bean
     public PersistentTokenRepository persistentTokenRepository() {
         JdbcTokenRepositoryImpl repository = new JdbcTokenRepositoryImpl();
