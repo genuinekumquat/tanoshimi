@@ -152,6 +152,12 @@ app:
   login:
     max-failures: 5
     lock-minutes: 10
+    # [신규] 자동 로그인("로그인 상태 유지" 체크박스) - persistent_logins 테이블(v21 마이그레이션)에
+    # 시리즈/토큰을 저장하고 매 자동로그인마다 토큰을 갱신(rotate)한다. key는 토큰 위조 방지용
+    # 서명 키라 배포 환경에서는 반드시 환경변수로 고유값을 넣을 것(로컬 기본값 그대로 배포 금지).
+    remember-me:
+      key: ${REMEMBER_ME_KEY:tanoshimi-dev-remember-me-key}
+      validity-days: 30
 
   weather:
     provider: mock            
