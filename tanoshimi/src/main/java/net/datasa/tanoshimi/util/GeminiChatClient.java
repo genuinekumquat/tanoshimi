@@ -34,6 +34,10 @@ import java.util.Map;
 @ConditionalOnProperty(name = "app.companion.provider", havingValue = "gemini")
 public class GeminiChatClient implements CompanionChatClient {
 
+    /** 외부 AI 호출이 실패했을 때 사용자에게 보여줄 안내(원본 에러는 로그에만 남긴다). */
+    private static final String FALLBACK_REPLY =
+            "크릉... 타미가 지금 잠깐 딴 데 정신이 팔렸나 봐 멍. 잠시 후에 다시 불러줄래 멍? 🐾";
+
     private final WebClient webClient = WebClient.builder()
             .baseUrl("https://generativelanguage.googleapis.com")
             .build();
@@ -180,7 +184,7 @@ public class GeminiChatClient implements CompanionChatClient {
                 }
             }
             log.warn("Gemini API 응답 형식이 예상과 달라요: " + lastResponse);
-            return "오류 내용: " + (lastResponse != null ? lastResponse.toString() : "null");
+            return FALLBACK_REPLY;
         } catch (Exception e) {
             if (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException) {
                 org.springframework.web.reactive.function.client.WebClientResponseException we =
@@ -192,7 +196,7 @@ public class GeminiChatClient implements CompanionChatClient {
             }
             String errMsg = e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ? ((org.springframework.web.reactive.function.client.WebClientResponseException)e).getResponseBodyAsString() : e.getMessage();
             log.error("Gemini API 호출 실패: " + errMsg, e);
-            return "디버그 안됨: " + errMsg;
+            return FALLBACK_REPLY;
         }
     }
 

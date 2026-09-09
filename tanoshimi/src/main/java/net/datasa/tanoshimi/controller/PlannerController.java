@@ -2,6 +2,7 @@ package net.datasa.tanoshimi.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.dto.ApiResponse;
 import net.datasa.tanoshimi.domain.dto.RecommendationDto;
@@ -27,6 +28,7 @@ import java.util.List;
  * Planner page and REST API.
  * Uses REST API for CRUD operations, and broadcasts mapping via WebSocket.
  */
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class PlannerController {
@@ -316,8 +318,8 @@ public class PlannerController {
             broadcast(scheduleId);
             return ApiResponse.ok(java.util.Map.of("briefing", briefing));
         } catch (Exception e) {
-            e.printStackTrace();
-            return ApiResponse.ok(java.util.Map.of("briefing", "응답을 처리하는 중 오류가 발생했습니다: " + e.getMessage() + "\n\n원본:\n" + responseText));
+            log.warn("AI 검증 응답 파싱 실패 (원본: {})", responseText, e);
+            return ApiResponse.ok(java.util.Map.of("briefing", "AI 응답을 처리하지 못했어요. 잠시 후 다시 시도해 주세요."));
         }
     }
 
@@ -361,10 +363,23 @@ public class PlannerController {
         }
         
         String aiHtml = geminiClient.ask(prompt.toString());
-        
-        aiHtml = aiHtml.replaceAll("^```(html)?\\s*", "").replaceAll("\\s*```$", "");
-        
-        model.addAttribute("reportHtml", aiHtml.trim());
+
+        aiHtml = aiHtml.replaceAll("^```(html)?\\s*", "").replaceAll("\\s*```$", "").trim();
+
+        // AI 실패 시 클라이언트가 {"briefing": "...", "newSchedule": []} 형태의 안내 JSON을 돌려준다.
+        // 리포트 화면은 HTML을 기대하므로, 이 경우 briefing 문구만 뽑아 문단으로 감싼다.
+        if (aiHtml.startsWith("{")) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(aiHtml);
+                if (node.has("briefing")) {
+                    aiHtml = "<p>" + org.springframework.web.util.HtmlUtils.htmlEscape(node.path("briefing").asText()) + "</p>";
+                }
+            } catch (Exception ignore) {
+                aiHtml = "<p>지금은 AI 리포트를 생성할 수 없어요. 잠시 후 다시 시도해 주세요.</p>";
+            }
+        }
+
+        model.addAttribute("reportHtml", aiHtml);
         return "planner/report";
     }
 
