@@ -125,11 +125,35 @@
             <div class="d">${d.date}</div>
             <div class="w">${d.week}</div>
             <button class="add" data-day="${d.key}">+ 추가</button>
+            <button class="opt-route" data-day="${d.key}">🧭 동선</button>
           </div>`).join('');
-          
+
         gridHead.querySelectorAll('.add').forEach(btn =>
           btn.addEventListener('click', async () => {
               await addBlank(btn.dataset.day);
+          })
+        );
+
+        gridHead.querySelectorAll('.opt-route').forEach(btn =>
+          btn.addEventListener('click', async () => {
+              if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) {
+                  alert('편집권이 있어야 동선을 최적화할 수 있어요.');
+                  return;
+              }
+              const day = parseInt(btn.dataset.day.replace('d', ''), 10) || 1;
+              if (!confirm(`${day}일차 일정을 좌표 기준으로 재배치할까요? AI 크레딧이 1회 차감됩니다.`)) return;
+              btn.disabled = true;
+              try {
+                  const result = await window.api.post(`/api/planner/${SCHEDULE_ID}/optimize-route?dayIndex=${day}`, {});
+                  if (result.success) {
+                      alert(result.message);
+                      await reload();
+                  } else {
+                      alert(result.message || '동선 최적화에 실패했습니다.');
+                  }
+              } finally {
+                  btn.disabled = false;
+              }
           })
         );
         

@@ -100,6 +100,12 @@
     border:1px dashed var(--rope); border-radius:7px; padding:2px 8px; cursor:pointer; font-family:inherit;
   }
   .day-head .add:hover{ border-color:var(--sash); color:var(--sash-deep); }
+  .day-head .opt-route{
+    display:block; margin:4px auto 0; font-size:11px; color:var(--forest-deep); background:var(--card);
+    border:1px solid var(--line); border-radius:7px; padding:2px 8px; cursor:pointer; font-family:inherit;
+  }
+  .day-head .opt-route:hover{ border-color:var(--sash); color:var(--sash-deep); }
+  .day-head .opt-route:disabled{ opacity:.5; cursor:default; }
 
   .grid-body{ display:grid; grid-template-columns:56px repeat(4,1fr); }
   
