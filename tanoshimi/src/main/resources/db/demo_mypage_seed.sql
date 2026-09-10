@@ -99,11 +99,6 @@ SELECT * FROM (VALUES
 ) AS v(owner_user_id, tour_id, title, region, departure_date, duration_days, capacity, style_tag, status)
 WHERE NOT @demo_parties_exist;
 
-INSERT IGNORE INTO party_members (party_id, user_id, role)
-SELECT id, @uid, 'owner' FROM parties WHERE title LIKE '[demo]%';
-
-UPDATE users SET manner_temp = 41.0 WHERE id = @uid; -- 매너왕(40도) 확인용, 기본 시드 39.2론 미달
-
 -- ---------------------------------------------------------------------
 -- PART 2. 지역 태그 스냅 21건 (지도 호버 시 사진 표시용 - PostService.regionTaggedPosts 근거,
 --   trip 연결/여행 횟수 집계와는 무관한 순수 장식용 데이터)
