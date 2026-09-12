@@ -142,11 +142,23 @@
       <p id="hot-party-empty" style="text-align:center; padding:60px 0; color:#999; display:none; font-size:15px; font-weight:600;">조건에 맞는 파티가 없습니다.</p>
   </section>
 
-  <!-- 5. 인기 스냅 (커뮤니티 사진 글, 좋아요순) -->
+  <!-- 5. 인기 스냅 (커뮤니티 사진 글, 좋아요순) - TNSM-53 재구현: 지도 대신 지역 드롭다운 -->
   <section class="grid-section">
-      <h2 class="snap-sec-title">📸 인기 스냅 <span class="sub">여행자들이 많이 좋아한 사진</span></h2>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+        <h2 class="snap-sec-title" style="margin-bottom:0;">📸 인기 스냅 <span class="sub">여행자들이 많이 좋아한 사진</span></h2>
+        <select id="snap-region-select" style="padding:10px 14px; border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:13px; background:#fff; color:var(--ink);">
+          <option value="">전체 지역</option>
+          <optgroup th:each="country : ${regionTree}" th:label="${country.name}">
+            <option th:each="area : ${country.areas}" th:value="${area.name}" th:text="${area.name}"
+                    th:selected="${selectedRegion == area.name}"></option>
+          </optgroup>
+        </select>
+      </div>
       <div class="snap-grid" id="snap-grid"></div>
-      <p id="snap-empty" style="text-align:center; padding:60px 0; color:#999; display:none; font-size:15px; font-weight:600;">아직 등록된 스냅이 없습니다.</p>
+      <p id="snap-empty" style="text-align:center; padding:60px 0; color:#999; display:none; font-size:15px; font-weight:600;">
+        <span th:if="${selectedRegion != null and !selectedRegion.isEmpty()}" th:text="'\'' + ${selectedRegion} + '\' 지역엔 아직 등록된 스냅이 없습니다.'"></span>
+        <span th:unless="${selectedRegion != null and !selectedRegion.isEmpty()}">아직 등록된 스냅이 없습니다.</span>
+      </p>
   </section>
 </div>
 
@@ -157,6 +169,12 @@ const HOT_PARTIES = /*[[${urgentParties != null ? urgentParties : null}]]*/ null
 // "📸 인기 스냅" 그리드 재료 (SnapCardView 리스트) - main-explore.js 의 renderSnapGrid 가 읽는다.
 const POPULAR_SNAPS = /*[[${popularSnaps != null ? popularSnaps : null}]]*/ null;
 /*]]>*/
+
+// [TNSM-53 재구현] 지역별 인기 스냅 - 드롭다운 선택 시 그 지역으로 페이지 새로고침(board/list.html
+// 의 지역 필터와 동일한 방식 - 서버가 이미 필터링된 POPULAR_SNAPS 를 다시 내려준다).
+document.getElementById('snap-region-select')?.addEventListener('change', (e) => {
+    window.location.href = e.target.value ? ('/?region=' + encodeURIComponent(e.target.value)) : '/';
+});
 
 // 슬라이드 배너 스크립트 실행
 document.addEventListener('DOMContentLoaded', () => {

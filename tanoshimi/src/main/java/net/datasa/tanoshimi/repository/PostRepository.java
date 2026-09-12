@@ -111,4 +111,16 @@ public interface PostRepository extends JpaRepository<PostEntity, Long> {
             + "where p.blinded = false and p.thumbnailUrl is not null and p.thumbnailUrl <> '' "
             + "order by p.likeCount desc, p.createdAt desc")
     List<PostEntity> findPopularSnaps(Pageable pageable);
+
+    /**
+     * [TNSM-53 재구현] 위 인기 스냅과 동일하되 지역 목록으로 필터링한다. 호출부(PostService)가
+     * RegionCatalog로 선택된 권역의 하위 지역 이름들을 미리 풀어서 넘긴다 - "region in :regions"
+     * 하나로 상위/하위 지역을 동시에 커버한다.
+     */
+    @EntityGraph(attributePaths = {"user"})
+    @Query("select p from PostEntity p "
+            + "where p.blinded = false and p.thumbnailUrl is not null and p.thumbnailUrl <> '' "
+            + "and p.region in :regions "
+            + "order by p.likeCount desc, p.createdAt desc")
+    List<PostEntity> findPopularSnaps(@Param("regions") List<String> regions, Pageable pageable);
 }

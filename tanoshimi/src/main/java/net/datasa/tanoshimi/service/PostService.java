@@ -8,6 +8,7 @@ import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.*;
 import org.springframework.data.domain.Page;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -112,6 +113,38 @@ public class PostService {
     @Transactional(readOnly = true)
     public List<SnapCardView> popularSnapCards(int limit) {
         return postRepository.findPopularSnaps(PageRequest.of(0, limit)).stream()
+                .map(p -> new SnapCardView(
+                        p.getId(), p.getTitle(), p.getRegion(),
+                        p.getThumbnailUrl(), p.getLikeCount(), p.getUser().getName()))
+                .toList();
+    }
+
+    /**
+     * [TNSM-53 재구현] 지역별 인기 스냅 - "지역별 인기 스냅 보기" 드롭다운(한국 17개 시/도 +
+     * 일본 9개 지방)에서 권역을 고르면 그 권역과 하위 지역까지 함께 보여준다.
+     *
+     * <p>region이 비어있으면 지역 무관 전체 버전(popularSnapCards(int))으로 위임한다.
+     * 상위/하위 지역 매칭은 regionSnaps(UserEntity, String)와 같은 규칙을 쓰되, 거기서는
+     * 매 글마다 RegionCatalog.areaOf()를 자바 스트림에서 호출하는 방식인 반면, 여기서는
+     * SQL "region in (:regions)" 한 방으로 처리하기 위해 미리 RegionCatalog.placesOf()로
+     * 하위 지역 이름 목록을 풀어서 넘긴다. placesOf()는 하위 지역 이름만 주고 권역 이름
+     * 자신은 포함하지 않으므로(예: "전남"은 목록에 없고 "여수"·"목포"만 있음), 글에
+     * 권역 이름 그대로("전남") 태그된 경우까지 잡기 위해 target 자신도 같이 넣는다.
+     */
+    @Transactional(readOnly = true)
+    public List<SnapCardView> popularSnapCards(int limit, String region) {
+        if (region == null || region.isBlank()) {
+            return popularSnapCards(limit);
+        }
+        String target = regionCatalog.normalize(region);
+        if (target == null) {
+            return popularSnapCards(limit);
+        }
+
+        List<String> regions = new ArrayList<>(regionCatalog.placesOf(target));
+        regions.add(target);
+
+        return postRepository.findPopularSnaps(regions, PageRequest.of(0, limit)).stream()
                 .map(p -> new SnapCardView(
                         p.getId(), p.getTitle(), p.getRegion(),
                         p.getThumbnailUrl(), p.getLikeCount(), p.getUser().getName()))
