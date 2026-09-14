@@ -62,9 +62,15 @@ public class ChatbotActivityService {
                 poolContext.append(String.format("ID:%d, Title:%s, Duration:%d min, Desc:%s\n", a.getId(), a.getTitle(), a.getDurationMin(), a.getDescription()));
             });
 
+            // [TNSM-50] region/pastStyleTags/date를 프롬프트에 실제로 반영 (기존엔 keyword만 사용해 무시되고 있었음)
+            String safeTags = (pastStyleTags != null && !pastStyleTags.isBlank()) ? pastStyleTags : "None";
+
             String prompt = String.format(
-                    "You are a helpful travel planner. User request: '%s'. " +
-                    "Return a JSON array of exactly 5 recommended schedule items. " +
+                    "You are a helpful travel planner for the region '%s'. " +
+                    "User request: '%s'. " +
+                    "User's travel style and companions: '%s'. " +
+                    "Travel Date: %s. " +
+                    "Return a JSON array of exactly 5 recommended schedule items tailored to the user's style, companions, and region. " +
                     "Requirement: 2 or 3 items MUST be the most famous, representative must-visit spots. " +
                     "The remaining 2 or 3 items MUST be creative, varied, lesser-known, or unique spots that rotate randomly so if I ask again, I get different suggestions! " +
                     "Use Google Search to find real tourist information for this region. " +
@@ -72,7 +78,7 @@ public class ChatbotActivityService {
                     "If using an existing item, set 'kind' to 'recommend', keeping its exact 'activityId', 'title', 'durationMin'. " +
                     "If you invent a new web-sourced activity, set 'kind' to 'custom', 'activityId' to null, and give it a good 'title' and 'durationMin'. " +
                     "Output ONLY a valid JSON array with keys: kind, activityId (number or null), title (string), durationMin (number). Strip markdown blocks.",
-                    keyword, poolContext.toString()
+                    region, keyword, safeTags, date != null ? date.toString() : "Unknown", poolContext.toString()
             );
             
             String aiResponse = geminiClient.ask(prompt);

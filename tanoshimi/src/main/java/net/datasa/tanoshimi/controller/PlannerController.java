@@ -197,6 +197,7 @@ public class PlannerController {
         }
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
         TourEntity tour = schedule.getParty() != null ? schedule.getParty().getTour() : null;
+        String pastStyleTags = schedule.getParty() != null ? schedule.getParty().getStyleTag() : null;
         String targetRegion = tour != null ? tour.getRegion() : region;
         if (targetRegion == null || targetRegion.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "지역을 선택해주세요.");
@@ -208,7 +209,7 @@ public class PlannerController {
             var advice = weatherAdvisorService.adviseForTour(tour, d);
             badWeather = !advice.recommend();
         }
-        return ApiResponse.ok(chatbotActivityService.recommend(targetRegion, d, keyword, "", badWeather));
+        return ApiResponse.ok(chatbotActivityService.recommend(targetRegion, d, keyword, pastStyleTags, badWeather));
     }
 
     // ===================== [신규] AI 일정 검증 =====================
