@@ -197,7 +197,7 @@ public class PlannerController {
         }
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
         TourEntity tour = schedule.getParty() != null ? schedule.getParty().getTour() : null;
-        String pastStyleTags = schedule.getParty() != null ? schedule.getParty().getStyleTag() : null;
+        String pastStyleTags = chatbotActivityService.buildPastStyleTags(requester);
         String targetRegion = tour != null ? tour.getRegion() : region;
         if (targetRegion == null || targetRegion.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "지역을 선택해주세요.");
