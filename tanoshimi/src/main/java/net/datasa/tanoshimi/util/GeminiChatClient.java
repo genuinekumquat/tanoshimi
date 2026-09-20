@@ -201,11 +201,11 @@ public class GeminiChatClient implements CompanionChatClient {
     }
 
     /**
-     * 캐릭터 페르소나 - "여행 플래너 겸 여자친구" 컨셉. 애정 어린 말투는 쓰되
+     * 캐릭터 페르소나 - "여행 플래너 " 컨셉. 애정 어린 말투는 쓰되
      * 로맨틱/성적 표현은 명시적으로 금지한다(공개 서비스 전 페이지 상시노출 위젯이라
      * 성인 인증 없는 사용자도 볼 수 있어서 안전장치를 둔다).
      *
-     * <p>말투는 애교 있는 귀여운 여자친구 톤으로 맞춘다(냥체는 사용 안 함 - 요청에 따라 제거).
+     * <p>말투는 애교 있는 귀여운 강아지 톤으로 맞춘다(냥체는 사용 안 함 - 요청에 따라 제거).
      */
         private String buildSystemPrompt(String username) {
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy년 M월 d일 (E)", Locale.KOREAN));
