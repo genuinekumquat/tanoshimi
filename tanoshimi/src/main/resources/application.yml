@@ -164,8 +164,14 @@ app:
     api-key: ${WEATHER_API_KEY:}
 
   translation:
-    provider: mock            
+    provider: mock
     api-key: ${TRANSLATION_API_KEY:}
+
+  # planner/route-map("지도로 보기")의 구간별 임베드 지도(경로선 + 버스 정류장 표시)용.
+  # 비어있으면 임베드 지도 대신 "구글 지도에서 길찾기" 외부 링크만 보인다(현재 기본 동작).
+  # Google Cloud Console에서 Maps Embed API 사용 설정 후 발급한 키를 application-local.yml에만 채울 것.
+  maps:
+    embed-api-key: ${GOOGLE_MAPS_EMBED_API_KEY:}
 
   # [신규] 전 페이지 우측 여행 도우미 마스코트 챗봇.
   # provider: mock(기본, 정해진 대답 몇 개 랜덤 응답) / anthropic(Claude API) / gemini(Google Gemini API)

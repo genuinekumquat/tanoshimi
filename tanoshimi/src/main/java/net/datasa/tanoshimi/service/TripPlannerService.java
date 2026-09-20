@@ -127,6 +127,56 @@ public class TripPlannerService {
                 .toList();
     }
 
+    /**
+     * 액티비티 제목 끝에 붙는 "활동/이벤트" 표현을 잘라내고 장소명만 남긴다(예: "스미요시타이샤
+     * 하츠모데" -> "스미요시타이샤"). 목록에 없는 새 표현은 못 걸러내는 휴리스틱이라, 이상한
+     * 결과가 보이면 이 목록에 표현을 추가할 것 - 더 긴(구체적인) 표현부터 검사해서 "야경 산책"이
+     * "산책"보다 먼저 매치되게 한다.
+     */
+    private static final List<String> ACTIVITY_PHRASE_SUFFIXES = List.of(
+            "야경 산책", "먹거리 탐방", "먹방 투어", "하츠모데", "산책", "체험", "관람", "투어",
+            "나들이", "먹방", "감상", "구경", "쇼핑", "축제", "야경"
+    );
+
+    private String extractPlaceName(String title) {
+        for (String suffix : ACTIVITY_PHRASE_SUFFIXES) {
+            if (title.length() > suffix.length() && title.endsWith(suffix)) {
+                String trimmed = title.substring(0, title.length() - suffix.length()).trim();
+                if (!trimmed.isEmpty()) return trimmed;
+            }
+        }
+        return title;
+    }
+
+    /**
+     * "지도로 보기"(planner/route-map) 화면용.
+     * 장소 단건 "보기" 링크는 좌표가 있어도 이름 검색(mapQuery)을 쓴다 - 유명 관광지는 좌표 핀보다
+     * 이름으로 찾아야 리뷰/사진이 딸린 정상적인 장소 카드가 뜨기 때문. 좌표(hasLocation)는
+     * 구간별 "길찾기"(실제 경로 계산)에만 쓴다. 액티비티에 연결된(hasLocation) 항목만 제목에서
+     * 장소명을 추출하고, 커스텀 일정은 사용자가 쓴 문구 그대로 검색한다.
+     */
+    @Transactional(readOnly = true)
+    public List<net.datasa.tanoshimi.domain.dto.RouteMapStopView> getRouteMapStops(TripScheduleEntity schedule) {
+        String tourRegion = schedule.getParty() != null && schedule.getParty().getTour() != null
+                ? schedule.getParty().getTour().getRegion() : null;
+        return rawItems(schedule).stream()
+                .map(i -> {
+                    ActivityEntity activity = i.getActivity();
+                    boolean hasLocation = activity != null && activity.getLatitude() != null && activity.getLongitude() != null;
+                    String region = activity != null && activity.getRegion() != null && !activity.getRegion().isBlank()
+                            ? activity.getRegion() : tourRegion;
+                    String namePart = hasLocation ? extractPlaceName(i.getTitle()) : i.getTitle();
+                    String mapQuery = namePart + (region != null && !region.isBlank() ? " " + region : "");
+                    return new net.datasa.tanoshimi.domain.dto.RouteMapStopView(
+                            i.getDayIndex(), i.getStartMinute(), i.getDurationMinute(),
+                            i.getTitle(), i.getMemo(), hasLocation,
+                            hasLocation ? activity.getLatitude().toPlainString() : null,
+                            hasLocation ? activity.getLongitude().toPlainString() : null,
+                            mapQuery);
+                })
+                .toList();
+    }
+
     @Transactional
     public Long addItem(Long scheduleId, UserEntity user, ScheduleItemRequest req) {
         TripScheduleEntity schedule = scheduleRepository.findById(scheduleId).orElseThrow(() -> new net.datasa.tanoshimi.exception.BusinessException(net.datasa.tanoshimi.exception.ErrorCode.SCHEDULE_NOT_FOUND));

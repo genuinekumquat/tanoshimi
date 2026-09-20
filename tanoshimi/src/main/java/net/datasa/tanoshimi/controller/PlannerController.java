@@ -44,6 +44,10 @@ public class PlannerController {
     private final SimpMessagingTemplate messagingTemplate;
     private final GeminiClient geminiClient;
 
+    /** planner/route-map 구간별 임베드 지도용 - 비어있으면 임베드 없이 외부 링크만 보인다. */
+    @org.springframework.beans.factory.annotation.Value("${app.maps.embed-api-key:}")
+    private String mapsEmbedApiKey;
+
     @GetMapping("/planner/{scheduleId}")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public String planner(@PathVariable Long scheduleId, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
@@ -382,6 +386,20 @@ public class PlannerController {
 
         model.addAttribute("reportHtml", aiHtml);
         return "planner/report";
+    }
+
+    @GetMapping("/planner/{scheduleId}/route-map")
+    public String routeMap(@PathVariable Long scheduleId, Model model) {
+        TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
+        TourEntity tour = schedule.getParty() != null ? schedule.getParty().getTour() : null;
+        int totalDays = schedule.getDurationDays() != null ? schedule.getDurationDays()
+                : (schedule.getParty() != null ? schedule.getParty().getDurationDays()
+                : (tour != null ? tour.getDurationNights() + 1 : 3));
+        model.addAttribute("schedule", schedule);
+        model.addAttribute("stops", plannerService.getRouteMapStops(schedule));
+        model.addAttribute("totalDays", totalDays);
+        model.addAttribute("mapsEmbedApiKey", mapsEmbedApiKey);
+        return "planner/route-map";
     }
 
     private TripScheduleEntity getSchedule(Long id) {

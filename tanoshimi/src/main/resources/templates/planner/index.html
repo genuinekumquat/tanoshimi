@@ -339,6 +339,7 @@
           <button class="btn btn-ghost btn-sm" id="btn-clear">전체 비우기</button>
           <button type="button" id="btn-submit" class="btn btn-primary btn-sm" th:if="${schedule.status.name() == 'draft'}" th:text="#{planner.submit}" th:attr="data-schedule-id=${schedule.id}">계획표 제출하기</button>
           <a class="btn btn-outline btn-sm" th:if="${schedule.status.name() == 'confirmed'}" target="_blank" th:href="@{/planner/{id}/report(id=${schedule.id})}">플랜 PDF로 인쇄하기</a>
+          <a class="btn btn-outline btn-sm" th:if="${schedule.status.name() == 'confirmed'}" target="_blank" th:href="@{/planner/{id}/route-map(id=${schedule.id})}">지도로 보기</a>
         </div>
       </div>
 

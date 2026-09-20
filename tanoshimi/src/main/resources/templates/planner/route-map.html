@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>여행 동선 지도</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+    <style>
+        :root {
+            --parchment: #f3e8cf;
+            --forest: #4b6b4a;
+            --ink: #3a2e22;
+            --line: #d8c69a;
+            --accent: #d9a441;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Gowun Dodum', 'Apple SD Gothic Neo', sans-serif;
+            color: var(--ink);
+            background-color: #faf8f2;
+            margin: 0;
+            padding: 24px 16px 60px;
+            line-height: 1.5;
+        }
+        .wrap { max-width: 720px; margin: 0 auto; }
+        h1, h2 {
+            font-family: 'Jua', 'Gowun Dodum', sans-serif;
+            color: var(--forest);
+            margin: 0;
+        }
+        .header { text-align: center; padding-bottom: 16px; border-bottom: 2px solid var(--forest); margin-bottom: 20px; }
+        .header p { margin: 6px 0 0; color: #7a6a52; font-size: 14px; }
+
+        .day-tabs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 24px; }
+        .day-tab {
+            border: 2px solid var(--forest); background: #fff; color: var(--forest);
+            border-radius: 999px; padding: 8px 18px; font-family: 'Jua', sans-serif;
+            font-size: 14px; cursor: pointer; transition: 0.15s;
+        }
+        .day-tab.active { background: var(--forest); color: #fff; }
+
+        .timeline { position: relative; padding-left: 34px; }
+        .timeline::before {
+            content: ""; position: absolute; left: 13px; top: 6px; bottom: 6px;
+            width: 3px; background: var(--line); border-radius: 3px;
+        }
+
+        .stop { position: relative; margin-bottom: 6px; }
+        .pin {
+            position: absolute; left: -34px; top: 2px; width: 28px; height: 28px;
+            border-radius: 50%; background: var(--forest); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Jua', sans-serif; font-size: 13px; z-index: 2;
+        }
+        .pin.no-loc { background: #b9ac8c; }
+        .card {
+            background: #fff; border: 1px solid var(--line); border-radius: 12px;
+            padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .card .time { font-size: 12px; color: var(--accent); font-weight: bold; }
+        .card .title { font-size: 16px; margin: 2px 0; }
+        .card .memo { font-size: 13px; color: #7a6a52; }
+        .map-link {
+            display: inline-block; margin-top: 8px; font-size: 13px;
+            color: var(--forest); text-decoration: none; border-bottom: 1px dashed var(--forest);
+        }
+
+        .leg { position: relative; margin: 8px 0 8px 0; padding: 6px 0 6px 4px; }
+        .leg-modes { display: flex; gap: 6px; margin-bottom: 6px; }
+        .mode-btn {
+            border: 1px solid var(--line); background: #fff; border-radius: 8px;
+            font-size: 13px; padding: 3px 9px; cursor: pointer; color: var(--ink);
+        }
+        .mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .leg-track {
+            position: relative; height: 22px; margin-left: -34px; padding-left: 34px;
+        }
+        .leg-icon {
+            position: absolute; top: 0; left: 13px; font-size: 16px;
+            animation: moveAlong 1.8s ease-in-out infinite;
+        }
+        @keyframes moveAlong {
+            0% { transform: translate(0, 0); opacity: 0.4; }
+            50% { transform: translate(0, 34px); opacity: 1; }
+            100% { transform: translate(0, 0); opacity: 0.4; }
+        }
+        .leg-row {
+            display: flex; gap: 10px; align-items: stretch; margin: 6px 0 8px;
+        }
+        .leg-map {
+            display: block; flex: 1 1 55%; min-width: 0; height: 220px;
+            border: 1px solid var(--line); border-radius: 10px;
+        }
+        .transit-info {
+            display: none; flex: 1 1 220px; max-width: 260px; max-height: 220px;
+            overflow-y: auto; background: #fff; border: 1px solid var(--line);
+            border-radius: 10px; padding: 10px; font-size: 12px; color: var(--ink);
+        }
+        .transit-step { padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px dashed var(--line); }
+        .transit-step:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .transit-step .veh { font-weight: bold; color: var(--forest); margin-bottom: 2px; }
+        .transit-step .stops { margin-bottom: 2px; }
+        .transit-step .meta, .transit-total { color: #7a6a52; }
+        .transit-total { margin-top: 6px; font-weight: bold; color: var(--ink); }
+        @media (max-width: 560px) {
+            .leg-row { flex-direction: column; }
+            .transit-info { max-width: none; }
+        }
+        .dir-link {
+            font-size: 12px; color: #7a6a52; text-decoration: none;
+            border-bottom: 1px dashed #7a6a52;
+        }
+        .empty-note { text-align: center; color: #a89a7d; padding: 40px 0; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="header">
+        <h1>여행루트</h1>
+        <p>일자별 동선과 이동 방법을 확인하고, 실제 경로는 구글 지도에서 열어보세요.</p>
+    </div>
+
+    <div class="day-tabs" id="day-tabs"></div>
+    <div class="timeline" id="timeline"></div>
+    <div class="empty-note" id="empty-note" style="display:none;">이 날은 등록된 일정이 없어요.</div>
+</div>
+
+<script th:inline="javascript">
+    const STOPS = /*[[${stops}]]*/ [];
+    const TOTAL_DAYS = /*[[${totalDays}]]*/ 3;
+    const MAPS_EMBED_API_KEY = /*[[${mapsEmbedApiKey}]]*/ '';
+</script>
+<script>
+(function () {
+    const MODES = [
+        { key: 'transit', label: '🚌 대중교통', gmap: 'transit' },
+        { key: 'driving', label: '🚗 자동차', gmap: 'driving' },
+        { key: 'walking', label: '🚶 도보', gmap: 'walking' }
+    ];
+    const MODE_ICON = { transit: '🚌', driving: '🚗', walking: '🚶' };
+
+    function fmtTime(min) {
+        const h = Math.floor(min / 60), m = min % 60;
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    }
+
+    // 좌표가 있어도 이름 검색을 쓴다 - 유명 관광지는 좌표 핀보다 이름으로 찾아야 리뷰/사진이
+    // 딸린 정상적인 장소 카드가 뜬다. 좌표는 아래 dirUrl(구간 길찾기)에만 쓴다.
+    function mapSearchUrl(stop) {
+        return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(stop.mapQuery || stop.title);
+    }
+
+    function dirUrl(from, to, mode) {
+        return 'https://www.google.com/maps/dir/?api=1'
+            + '&origin=' + encodeURIComponent(from.latitude + ',' + from.longitude)
+            + '&destination=' + encodeURIComponent(to.latitude + ',' + to.longitude)
+            + '&travelmode=' + mode;
+    }
+
+    // Maps Embed API(mode=transit)는 일반 구글 지도와 동일하게 버스 노선·정류장을 그대로
+    // 그려준다 - 키가 있을 때만 iframe으로 보여주고, 없으면 위 dirUrl 외부 링크만 쓴다.
+    function embedUrl(from, to, mode) {
+        return 'https://www.google.com/maps/embed/v1/directions'
+            + '?key=' + encodeURIComponent(MAPS_EMBED_API_KEY)
+            + '&origin=' + encodeURIComponent(from.latitude + ',' + from.longitude)
+            + '&destination=' + encodeURIComponent(to.latitude + ',' + to.longitude)
+            + '&mode=' + mode;
+    }
+
+    const VEHICLE_ICON = { BUS: '🚌', SUBWAY: '🚇', TRAIN: '🚆', HEAVY_RAIL: '🚆', COMMUTER_TRAIN: '🚆', TRAM: '🚊', FERRY: '⛴️' };
+
+    // 레거시 Directions API는 새 프로젝트에서 기본적으로 비활성화되어 있어서(REQUEST_DENIED,
+    // "You're calling a legacy API") 구글이 권장하는 신규 Routes API(computeRoutes)를 쓴다.
+    async function fetchTransitSteps(from, to) {
+        const res = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': MAPS_EMBED_API_KEY,
+                'X-Goog-FieldMask': 'routes.localizedValues,routes.legs.steps.travelMode,' +
+                    'routes.legs.steps.transitDetails,routes.legs.steps.localizedValues'
+            },
+            body: JSON.stringify({
+                origin: { location: { latLng: { latitude: parseFloat(from.latitude), longitude: parseFloat(from.longitude) } } },
+                destination: { location: { latLng: { latitude: parseFloat(to.latitude), longitude: parseFloat(to.longitude) } } },
+                travelMode: 'TRANSIT'
+            })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.routes || !data.routes.length) {
+            throw new Error((data.error && data.error.message) || 'no route');
+        }
+        return data.routes[0];
+    }
+
+    function renderTransitInfo(container, route) {
+        container.innerHTML = '';
+        route.legs[0].steps.forEach(step => {
+            const row = document.createElement('div');
+            row.className = 'transit-step';
+            const durText = step.localizedValues && step.localizedValues.staticDuration
+                ? step.localizedValues.staticDuration.text : '';
+            if (step.travelMode === 'TRANSIT' && step.transitDetails) {
+                const t = step.transitDetails;
+                const vehicleType = t.transitLine.vehicle ? t.transitLine.vehicle.type : '';
+                const icon = VEHICLE_ICON[vehicleType] || '🚌';
+                row.innerHTML = '<div class="veh"></div><div class="stops"></div><div class="meta"></div>';
+                row.querySelector('.veh').textContent = icon + ' ' + (t.transitLine.nameShort || t.transitLine.name || '노선');
+                row.querySelector('.stops').textContent = t.stopDetails.departureStop.name + ' → ' + t.stopDetails.arrivalStop.name;
+                row.querySelector('.meta').textContent = durText + (t.stopCount ? ' · ' + t.stopCount + '개 정류장' : '');
+            } else {
+                const distText = step.localizedValues && step.localizedValues.distance ? step.localizedValues.distance.text : '';
+                row.innerHTML = '<div class="veh">🚶 도보</div><div class="meta"></div>';
+                row.querySelector('.meta').textContent = [durText, distText].filter(Boolean).join(' · ');
+            }
+            container.appendChild(row);
+        });
+        const total = document.createElement('div');
+        total.className = 'transit-total';
+        const totalText = route.localizedValues && route.localizedValues.duration ? route.localizedValues.duration.text : '';
+        total.textContent = '총 ' + totalText;
+        container.appendChild(total);
+    }
+
+    function buildLeg(from, to) {
+        const leg = document.createElement('div');
+        leg.className = 'leg';
+
+        const modesRow = document.createElement('div');
+        modesRow.className = 'leg-modes';
+        let activeMode = 'transit';
+
+        const track = document.createElement('div');
+        track.className = 'leg-track';
+        const icon = document.createElement('span');
+        icon.className = 'leg-icon';
+        icon.textContent = MODE_ICON[activeMode];
+        track.appendChild(icon);
+
+        const dirLink = document.createElement('a');
+        dirLink.className = 'dir-link';
+        dirLink.target = '_blank';
+        dirLink.rel = 'noopener';
+        dirLink.textContent = '구글 지도에서 길찾기 →';
+        dirLink.href = dirUrl(from, to, activeMode);
+
+        let mapFrame = null, transitInfo = null, legRow = null;
+        if (MAPS_EMBED_API_KEY) {
+            mapFrame = document.createElement('iframe');
+            mapFrame.className = 'leg-map';
+            mapFrame.loading = 'lazy';
+            mapFrame.referrerPolicy = 'no-referrer-when-downgrade';
+            mapFrame.allowFullscreen = true;
+            mapFrame.src = embedUrl(from, to, activeMode);
+
+            transitInfo = document.createElement('div');
+            transitInfo.className = 'transit-info';
+
+            legRow = document.createElement('div');
+            legRow.className = 'leg-row';
+            legRow.appendChild(mapFrame);
+            legRow.appendChild(transitInfo);
+        }
+
+        // 대중교통 선택 시에만 지도 옆에 버스/지하철 번호·소요시간·탑승 정류장을 텍스트로 브리핑한다.
+        // 데이터를 못 가져오면(현재 Routes API의 TRANSIT 응답이 비어 오는 계정 제약 등) 에러 문구
+        // 대신 패널 자체를 숨겨서 지도만 깔끔하게 남긴다 - flex-grow 덕에 지도가 그 자리를 채운다.
+        function updateTransitInfo(mode) {
+            if (!transitInfo) return;
+            transitInfo.style.display = 'none';
+            if (mode !== 'transit') return;
+            fetchTransitSteps(from, to)
+                .then(result => { renderTransitInfo(transitInfo, result); transitInfo.style.display = 'block'; })
+                .catch(() => { transitInfo.style.display = 'none'; });
+        }
+        updateTransitInfo(activeMode);
+
+        MODES.forEach(m => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'mode-btn' + (m.key === activeMode ? ' active' : '');
+            btn.textContent = m.label;
+            btn.addEventListener('click', () => {
+                activeMode = m.key;
+                modesRow.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                icon.textContent = MODE_ICON[activeMode];
+                icon.style.animation = 'none';
+                void icon.offsetWidth;
+                icon.style.animation = '';
+                dirLink.href = dirUrl(from, to, m.gmap);
+                if (mapFrame) mapFrame.src = embedUrl(from, to, m.gmap);
+                updateTransitInfo(activeMode);
+            });
+            modesRow.appendChild(btn);
+        });
+
+        leg.appendChild(modesRow);
+        leg.appendChild(track);
+        if (legRow) leg.appendChild(legRow);
+        leg.appendChild(dirLink);
+        return leg;
+    }
+
+    function buildStop(stop, number) {
+        const el = document.createElement('div');
+        el.className = 'stop';
+
+        const pin = document.createElement('div');
+        pin.className = 'pin' + (stop.hasLocation ? '' : ' no-loc');
+        pin.textContent = number;
+        el.appendChild(pin);
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML =
+            '<div class="time">' + fmtTime(stop.startMinute) + '</div>' +
+            '<div class="title"></div>' +
+            (stop.memo ? '<div class="memo"></div>' : '');
+        card.querySelector('.title').textContent = stop.title;
+        if (stop.memo) card.querySelector('.memo').textContent = stop.memo;
+
+        const link = document.createElement('a');
+        link.className = 'map-link';
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = '📍 구글 지도에서 보기';
+        link.href = mapSearchUrl(stop);
+        card.appendChild(document.createElement('br'));
+        card.appendChild(link);
+
+        el.appendChild(card);
+        return el;
+    }
+
+    function render(day) {
+        const timeline = document.getElementById('timeline');
+        const emptyNote = document.getElementById('empty-note');
+        timeline.innerHTML = '';
+
+        const dayStops = STOPS.filter(s => s.dayIndex === day);
+        if (dayStops.length === 0) {
+            emptyNote.style.display = 'block';
+            return;
+        }
+        emptyNote.style.display = 'none';
+
+        let lastLocated = null;
+        dayStops.forEach((stop, idx) => {
+            if (lastLocated && stop.hasLocation) {
+                timeline.appendChild(buildLeg(lastLocated, stop));
+            }
+            timeline.appendChild(buildStop(stop, idx + 1));
+            if (stop.hasLocation) lastLocated = stop;
+        });
+    }
+
+    function init() {
+        const tabsEl = document.getElementById('day-tabs');
+        let activeDay = STOPS.length > 0 ? Math.min(...STOPS.map(s => s.dayIndex)) : 1;
+
+        for (let d = 1; d <= TOTAL_DAYS; d++) {
+            const tab = document.createElement('button');
+            tab.type = 'button';
+            tab.className = 'day-tab' + (d === activeDay ? ' active' : '');
+            tab.textContent = d + '일차';
+            tab.addEventListener('click', () => {
+                tabsEl.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                render(d);
+            });
+            tabsEl.appendChild(tab);
+        }
+        render(activeDay);
+    }
+
+    init();
+})();
+</script>
+</body>
+</html>
