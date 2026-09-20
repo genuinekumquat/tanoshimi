@@ -196,7 +196,14 @@ public class  SecurityConfig {
                                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cubism.live2d.com; " +
                                 // [신규] 여행 도우미 마스코트 위젯 - Live2D 모델(json/텍스처/모션)을 jsdelivr 에서
                                 // fetch/XHR 로 불러오므로 connect-src 에도 같은 CDN 을 허용해야 한다.
-                                "connect-src 'self' ws: wss: https://cdn.jsdelivr.net; frame-ancestors 'none'"))
+                                // planner/route-map 대중교통 브리핑용 - Routes API(routes.googleapis.com)를
+                                // 브라우저에서 fetch로 직접 호출한다(레거시 Directions API는 신규 프로젝트에서
+                                // 기본 비활성화되어 있어 REQUEST_DENIED가 남).
+                                "connect-src 'self' ws: wss: https://cdn.jsdelivr.net https://routes.googleapis.com; frame-ancestors 'none'; " +
+                                // planner/route-map("지도로 보기")의 구간별 임베드 지도(Maps Embed API iframe)용.
+                                // frame-src 를 안 정하면 default-src 'self' 로 폴백되어 구글 지도 iframe 자체가
+                                // 차단된다("Framing 'https://www.google.com/' violates ... default-src 'self'").
+                                "frame-src 'self' https://www.google.com"))
                 )
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/ws/**"))
                 .userDetailsService(userDetailsService);
