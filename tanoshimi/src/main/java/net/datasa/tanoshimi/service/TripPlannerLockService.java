@@ -18,6 +18,7 @@ import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.ActivityRepository;
+import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.repository.TripScheduleItemRepository;
 import net.datasa.tanoshimi.repository.TripScheduleRepository;
 import net.datasa.tanoshimi.repository.TripScheduleSnapshotRepository;
@@ -46,15 +47,27 @@ public class TripPlannerLockService {
     private final TripScheduleSnapshotRepository snapshotRepository;
     private final ActivityRepository activityRepository;
     private final UserRepository userRepository;
+    private final PartyMemberRepository partyMemberRepository;
     private final ObjectMapper objectMapper;
 
-    /** 파티장이 특정 파티원에게 편집권을 부여한다. */
+    /**
+     * 파티장이 특정 파티원에게 편집권을 부여한다.
+     *
+     * <p>[TNSM-21] targetUserId 가 실제로 이 파티의 멤버인지 확인하지 않고 있었다 - 화면의
+     * 대상 선택 드롭다운(PlannerController.planner 의 partyMembers)은 파티원만 보여주지만,
+     * API 는 존재하는 유저 ID면 누구든 받아들여서 편집권(=assertCanEdit 통과)을 넘길 수 있었다.
+     * schedule.isLockedBy 가 "지금 편집 가능한 사람"의 유일한 기준이라, 파티 밖 유저에게 잘못
+     * 넘기면 그 유저가 이 계획표를 실제로 수정할 수 있게 된다.
+     */
     @Transactional
     public void grantLock(Long scheduleId, UserEntity owner, Long targetUserId) {
         TripScheduleEntity schedule = fetchSchedule(scheduleId);
         assertPartyOwner(schedule, owner);
         UserEntity target = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (!partyMemberRepository.existsByPartyAndUser(schedule.getParty(), target)) {
+            throw new BusinessException(ErrorCode.NOT_PARTY_MEMBER, "파티원에게만 편집권을 넘길 수 있습니다.");
+        }
         schedule.setLockedBy(target);
         scheduleRepository.save(schedule);
     }

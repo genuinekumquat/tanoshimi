@@ -52,6 +52,7 @@ public class PlannerController {
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public String planner(@PathVariable Long scheduleId, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
+        requireMember(schedule, principal);
         TourEntity tour = schedule.getParty() != null ? schedule.getParty().getTour() : null;
 
         boolean isOwner = principal != null && schedule.getParty() != null
@@ -79,8 +80,11 @@ public class PlannerController {
 
     @GetMapping("/api/planner/{scheduleId}/items")
     @ResponseBody
-    public ApiResponse<List<ScheduleItemView>> items(@PathVariable Long scheduleId) {
-        return ApiResponse.ok(plannerService.getItems(getSchedule(scheduleId)));
+    public ApiResponse<List<ScheduleItemView>> items(@PathVariable Long scheduleId,
+                                                      @AuthenticationPrincipal CustomUserDetails principal) {
+        TripScheduleEntity schedule = getSchedule(scheduleId);
+        requireMember(schedule, principal);
+        return ApiResponse.ok(plannerService.getItems(schedule));
     }
 
     @PostMapping("/api/planner/{scheduleId}/items")
@@ -88,7 +92,7 @@ public class PlannerController {
     public ApiResponse<Long> addItem(@PathVariable Long scheduleId, @Valid @RequestBody ScheduleItemRequest request,
                                      @AuthenticationPrincipal CustomUserDetails principal) {
         TripScheduleEntity schedule = getSchedule(scheduleId);
-        UserEntity user = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        UserEntity user = requireMember(schedule, principal);
         Long itemId = plannerService.addItem(schedule.getId(), user, request);
         try { broadcast(scheduleId); } catch(Exception ignored) {}
         return ApiResponse.ok(itemId);
@@ -139,14 +143,16 @@ public class PlannerController {
     @ResponseBody
     public ApiResponse<Void> save(@PathVariable Long scheduleId, @RequestParam(defaultValue = "manual") String trigger,
                                   @AuthenticationPrincipal CustomUserDetails principal) {
-        UserEntity actor = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        UserEntity actor = requireMember(getSchedule(scheduleId), principal);
         lockService.save(scheduleId, actor, SnapshotTrigger.valueOf(trigger));
         return ApiResponse.okMessage("저장되었습니다.");
     }
 
     @GetMapping("/api/planner/{scheduleId}/snapshots")
     @ResponseBody
-    public ApiResponse<List<net.datasa.tanoshimi.domain.dto.SnapshotSummaryView>> snapshots(@PathVariable Long scheduleId) {
+    public ApiResponse<List<net.datasa.tanoshimi.domain.dto.SnapshotSummaryView>> snapshots(@PathVariable Long scheduleId,
+                                                                                             @AuthenticationPrincipal CustomUserDetails principal) {
+        requireMember(getSchedule(scheduleId), principal);
         List<net.datasa.tanoshimi.domain.dto.SnapshotSummaryView> views = lockService.listSnapshots(scheduleId).stream()
                 .map(s -> new net.datasa.tanoshimi.domain.dto.SnapshotSummaryView(
                         s.getId(), s.getTriggerType().name(), s.getCreatedBy().getName(), s.getCreatedAt().toString()))
@@ -195,11 +201,11 @@ public class PlannerController {
                                                         @RequestParam String date,
                                                         @AuthenticationPrincipal CustomUserDetails principal) {
         // [v16 신규] AI 추천은 크레딧을 소모한다 - 전원 동일한 1일 총량, 자정 초기화.
-        UserEntity requester = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
+        UserEntity requester = requireMember(schedule, principal);
         if (!aiCreditService.tryConsume(requester)) {
             throw new BusinessException(ErrorCode.AI_CREDIT_EXCEEDED);
         }
-        TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
         TourEntity tour = schedule.getParty() != null ? schedule.getParty().getTour() : null;
         String pastStyleTags = chatbotActivityService.buildPastStyleTags(requester);
         String targetRegion = tour != null ? tour.getRegion() : region;
@@ -222,12 +228,12 @@ public class PlannerController {
     @ResponseBody
     public ApiResponse<Object> aiValidate(@PathVariable Long scheduleId, @RequestParam(defaultValue = "대중교통") String mode,
                                           @AuthenticationPrincipal CustomUserDetails principal) {
-        UserEntity user = userRepository.findById(principal.getId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
+        UserEntity user = requireMember(schedule, principal);
         if (!aiCreditService.tryConsume(user)) {
             throw new BusinessException(ErrorCode.AI_CREDIT_EXCEEDED);
         }
-        
-        TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
+
         List<ScheduleItemView> items = plannerService.getItems(schedule);
         
         if (items.isEmpty()) {
@@ -342,15 +348,19 @@ public class PlannerController {
 
     @PostMapping("/api/planner/{scheduleId}/submit")
     @ResponseBody
-    public ApiResponse<Void> submit(@PathVariable Long scheduleId) {
-        plannerService.finalizeSchedule(getSchedule(scheduleId));
+    public ApiResponse<Void> submit(@PathVariable Long scheduleId, @AuthenticationPrincipal CustomUserDetails principal) {
+        TripScheduleEntity schedule = getSchedule(scheduleId);
+        requireMember(schedule, principal);
+        plannerService.finalizeSchedule(schedule);
         broadcast(scheduleId);
         return ApiResponse.okMessage("계획표가 최종 확정되었습니다.");
     }
 
     @GetMapping("/planner/{scheduleId}/report")
-    public String report(@PathVariable Long scheduleId, Model model, @RequestParam(defaultValue = "public") String mode) {
+    public String report(@PathVariable Long scheduleId, Model model, @RequestParam(defaultValue = "public") String mode,
+                         @AuthenticationPrincipal CustomUserDetails principal) {
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
+        requireMember(schedule, principal);
         java.util.List<TripScheduleItemEntity> items = plannerService.rawItems(schedule);
         
         StringBuilder prompt = new StringBuilder();
@@ -389,8 +399,9 @@ public class PlannerController {
     }
 
     @GetMapping("/planner/{scheduleId}/route-map")
-    public String routeMap(@PathVariable Long scheduleId, Model model) {
+    public String routeMap(@PathVariable Long scheduleId, Model model, @AuthenticationPrincipal CustomUserDetails principal) {
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
+        requireMember(schedule, principal);
         TourEntity tour = schedule.getParty() != null ? schedule.getParty().getTour() : null;
         int totalDays = schedule.getDurationDays() != null ? schedule.getDurationDays()
                 : (schedule.getParty() != null ? schedule.getParty().getDurationDays()
@@ -408,6 +419,28 @@ public class PlannerController {
 
     private TripScheduleEntity getScheduleWithContext(Long id) {
         return plannerService.getScheduleWithContext(id);
+    }
+
+    /**
+     * [TNSM-21] URL 만 알고 들어온 비파티원을 막는 최종 방어선 - PartyRoomController 가
+     * party-board 화면에 쓰는 것과 같은 패턴(PartyService.assertMember)이다.
+     *
+     * <p>계획표는 항상 파티 하나에 속하고 일정·비용·편집권 보유자까지 담고 있는데, scheduleId
+     * 기반 엔드포인트들은 지금까지 이 확인을 하지 않아 URL의 scheduleId 숫자만 바꿔 넣으면
+     * 다른 파티의 계획표를 누구나 조회·저장·제출까지 할 수 있었다(TNSM-21 점검에서 발견,
+     * grantLock 의 대상 검증 누락과 같은 종류의 문제). party 가 없는 레거시 데이터는
+     * isLockedBy 와 같은 기준으로 통과시킨다.
+     */
+    private UserEntity requireMember(TripScheduleEntity schedule, CustomUserDetails principal) {
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        UserEntity user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (schedule.getParty() != null) {
+            partyService.assertMember(schedule.getParty(), user);
+        }
+        return user;
     }
 
     private void broadcast(Long scheduleId) {
