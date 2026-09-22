@@ -1,6 +1,7 @@
 package net.datasa.tanoshimi.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import net.datasa.tanoshimi.domain.dto.ApiResponse;
@@ -34,14 +35,37 @@ import org.springframework.web.servlet.HandlerMapping;
  *
  * <p>화면 렌더링 요청의 예외는 그대로 다시 던져 기존 스프링/시큐리티 표준 에러 처리
  * (/error, /error/403 등)로 흘러가게 둔다 - 화면 쪽 동작은 이번 변경으로 바뀌지 않는다.
+ *
+ * <p><b>[TNSM-23/69 실제 구동 QA에서 발견]</b> BusinessException 을 그대로 다시 던지면
+ * (throw e) Spring 기본 에러 처리가 그 예외를 "처리되지 않은 예외"로만 보고 상태코드를
+ * 그냥 500 으로 찍어버린다 - {@code @ResponseStatus} 가 없는 평범한 RuntimeException 이라
+ * ErrorCode 에 적어둔 실제 상태(예: NOT_PARTY_MEMBER 의 403)를 스프링이 알 방법이 없다.
+ * 그래서 파티원 아닌 사람이 URL만 알고 /party-board/{id}/room, /planner/{scheduleId} 에
+ * 들어가면(PartyRoomController/PlannerController 의 assertMember) 403 이 아니라 500
+ * 에러 화면이 떴다(실제로 두 계정으로 구동해보고 나서 발견 - 코드만 읽어서는 GlobalExceptionHandler가
+ * "/error/403 등으로 흘러간다"는 주석만 보고 정상이라고 믿기 쉬웠다).
+ *
+ * <p><b>시도했다가 버린 방법</b> - {@code @ExceptionHandler} 안에서 새 예외(예:
+ * {@code ResponseStatusException})를 던지는 방식은 실제로 해봤더니 안 된다: 이미
+ * 예외 처리 중에 또 예외가 나는 상황이라 스프링이 "Failure in @ExceptionHandler"로 보고
+ * 정상적인 상태코드 해석 없이 그냥 500으로 떨어진다(로그로 직접 확인). 그래서 여기서
+ * {@link HttpServletResponse#sendError} 를 직접 불러 응답을 확정한다 - 이건 서블릿
+ * 컨테이너가 표준으로 처리하는 에러 디스패치라 Spring Boot 의 DefaultErrorViewResolver가
+ * 상태코드에 맞는 templates/error/{status}.html(예: error/403.html, 이미 존재)을
+ * 정상적으로 찾아 보여준다.
  */
 @Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e, HttpServletRequest request) throws Exception {
-        if (!isApiRequest(request)) throw e;
+    public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e, HttpServletRequest request,
+                                                             HttpServletResponse response) throws Exception {
+        if (!isApiRequest(request)) {
+            log.warn("BusinessException (view): {}", e.getMessage());
+            response.sendError(e.getErrorCode().status().value(), e.getMessage());
+            return null;
+        }
         log.warn("BusinessException: {}", e.getMessage());
         return ResponseEntity.status(e.getErrorCode().status()).body(ApiResponse.fail(e.getMessage()));
     }
