@@ -8,3 +8,4 @@ src/main/resources/application-local.yml
 Thumbs.db
 boot.log
 *.py
+.playwright-mcp/

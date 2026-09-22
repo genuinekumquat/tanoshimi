@@ -588,8 +588,12 @@
         if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
         showEditModal('', '', '#4b6b4a', async (newTitle, newMemo, newColor) => {
             if (newTitle !== '') {
-                await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
-                    dayIndex: 0,
+                // [TNSM-70] dayIndex 가 0으로 고정돼 있었는데 서버는 dayIndex >= 1 만
+                // 받는다(ScheduleItemRequest @Min(1)) - 실제로 눌러보니 매번 400이
+                // 나면서도 응답을 확인 안 해 조용히 실패하고 있었다(눌러도 아무 일도
+                // 안 생기는 것처럼 보임). 다른 곳(addBlank)과 같이 1일차를 기본값으로.
+                const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                    dayIndex: 1,
                     startMinute: 600, // default 10:00 AM
                     durationMinute: 60,
                     activityId: null,
@@ -597,6 +601,7 @@
                     memo: newMemo,
                     color: newColor
                 });
+                if (res && !res.success && res.message) alert(res.message);
                 reload();
             }
         });
