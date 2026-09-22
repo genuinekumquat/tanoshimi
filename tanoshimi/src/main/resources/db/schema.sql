@@ -98,9 +98,11 @@ CREATE TABLE IF NOT EXISTS user_titles (
     id        BIGINT   NOT NULL AUTO_INCREMENT,
     user_id   BIGINT   NOT NULL,
     title_id  BIGINT   NOT NULL,
+    equipped  BOOLEAN  NOT NULL DEFAULT FALSE COMMENT '대표 칭호로 장착했는지',
     earned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uk_user_title (user_id, title_id),
+    KEY idx_ut_user_equipped (user_id, equipped),
     CONSTRAINT fk_ut_user FOREIGN KEY (user_id) REFERENCES users(id),
     CONSTRAINT fk_ut_title FOREIGN KEY (title_id) REFERENCES titles(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

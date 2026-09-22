@@ -4,11 +4,14 @@ import net.datasa.tanoshimi.domain.entity.TitleEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.domain.entity.UserTitleEntity;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserTitleRepository extends JpaRepository<UserTitleEntity, Long> {
     boolean existsByUserAndTitle(UserEntity user, TitleEntity title);
+
+    Optional<UserTitleEntity> findByUserAndTitle(UserEntity user, TitleEntity title);
 
     /**
      * TitleService.latestTitle() 에서 uti.getTitle() 을 바로 꺼내 쓰고, 그게 마이페이지
@@ -17,4 +20,8 @@ public interface UserTitleRepository extends JpaRepository<UserTitleEntity, Long
      */
     @EntityGraph(attributePaths = {"title"})
     List<UserTitleEntity> findByUserOrderByEarnedAtDesc(UserEntity user);
+
+    /** [TNSM-20] 현재 장착한 대표 칭호. 위와 같은 이유로 title 을 미리 JOIN FETCH 한다. */
+    @EntityGraph(attributePaths = {"title"})
+    Optional<UserTitleEntity> findByUserAndEquippedTrue(UserEntity user);
 }

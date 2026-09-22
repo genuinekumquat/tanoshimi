@@ -14,6 +14,8 @@ import net.datasa.tanoshimi.domain.entity.MyTripEntity;
 import net.datasa.tanoshimi.domain.entity.TitleEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.domain.entity.UserTitleEntity;
+import net.datasa.tanoshimi.exception.BusinessException;
+import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.repository.PartyRepository;
 import net.datasa.tanoshimi.repository.TitleRepository;
@@ -286,21 +288,48 @@ public class TitleService {
         return regionCatalog.toTitleRegion(raw);
     }
 
-    /** 마이페이지 뱃지에 보여줄 "가장 최근에 딴 칭호" - 없으면 null. */
+    /**
+     * 마이페이지 뱃지/칭호 관리 화면에 보여줄 "대표 칭호" - 없으면 null.
+     *
+     * <p><b>[TNSM-20] 장착(equip) 반영</b> - 장착한 칭호가 있으면 그걸 대표로 보여준다.
+     * 아직 한 번도 장착하지 않았으면(마이그레이션 이전부터 있던 사용자 포함) 예전처럼
+     * 가장 최근에 딴 칭호를 대표로 보여준다 - equipTitle 을 부르기 전까지 화면이 갑자기
+     * "대표 칭호 없음"으로 바뀌어 보이면 안 되기 때문이다.
+     */
     @Transactional(readOnly = true)
     public TitleEntity latestTitle(UserEntity user) {
-        return userTitleRepository.findByUserOrderByEarnedAtDesc(user).stream()
-                .findFirst()
+        return userTitleRepository.findByUserAndEquippedTrue(user)
                 .map(UserTitleEntity::getTitle)
-                .orElse(null);
+                .orElseGet(() -> userTitleRepository.findByUserOrderByEarnedAtDesc(user).stream()
+                        .findFirst()
+                        .map(UserTitleEntity::getTitle)
+                        .orElse(null));
+    }
+
+    /**
+     * [TNSM-20] 대표 칭호 장착. 보유한 칭호 중에서만 고를 수 있다.
+     *
+     * <p>user_titles 에는 "한 유저당 하나만 장착"을 강제하는 DB 제약이 없다(부분 유니크
+     * 인덱스는 MySQL 이 지원하지 않는다) - 그래서 기존에 장착된 칭호가 있으면 먼저
+     * 해제하고 새로 장착해서 항상 최대 하나만 켜져 있도록 여기서 보장한다.
+     */
+    @Transactional
+    public void equipTitle(UserEntity user, String code) {
+        TitleEntity title = titleRepository.findByCode(code)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT, "존재하지 않는 칭호입니다."));
+        UserTitleEntity target = userTitleRepository.findByUserAndTitle(user, title)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT, "아직 획득하지 않은 칭호는 장착할 수 없습니다."));
+
+        userTitleRepository.findByUserAndEquippedTrue(user)
+                .filter(current -> !current.getId().equals(target.getId()))
+                .ifPresent(UserTitleEntity::unequip);
+        target.equip();
     }
 
     /**
      * 보유한 칭호 전체(최근 획득 순). 마이페이지 칭호 칩 목록용.
      *
-     * <p>대표 칭호 지정(equipped) 기능은 user_titles 에 컬럼이 없어 아직 못 만든다 -
-     * 스키마 변경은 ⑤(허수연) 조율 사항이라 협의 후 추가 예정. 지금은 latestTitle 을
-     * 대표로 보여준다.
+     * <p>대표 칭호는 latestTitle(equipTitle 로 장착한 것, 없으면 최근 획득분)로 보여준다.
      */
     @Transactional(readOnly = true)
     public List<TitleEntity> ownedTitles(UserEntity user) {

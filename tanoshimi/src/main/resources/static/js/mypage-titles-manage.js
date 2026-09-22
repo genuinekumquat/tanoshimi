@@ -13,8 +13,8 @@
  * data-* 로 내려주고(카테고리 순서도 서버가 정함), 이 파일은 그걸 그대로 그린다.
  * 판정(누가 무엇을 받았는지)은 TitleService 가 한다.
  *
- * ※ 대표 칭호 변경은 아직 저장 API가 없어서 화면 상태만 바뀐다(Phase 2에서
- *   user_titles에 대표 여부 컬럼 + PATCH API 필요).
+ * [TNSM-20] 대표 칭호 변경은 POST /api/mypage/titles/equip 로 저장된다
+ *   (user_titles.equipped, migration_v23_title_equip.sql).
  */
 (function () {
     'use strict';
@@ -41,7 +41,7 @@
         return null;
     }
 
-    // 대표 칭호: 서버가 정한 값에서 출발. 변경은 아직 화면 상태만(저장 API는 Phase 2).
+    // 대표 칭호: 서버가 정한 값(equipped, 없으면 최근 획득)에서 출발.
     var rep = findByName(REP_TITLE) || TITLES.filter(function (t) { return t.owned; })[0] || null;
 
     var tgridEl = document.getElementById('tgrid');
@@ -142,12 +142,27 @@
         });
         document.getElementById('m-cancel').addEventListener('click', function () { modal.classList.remove('show'); });
         modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('show'); });
-        document.getElementById('m-confirm').addEventListener('click', function () {
-            rep = pending;
-            modal.classList.remove('show');
-            renderRepCard(); renderTGrid();
-            // TODO(Phase 2): 대표 칭호 저장 API 연결. 지금은 새로고침하면 서버 값으로 돌아간다.
-            toast('대표 칭호를 바꿨어요 (저장 기능은 준비 중이에요)');
+        var mConfirm = document.getElementById('m-confirm');
+        mConfirm.addEventListener('click', async function () {
+            if (!pending || pending === rep) { modal.classList.remove('show'); return; }
+            if (!window.api) {
+                toast('저장 기능을 불러오지 못했어요. 새로고침해 주세요');
+                return;
+            }
+            mConfirm.disabled = true;
+            try {
+                var result = await window.api.post('/api/mypage/titles/equip', { code: pending.code });
+                if (!result.success) {
+                    toast(result.message || '대표 칭호 저장에 실패했어요');
+                    return;
+                }
+                rep = pending;
+                modal.classList.remove('show');
+                renderRepCard(); renderTGrid();
+                toast('대표 칭호를 바꿨어요');
+            } finally {
+                mConfirm.disabled = false;
+            }
         });
     }
 
