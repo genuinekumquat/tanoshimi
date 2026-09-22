@@ -62,6 +62,9 @@ mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/demo_my
   `persistent_logins` 테이블. `schema.sql` 에도 같은 정의가 들어갔으므로 새 DB 는 실행 불필요,
   **기존 DB 에만** 한 번 실행한다(안 하면 로그아웃 시 500). 원래 `v21` 로 만들어졌으나
   결제·예약 제거 마이그레이션과 번호가 겹쳐 `v22` 로 옮겼다.
+- **`migration_v23_title_equip.sql`** — 칭호 "장착"(대표 칭호 지정) 저장용
+  `user_titles.equipped` 컬럼. `schema.sql` 에도 같은 정의가 들어갔으므로 새 DB 는 실행
+  불필요, **기존 DB 에만** 한 번 실행한다(안 하면 마이페이지 진입 시 500).
 - **`demo_mypage_seed.sql`** — 마이페이지(내 여행/히트맵/칭호) 확인용 데모 데이터.
   `yuja@test.com` 계정에 완료 파티 29건 + 지역 태그 스냅 21건 + SOLO 여행 2건(오사카/부산) +
   스냅 3건을 채우고, 파티 29건 전부에 스냅을 연동해서 히트맵/칭호/"내 여행" 목록이 실제로

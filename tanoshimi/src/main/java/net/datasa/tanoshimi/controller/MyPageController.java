@@ -7,6 +7,7 @@ import net.datasa.tanoshimi.domain.dto.ApiResponse;
 import net.datasa.tanoshimi.domain.dto.ChangePasswordRequest;
 import net.datasa.tanoshimi.domain.dto.IntroUpdateRequest;
 import net.datasa.tanoshimi.domain.dto.MyTripView;
+import net.datasa.tanoshimi.domain.dto.TitleEquipRequest;
 import net.datasa.tanoshimi.domain.dto.TravelHeatmapView;
 import net.datasa.tanoshimi.domain.entity.MyTripEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
@@ -149,6 +150,22 @@ public class MyPageController {
         model.addAttribute("ownedCodes", titleService.ownedCodes(me));
 
         return "mypage/titles";
+    }
+
+    /**
+     * [TNSM-20 신규] 대표 칭호 장착. mypage-titles-manage.js 의 대표 칭호 수정 모달이
+     * "확인"을 누르면 호출한다 - 예전에는 저장 API가 없어 화면 상태만 바뀌고 새로고침하면
+     * 원래대로 돌아갔다(titles.html 모달 주석 참고).
+     */
+    @PostMapping("/api/mypage/titles/equip")
+    @ResponseBody
+    @Transactional
+    public ApiResponse<?> equipTitle(@RequestBody TitleEquipRequest request,
+                                     @AuthenticationPrincipal CustomUserDetails principal) {
+        UserEntity me = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        titleService.equipTitle(me, request.code());
+        return ApiResponse.okMessage("대표 칭호를 바꿨어요.");
     }
 
     /**

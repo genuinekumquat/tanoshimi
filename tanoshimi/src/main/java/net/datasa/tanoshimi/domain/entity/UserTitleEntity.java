@@ -28,7 +28,14 @@ public class UserTitleEntity {
     @Column(name = "earned_at", nullable = false, updatable = false)
     private LocalDateTime earnedAt;
 
+    /** 대표 칭호로 장착했는지. [TNSM-20] 한 유저당 최대 하나만 true - TitleService.equipTitle 이 보장한다. */
+    @Column(name = "equipped", nullable = false)
+    private boolean equipped = false;
+
     public UserTitleEntity(UserEntity user, TitleEntity title) {
         this.user = user; this.title = title;
     }
+
+    public void equip() { this.equipped = true; }
+    public void unequip() { this.equipped = false; }
 }
