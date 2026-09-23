@@ -89,12 +89,15 @@ public class ChatbotActivityService {
                     region, keyword, safeTags, date != null ? date.toString() : "Unknown", poolContext.toString()
             );
             
+            // 수정 후
             String aiResponse = geminiClient.ask(prompt);
-            String jsonRaw = aiResponse;
-            int startIndex = jsonRaw.indexOf("[");
-            int endIndex = jsonRaw.lastIndexOf("]");
-            if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
-                jsonRaw = jsonRaw.substring(startIndex, endIndex + 1);
+            String jsonRaw = aiResponse == null ? "" : aiResponse.trim();
+
+            // 응답 전체가 진짜 배열(예: "[...]")로 시작하는 경우만 신뢰한다.
+            // {"briefing":..., "newSchedule": []} 같은 "에러를 감싼 객체" 안의 []는
+            // 진짜 추천 배열이 아니므로 여기서 걸러내고 바로 폴백으로 보낸다.
+            if (!jsonRaw.startsWith("[")) {
+                throw new IllegalStateException("AI 응답이 배열 형식이 아님: " + jsonRaw);
             }
             
             ObjectMapper mapper = new ObjectMapper();
