@@ -256,13 +256,19 @@
                 el.classList.add('act');
             }
 
+            // [TNSM-70] del/grip 은 드래그(draggable, 위)·더블클릭 수정(아래)과 달리 편집권
+            // 보유 여부를 안 가려서, 편집권 없는 파티원 눈에도 X/리사이즈 손잡이가 눌리는
+            // 것처럼 보였다 - 눌러도 서버가 LOCK_NOT_HELD 로 막긴 하지만(TNSM-21에서 확인한
+            // assertCanEdit), 왜 안 되는지 이유도 안 보여주고 눌러지는 것처럼 보이는 것 자체가
+            // 버그다. 같은 조건으로 통일한다.
+            const canEdit = item.source !== 'package_default' && (typeof IS_LOCK_HOLDER === 'undefined' || IS_LOCK_HOLDER);
             let memoHtml = item.memo ? `<div class="m" style="font-size:10px; opacity:0.85; margin-top:1px; line-height:1.2; word-break:keep-all;">${escapeHtml(item.memo)}</div>` : '';
             el.innerHTML = `
               <div class="t" style="color: ${item.color || 'var(--custom-text-color, #4b6b4a)'}; font-weight: 700;">${escapeHtml(item.title)}</div>
               ${memoHtml}
               <div class="bg"></div>
-              ${item.source !== 'package_default' ? '<div class="del">X</div>' : ''}
-              ${item.source !== 'package_default' ? '<div class="grip"></div>' : ''}
+              ${canEdit ? '<div class="del">X</div>' : ''}
+              ${canEdit ? '<div class="grip"></div>' : ''}
             `;
             col.appendChild(el);
 
@@ -273,6 +279,8 @@
                 el.addEventListener('dragstart', (e) => {
                     e.dataTransfer.setData('text/plain', JSON.stringify({id: item.id}));
                 });
+            }
+            if (canEdit) {
                 const delBtn = el.querySelector('.del');
                 if (delBtn) delBtn.addEventListener('click', () => removeBlock(item));
 
@@ -286,8 +294,17 @@
                     e.stopPropagation();
                     showEditModal(item.title, item.memo, item.color || '#4b6b4a', async (newTitle, newMemo, newColor) => {
                         if (newTitle !== '') {
-                            await window.api.delete(`/api/planner/items/${item.id}`);
-                            await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                            // [TNSM-70] window.api.delete 는 존재하지 않는 메서드(csrf.js 는 del 만
+                            // 정의)라 항상 TypeError 로 죽어서 더블클릭 수정이 완전히 먹통이었다.
+                            // 삭제가 실패하면(예: 그 사이 편집권을 잃음) 새 항목을 만들지 않고
+                            // 여기서 멈춘다 - 안 그러면 원본은 지워졌는데 새 항목은 안 생기는
+                            // 데이터 유실이 생긴다.
+                            const delRes = await window.api.del(`/api/planner/items/${item.id}`);
+                            if (delRes && !delRes.success) {
+                                alert(delRes.message || '수정에 실패했어요.');
+                                return;
+                            }
+                            const addRes = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
                                 dayIndex: item.dayIndex,
                                 startMinute: item.startMinute,
                                 durationMinute: item.durationMinute,
@@ -296,6 +313,7 @@
                                 memo: newMemo,
                                 color: newColor
                             });
+                            if (addRes && !addRes.success && addRes.message) alert(addRes.message);
                             reload();
                         }
                     });
@@ -311,7 +329,10 @@
 
     async function removeBlock(item) {
         if (!confirm('삭제하시겠습니까?')) return;
-        await window.api.del(`/api/planner/items/${item.id}`);
+        // [TNSM-70] 실패(예: 편집권을 잃은 사이 삭제 시도)해도 응답을 확인하지 않아 아무 표시
+        // 없이 그냥 남아있기만 했다 - startResize 의 up() 처럼 실패 메시지를 보여준다.
+        const res = await window.api.del(`/api/planner/items/${item.id}`);
+        if (res && !res.success && res.message) alert(res.message);
         await reload();
     }
 
@@ -567,8 +588,12 @@
         if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
         showEditModal('', '', '#4b6b4a', async (newTitle, newMemo, newColor) => {
             if (newTitle !== '') {
-                await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
-                    dayIndex: 0,
+                // [TNSM-70] dayIndex 가 0으로 고정돼 있었는데 서버는 dayIndex >= 1 만
+                // 받는다(ScheduleItemRequest @Min(1)) - 실제로 눌러보니 매번 400이
+                // 나면서도 응답을 확인 안 해 조용히 실패하고 있었다(눌러도 아무 일도
+                // 안 생기는 것처럼 보임). 다른 곳(addBlank)과 같이 1일차를 기본값으로.
+                const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                    dayIndex: 1,
                     startMinute: 600, // default 10:00 AM
                     durationMinute: 60,
                     activityId: null,
@@ -576,6 +601,7 @@
                     memo: newMemo,
                     color: newColor
                 });
+                if (res && !res.success && res.message) alert(res.message);
                 reload();
             }
         });
@@ -585,9 +611,11 @@
         if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
         if (confirm('자동 일정을 제외한 모든 커스텀/추천 일정을 지웁니다. 초기화하시겠습니까?')) {
             // we delete everything non-fixed
+            // [TNSM-70] 여기도 window.api.delete(존재하지 않음) 오타라 첫 항목에서 바로
+            // TypeError 로 죽어 "전체 비우기"가 아예 동작하지 않았다.
             for (const item of items) {
                 if (item.source !== 'package_default') {
-                    await window.api.delete(`/api/planner/items/${item.id}`);
+                    await window.api.del(`/api/planner/items/${item.id}`);
                 }
             }
             reload();
