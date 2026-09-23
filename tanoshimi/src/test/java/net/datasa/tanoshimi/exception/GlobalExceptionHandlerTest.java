@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -57,8 +58,9 @@ class GlobalExceptionHandlerTest {
     @Test
     void 메서드에_ResponseBody가_있으면_JSON으로_응답한다() throws Exception {
         var request = requestFor(new MixedController(), "apiMethod");
+        var response = new MockHttpServletResponse();
 
-        ResponseEntity<?> result = handler.handleBusiness(new BusinessException(ErrorCode.USER_NOT_FOUND), request);
+        ResponseEntity<?> result = handler.handleBusiness(new BusinessException(ErrorCode.USER_NOT_FOUND), request, response);
 
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -66,18 +68,23 @@ class GlobalExceptionHandlerTest {
     @Test
     void 클래스가_RestController이면_메서드에_애노테이션이_없어도_JSON으로_응답한다() throws Exception {
         var request = requestFor(new PureRestController(), "anyMethod");
+        var response = new MockHttpServletResponse();
 
-        ResponseEntity<?> result = handler.handleBusiness(new BusinessException(ErrorCode.PARTY_NOT_FOUND), request);
+        ResponseEntity<?> result = handler.handleBusiness(new BusinessException(ErrorCode.PARTY_NOT_FOUND), request, response);
 
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
-    void 화면_렌더링_메서드면_ResponseBody가_없으니_예외를_그대로_다시_던진다() throws Exception {
+    void 화면_렌더링_메서드면_ResponseBody가_없으니_상태코드로_sendError한다() throws Exception {
         var request = requestFor(new MixedController(), "viewMethod");
+        var response = new MockHttpServletResponse();
         BusinessException e = new BusinessException(ErrorCode.USER_NOT_FOUND);
 
-        assertThatThrownBy(() -> handler.handleBusiness(e, request)).isSameAs(e);
+        ResponseEntity<?> result = handler.handleBusiness(e, request, response);
+
+        assertThat(result).isNull();
+        assertThat(response.getStatus()).isEqualTo(ErrorCode.USER_NOT_FOUND.status().value());
     }
 
     @Test
@@ -99,10 +106,14 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void request가_null이면_API로_보지_않고_예외를_다시_던진다() {
+    void request가_null이면_API로_보지_않고_sendError한다() throws Exception {
         BusinessException e = new BusinessException(ErrorCode.USER_NOT_FOUND);
+        var response = new MockHttpServletResponse();
 
-        assertThatThrownBy(() -> handler.handleBusiness(e, null)).isSameAs(e);
+        ResponseEntity<?> result = handler.handleBusiness(e, null, response);
+
+        assertThat(result).isNull();
+        assertThat(response.getStatus()).isEqualTo(ErrorCode.USER_NOT_FOUND.status().value());
     }
 
     @Test
