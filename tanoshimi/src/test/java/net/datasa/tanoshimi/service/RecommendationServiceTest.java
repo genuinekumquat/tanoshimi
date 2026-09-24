@@ -1,7 +1,14 @@
 package net.datasa.tanoshimi.service;
 
+import net.datasa.tanoshimi.domain.dto.RecommendationLikeResult;
 import net.datasa.tanoshimi.domain.entity.Recommendation;
+import net.datasa.tanoshimi.domain.entity.RecommendationLikeEntity;
+import net.datasa.tanoshimi.domain.entity.UserEntity;
+import net.datasa.tanoshimi.exception.BusinessException;
+import net.datasa.tanoshimi.exception.ErrorCode;
+import net.datasa.tanoshimi.repository.RecommendationLikeRepository;
 import net.datasa.tanoshimi.repository.RecommendationRepository;
+import net.datasa.tanoshimi.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -13,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -20,6 +28,8 @@ class RecommendationServiceTest {
 
     @Mock private RecommendationRepository recommendationRepository;
     @Mock private FileStorageService fileStorageService;
+    @Mock private RecommendationLikeRepository recommendationLikeRepository;
+    @Mock private UserRepository userRepository;
 
     @InjectMocks
     private RecommendationService recommendationService;
@@ -49,14 +59,41 @@ class RecommendationServiceTest {
     }
 
     @Test
-    void like_글이_있으면_1_증가한_수를_돌려주고_없으면_0() {
-        Recommendation rec = mock(Recommendation.class);
-        when(rec.getLikeCount()).thenReturn(6);
+    void toggleLike_처음_누르면_기록을_남기고_1_증가한다() {
+        Recommendation rec = Recommendation.builder().title("t").content("c").authorId("a").build();
+        UserEntity user = mock(UserEntity.class);
         when(recommendationRepository.findById(1L)).thenReturn(Optional.of(rec));
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(recommendationLikeRepository.existsByRecommendationAndUser(rec, user)).thenReturn(false);
+
+        RecommendationLikeResult result = recommendationService.toggleLike(1L, 7L);
+
+        assertThat(result).isEqualTo(new RecommendationLikeResult(true, 1));
+        verify(recommendationLikeRepository).save(any(RecommendationLikeEntity.class));
+    }
+
+    @Test
+    void toggleLike_이미_눌렀으면_취소하고_1_감소한다() {
+        Recommendation rec = Recommendation.builder().title("t").content("c").authorId("a").build();
+        rec.incrementLike();
+        UserEntity user = mock(UserEntity.class);
+        when(recommendationRepository.findById(1L)).thenReturn(Optional.of(rec));
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(recommendationLikeRepository.existsByRecommendationAndUser(rec, user)).thenReturn(true);
+
+        RecommendationLikeResult result = recommendationService.toggleLike(1L, 7L);
+
+        assertThat(result).isEqualTo(new RecommendationLikeResult(false, 0));
+        verify(recommendationLikeRepository).deleteByRecommendationAndUser(rec, user);
+        verify(recommendationLikeRepository, never()).save(any());
+    }
+
+    @Test
+    void toggleLike_글이_없으면_RECOMMENDATION_NOT_FOUND() {
         when(recommendationRepository.findById(2L)).thenReturn(Optional.empty());
 
-        assertThat(recommendationService.like(1L)).isEqualTo(6);
-        verify(rec).incrementLike();
-        assertThat(recommendationService.like(2L)).isZero();
+        assertThatThrownBy(() -> recommendationService.toggleLike(2L, 7L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.RECOMMENDATION_NOT_FOUND);
     }
 }

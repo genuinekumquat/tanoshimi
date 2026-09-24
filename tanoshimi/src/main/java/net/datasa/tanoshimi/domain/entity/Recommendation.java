@@ -57,4 +57,8 @@ public class Recommendation {
     public void incrementLike() {
         this.likeCount++;
     }
+
+    public void decrementLike() {
+        if (this.likeCount > 0) this.likeCount--;
+    }
 }

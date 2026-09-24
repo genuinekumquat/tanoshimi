@@ -44,6 +44,8 @@
             background: none; border: 1px solid #eaeaea; border-radius: 20px; padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600; color: var(--ink-soft); transition: 0.2s;
         }
         .like-btn:hover { background: #fff4f4; color: var(--sash); border-color: var(--sash); }
+        .like-btn.liked { background: #fff4f4; color: var(--sash); border-color: var(--sash); }
+        .like-btn:disabled { cursor: wait; }
     </style>
 </head>
 <body style="background:var(--parchment); font-family:'Pretendard', sans-serif;">
@@ -67,8 +69,10 @@
                 
                 <div class="rec-footer">
                     <span th:text="${rec.authorId}">작성자</span>
-                    <button class="like-btn" th:attr="onclick='likeRec(this, ' + ${rec.id} + ')'">
-                        ❤️ <span class="cnt" th:text="${rec.likeCount}">0</span>
+                    <button class="like-btn" th:classappend="${likedIds.contains(rec.id)} ? 'liked'"
+                            th:attr="onclick='likeRec(this, ' + ${rec.id} + ')',aria-pressed=${likedIds.contains(rec.id)}">
+                        <span class="heart" th:text="${likedIds.contains(rec.id)} ? '❤️' : '🤍'">🤍</span>
+                        <span class="cnt" th:text="${rec.likeCount}">0</span>
                     </button>
                 </div>
             </div>
@@ -81,11 +85,23 @@
 </div>
 
 <script>
+    // 좋아요 토글 - 응답이 오기 전 연타로 요청이 겹치지 않게 버튼을 잠깐 잠근다.
     async function likeRec(btn, id) {
-        if(!window.api) return;
-        const res = await window.api.post(`/recommendations/${id}/like`, {});
-        if(res !== undefined) {
-            btn.querySelector('.cnt').innerText = res;
+        if(!window.api || btn.disabled) return;
+        btn.disabled = true;
+        try {
+            const res = await window.api.post(`/recommendations/${id}/like`, {});
+            if(!res.success) {
+                alert(res.message || '좋아요 처리에 실패했어요.');
+                return;
+            }
+            const { liked, likeCount } = res.data;
+            btn.classList.toggle('liked', liked);
+            btn.setAttribute('aria-pressed', liked);
+            btn.querySelector('.heart').innerText = liked ? '❤️' : '🤍';
+            btn.querySelector('.cnt').innerText = likeCount;
+        } finally {
+            btn.disabled = false;
         }
     }
 </script>

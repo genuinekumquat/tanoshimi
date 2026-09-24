@@ -33,6 +33,7 @@ public enum ErrorCode {
     // 투어
     TOUR_NOT_FOUND(HttpStatus.NOT_FOUND, "패키지를 찾을 수 없습니다."),
     PARTY_NOT_FOUND(HttpStatus.NOT_FOUND, "파티를 찾을 수 없습니다."),
+    RECOMMENDATION_NOT_FOUND(HttpStatus.NOT_FOUND, "추천글을 찾을 수 없습니다."),
 
     // 파티 자격
     PARTY_GENDER_RESTRICTED(HttpStatus.FORBIDDEN, "이 파티는 성별 조건이 맞지 않아 신청할 수 없습니다."),
