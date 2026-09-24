@@ -24,13 +24,51 @@
     @media(max-width: 600px) {
         .party-grid { grid-template-columns: repeat(2, 1fr); }
     }
-    .party-card { display: block; text-decoration: none; color: inherit; transition: transform 0.2s; }
+    .party-card { display: flex; flex-direction: column; overflow: hidden; text-decoration: none; color: inherit; transition: transform 0.2s; }
     .party-card:hover { transform: translateY(-4px); }
+
+    /* 썸네일 위 뱃지 - .chip 은 정의가 없어 글자에 배경만 칠해진 것처럼 보였다.
+       왼쪽 뱃지 줄은 우상단 D-day 뱃지 자리(right:64px)를 비워 두고, 좁으면 다음 줄로 넘긴다. */
+    .party-card .chip-row { position: absolute; top: 10px; left: 10px; right: 64px; display: flex; gap: 5px; flex-wrap: wrap; }
+    .party-card .chip {
+        display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px;
+        font-size: 11.5px; font-weight: 700; line-height: 1.4; white-space: nowrap;
+        box-shadow: 0 1px 3px rgba(0,0,0,.12);
+    }
+    .party-card .dday-badge {
+        position: absolute; top: 10px; right: 10px; font-family: 'Jua', sans-serif; font-size: 12px; color: #fff;
+        background: var(--sash); border-radius: 999px; padding: 3px 9px; box-shadow: 0 1px 3px rgba(0,0,0,.15); white-space: nowrap;
+    }
+    .party-card .card-body { padding: 14px; display: flex; flex-direction: column; flex: 1; }
+    /* 제목은 2줄까지만 - 카드 높이가 제목 길이에 따라 들쭉날쭉하지 않게 */
+    .party-card .party-list-title {
+        font-size: 15px; font-weight: 700; margin: 0 0 6px; line-height: 1.4;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.8em;
+    }
+    .party-card .card-meta { font-size: 12px; color: var(--ink-soft); display: flex; flex-direction: column; gap: 4px; }
+    .party-card .card-meta b { color: var(--ink); }
+    .party-card .seat-left { font-style: normal; font-weight: 700; color: var(--forest); margin-left: 4px; white-space: nowrap; }
+    .party-card .seat-left.last { color: var(--sash-deep, #b85c2b); }
+    .party-card .card-conds {
+        margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px;
+        display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 11.5px;
+    }
+    .party-card .card-conds > span { background: var(--parchment-deep); color: var(--ink-soft); padding: 3px 8px; border-radius: 4px; }
+    @media(max-width: 600px) {
+        .party-card .chip-row { right: 10px; top: 40px; }  /* 폰 카드 폭에선 D-day 아래 줄로 */
+        .party-card .card-body { padding: 12px; }
+        .party-card .party-list-title { font-size: 14px; }
+    }
     .board-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .board-count { font-size: 15px; font-weight: 700; color: var(--ink); }
     .sort { display: flex; gap: 8px; }
     .sort button {
         background: none; border: none; font-size: 13px; color: var(--ink-soft); cursor: pointer; padding: 4px 8px; font-weight: 700; border-radius: 6px;
+        white-space: nowrap;
+    }
+    @media(max-width: 600px) {
+        .board-top { flex-wrap: wrap; gap: 8px; }
+        .sort { gap: 2px; }
     }
     .sort button.on { color: var(--forest); background: #f4f5f7; }
 
@@ -118,8 +156,8 @@
                  style="position:absolute; inset:0;"
                  th:styleappend="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'background-image:url(' + party.thumbnailUrl + '); background-size:cover; background-position:center;' : ''}"></div>
 
-            <div style="position:absolute; top:10px; left:10px; display:flex; gap:6px; flex-wrap:wrap;">
-              <span class="chip chip-region" style="background:var(--sky); color:#1c3a44;" th:text="'📍 ' + ${party.region}">지역</span>
+            <div class="chip-row">
+              <span class="chip chip-region" style="background:rgba(255,255,255,.92); color:#1c3a44;" th:text="'📍 ' + ${party.region}">지역</span>
               <!-- 모집상태 뱃지는 party.status 하나만 본다. 예전엔 여기서 출발일까지 같이 따져
                    'recruiting 이지만 출발일 지남'을 '모집종료'로 바꿔 보여줬는데(그러면서 우상단
                    D-day 뱃지의 '여행중' 계산과 서로 어긋났다), 이제 출발일이 지난 파티는 이 기본
@@ -132,7 +170,7 @@
 
             <!-- 우상단 뱃지: 출발 전이면 D-day 카운트다운, 출발일이 지난 파티('지난 모임 보기')는
                  왼쪽 모집상태 뱃지와 같은 기준(party.status)으로 표시해 둘이 어긋나지 않게 한다. -->
-            <span style="position:absolute; top:10px; right:10px; font-family:'Jua',sans-serif; font-size:12px; color:#fff; background:var(--sash); border-radius:6px; padding:3px 9px; box-shadow:0 2px 4px rgba(0,0,0,.15);"
+            <span class="dday-badge"
                   th:with="statusKey=${'party.status.' + party.status.name()}, dday=${T(java.time.temporal.ChronoUnit).DAYS.between(today, party.departureDate)}"
                   th:text="${dday > 0} ? 'D-' + ${dday} : (${dday == 0} ? 'D-DAY' : #{__${statusKey}__})">D-7</span>
             <!-- report button -->
@@ -141,26 +179,28 @@
             </span>
           </div>
 
-          <div style="padding:14px;">
-            <p style="font-size:15px; font-weight:700; margin:0 0 6px; line-height:1.4;" class="party-list-title" th:text="${party.title}">제목</p>
-            
-            <div style="font-size:12px; color:var(--ink-soft); display:flex; flex-direction:column; gap:4px; margin-bottom:12px;">
+          <div class="card-body">
+            <p class="party-list-title" th:text="${party.title}">제목</p>
+
+            <div class="card-meta">
               <span>[[#{party.meta.schedule}]]: [[${party.departureDate}]]</span>
-              <span>[[#{party.meta.capacity}]]: [[${party.capacity}]]명</span>
-            </div>
-
-            <div style="border-top:1px dashed var(--line); padding-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:11.5px;">
-              <span th:if="${party.genderRestriction.name() != 'all'}" style="background:var(--parchment-deep); color:var(--ink-soft); padding:3px 8px; border-radius:4px;">
-                <span th:text="${party.genderRestriction.name() == 'male_only'} ? #{party.gender.male_only} : #{party.gender.female_only}">성별</span>
-              </span>
-              <span th:if="${party.nationalityRestriction.name() != 'all'}" style="background:var(--parchment-deep); color:var(--ink-soft); padding:3px 8px; border-radius:4px;">
-                <span th:text="${party.nationalityRestriction.name() == 'kr_only'} ? #{party.nationality.kr_only} : #{party.nationality.jp_only}">국적</span>
-              </span>
-              <span th:if="${party.ageMin != null or party.ageMax != null}" style="background:var(--parchment-deep); color:var(--ink-soft); padding:3px 8px; border-radius:4px;">
-                <span th:text="(${party.ageMin} ?: '') + '~' + (${party.ageMax} ?: '') + #{party.meta.age_range}">연령</span>
+              <span th:with="joined=${memberCounts[party.id] ?: 0}">
+                [[#{party.meta.capacity}]]: <b>[[${joined}]]</b>/[[${party.capacity}]]명
+                <em class="seat-left" th:if="${!showingPast and party.status.name() == 'recruiting' and party.capacity > joined}"
+                    th:classappend="${party.capacity - joined <= 1} ? 'last'" th:text="'잔여 ' + ${party.capacity - joined} + '석'">잔여 2석</em>
               </span>
             </div>
 
+            <!-- 참여 조건(성별/국적/연령)이 하나라도 있을 때만 구분선과 함께 보여준다 -->
+            <div class="card-conds"
+                 th:if="${party.genderRestriction.name() != 'all' or party.nationalityRestriction.name() != 'all' or party.ageMin != null or party.ageMax != null}">
+              <span th:if="${party.genderRestriction.name() != 'all'}"
+                    th:text="${party.genderRestriction.name() == 'male_only'} ? #{party.gender.male_only} : #{party.gender.female_only}">성별</span>
+              <span th:if="${party.nationalityRestriction.name() != 'all'}"
+                    th:text="${party.nationalityRestriction.name() == 'kr_only'} ? #{party.nationality.kr_only} : #{party.nationality.jp_only}">국적</span>
+              <span th:if="${party.ageMin != null or party.ageMax != null}"
+                    th:text="(${party.ageMin} ?: '') + '~' + (${party.ageMax} ?: '') + #{party.meta.age_range}">연령</span>
+            </div>
           </div>
         </a>
       </div>

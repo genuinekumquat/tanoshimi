@@ -3,7 +3,9 @@ package net.datasa.tanoshimi.service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.domain.dto.PartyCardView;
 import net.datasa.tanoshimi.domain.dto.PartyCreateRequest;
@@ -99,6 +101,20 @@ public class PartyService {
     @Transactional(readOnly = true)
     public List<TourEntity> selectableTours() {
         return tourRepository.findByStatusOrderByIdDesc(ActiveStatus.active);
+    }
+
+    /**
+     * 파티 게시판 카드에 "현재 인원/정원"을 보여주기 위한 파티 id → 파티원 수(파티장 포함).
+     * 카드마다 countByParty 를 부르지 않고 한 번의 group by 쿼리로 센다.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, Integer> memberCounts(List<PartyEntity> parties) {
+        if (parties.isEmpty()) return Map.of();
+        Map<Long, Integer> counts = new HashMap<>();
+        for (Object[] row : partyMemberRepository.countByPartyIn(parties)) {
+            counts.put((Long) row[0], ((Number) row[1]).intValue());
+        }
+        return counts;
     }
 
     /** 메인 "모집 마감 임박"으로 보여줄 출발일 범위 - 오늘부터 이 일수 안에 출발하는 파티. */

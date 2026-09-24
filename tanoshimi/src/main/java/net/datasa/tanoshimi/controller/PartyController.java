@@ -1,6 +1,7 @@
 package net.datasa.tanoshimi.controller;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.service.FileStorageService;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
@@ -48,7 +49,9 @@ public class PartyController {
                         Model model) {
         GenderRestriction genderFilter = (gender == null || gender.isBlank()) ? null : GenderRestriction.valueOf(gender);
         NationalityRestriction nationalityFilter = (nationality == null || nationality.isBlank()) ? null : NationalityRestriction.valueOf(nationality);
-        model.addAttribute("parties", partyService.listBoard(region, q, past, genderFilter, nationalityFilter, age));
+        List<PartyEntity> parties = partyService.listBoard(region, q, past, genderFilter, nationalityFilter, age);
+        model.addAttribute("parties", parties);
+        model.addAttribute("memberCounts", partyService.memberCounts(parties));
         model.addAttribute("keyword", q);
         model.addAttribute("region", region);
         model.addAttribute("showingPast", past);
