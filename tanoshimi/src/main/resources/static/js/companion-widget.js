@@ -128,7 +128,29 @@
             if (ghostBtn) ghostBtn.addEventListener('click', () => { if(window.toggleCharacterVisibility) window.toggleCharacterVisibility(); });
 
             live2dModel = model;
-            
+
+            // 캔버스는 사각형 전체가 클릭을 가로채서, 크기를 키우면 투명한 여백이 로그인 버튼 같은
+            // 페이지 요소를 덮어 버린다. 마우스가 캐릭터가 실제로 그려진(불투명한) 픽셀 위에 있을 때만
+            // 캔버스가 클릭을 받고, 나머지는 아래 페이지로 통과시킨다(preserveDrawingBuffer 라 읽을 수 있음).
+            // 터치는 누르기 전에 pointermove 가 없어 판정할 수 없으므로 기존 동작 그대로 둔다.
+            const gl = app.renderer.gl;
+            const pixel = new Uint8Array(4);
+            let pressingCharacter = false;
+            function isOpaqueAt(clientX, clientY) {
+                const rect = canvas.getBoundingClientRect();
+                if (clientX < rect.left || clientX >= rect.right || clientY < rect.top || clientY >= rect.bottom) return false;
+                const px = Math.floor((clientX - rect.left) / rect.width * canvas.width);
+                const py = Math.floor((rect.bottom - clientY) / rect.height * canvas.height); // WebGL 은 아래쪽이 y=0
+                gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+                return pixel[3] > 10;
+            }
+            canvas.addEventListener('pointerdown', () => { pressingCharacter = true; });
+            window.addEventListener('pointerup', () => { pressingCharacter = false; });
+            window.addEventListener('pointermove', (e) => {
+                if (e.pointerType !== 'mouse' || pressingCharacter || canvas.style.opacity === '0') return;
+                canvas.style.pointerEvents = isOpaqueAt(e.clientX, e.clientY) ? 'auto' : 'none';
+            }, { passive: true });
+
             live2dModel.internalModel.on('beforeModelUpdate', () => {
                 if (window.currentVivianEmotion && live2dModel.internalModel.coreModel) {
                     live2dModel.internalModel.coreModel.addParameterValueById(window.currentVivianEmotion, 1.0);
