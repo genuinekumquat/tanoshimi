@@ -18,6 +18,10 @@ public interface PartyMemberRepository extends JpaRepository<PartyMemberEntity, 
     List<PartyMemberEntity> findByParty(PartyEntity party);
     long countByParty(PartyEntity party);
 
+    /** 파티 게시판 카드의 "현재 인원/정원" - 여러 파티의 인원 수를 한 번에 센다. 각 행은 [partyId, count]. */
+    @Query("select pm.party.id, count(pm) from PartyMemberEntity pm where pm.party in :parties group by pm.party.id")
+    List<Object[]> countByPartyIn(@Param("parties") List<PartyEntity> parties);
+
     /** [⑥ 마이페이지] '프로참석러' 칭호용 - 내가 속한 파티 수(개설한 것 포함). */
     long countByUser(UserEntity user);
 

@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -180,6 +181,25 @@ class PartyServiceTest {
         when(partyMemberRepository.findByParty(p)).thenReturn(List.of(m1, m2, m3));
 
         assertThat(partyService().otherMembers(p, 2L)).containsExactly(u1, u3);
+    }
+
+    // ---------------------------------------------------------------- memberCounts
+
+    @Test
+    void memberCounts_는_파티id별_인원수를_한번의_쿼리로_모은다() {
+        PartyEntity a = party("A", LocalDate.now().plusDays(3), 4);
+        PartyEntity b = party("B", LocalDate.now().plusDays(5), 5);
+        List<PartyEntity> parties = List.of(a, b);
+        when(partyMemberRepository.countByPartyIn(parties))
+                .thenReturn(List.of(new Object[]{10L, 3L}, new Object[]{11L, 1L}));
+
+        assertThat(partyService().memberCounts(parties)).containsExactlyInAnyOrderEntriesOf(Map.of(10L, 3, 11L, 1));
+    }
+
+    @Test
+    void memberCounts_는_빈_목록이면_쿼리없이_빈_맵() {
+        assertThat(partyService().memberCounts(List.of())).isEmpty();
+        verify(partyMemberRepository, never()).countByPartyIn(any());
     }
 
     // ---------------------------------------------------------------- urgentPartyCards
