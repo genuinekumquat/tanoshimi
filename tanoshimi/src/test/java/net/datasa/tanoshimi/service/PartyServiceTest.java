@@ -185,21 +185,34 @@ class PartyServiceTest {
     // ---------------------------------------------------------------- urgentPartyCards
 
     @Test
-    void urgentPartyCards_는_잔여석_적은순_그다음_출발일_빠른순으로_정렬한다() {
-        PartyEntity a = party("A", LocalDate.now().plusDays(10), 4); // 잔여 1
-        PartyEntity b = party("B", LocalDate.now().plusDays(5), 5);  // 잔여 4
-        PartyEntity c = party("C", LocalDate.now().plusDays(3), 4);  // 잔여 1
-        when(partyRepository.findByStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
-                PartyStatus.recruiting, LocalDate.now()))
-                .thenReturn(List.of(a, b, c));
+    void urgentPartyCards_는_오늘부터_7일_안에_출발하는_파티만_조회한다() {
+        LocalDate today = LocalDate.now();
+        when(partyRepository.findByStatusAndBlindedFalseAndDepartureDateBetweenOrderByDepartureDateAsc(
+                PartyStatus.recruiting, today, today.plusDays(7)))
+                .thenReturn(List.of());
+
+        assertThat(partyService().urgentPartyCards()).isEmpty();
+
+        verify(partyRepository).findByStatusAndBlindedFalseAndDepartureDateBetweenOrderByDepartureDateAsc(
+                PartyStatus.recruiting, today, today.plusDays(7));
+    }
+
+    @Test
+    void urgentPartyCards_는_출발일_빠른순_같은날이면_잔여석_적은순으로_정렬한다() {
+        LocalDate today = LocalDate.now();
+        PartyEntity a = party("A", today.plusDays(5), 4); // 잔여 1
+        PartyEntity b = party("B", today.plusDays(2), 5); // 잔여 4
+        PartyEntity c = party("C", today.plusDays(2), 4); // 잔여 1
+        when(partyRepository.findByStatusAndBlindedFalseAndDepartureDateBetweenOrderByDepartureDateAsc(
+                PartyStatus.recruiting, today, today.plusDays(7)))
+                .thenReturn(List.of(b, c, a));
         when(partyMemberRepository.countByParty(a)).thenReturn(3L);
         when(partyMemberRepository.countByParty(b)).thenReturn(1L);
         when(partyMemberRepository.countByParty(c)).thenReturn(3L);
 
         List<PartyCardView> cards = partyService().urgentPartyCards();
 
-        // 잔여 1인 A·C 가 먼저, 그 안에서는 출발일 빠른 C 가 A 보다 앞. 잔여 4인 B 는 맨 뒤.
-        assertThat(cards).extracting(PartyCardView::title).containsExactly("C", "A", "B");
-        assertThat(cards).extracting(PartyCardView::remaining).containsExactly(1, 1, 4);
+        // 2일 뒤 출발인 B·C 가 먼저, 그 안에서는 잔여 1인 C 가 잔여 4인 B 보다 앞. 5일 뒤 A 는 맨 뒤.
+        assertThat(cards).extracting(PartyCardView::title).containsExactly("C", "B", "A");
     }
 }

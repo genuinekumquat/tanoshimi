@@ -9,7 +9,7 @@
  *   <li>태그 필터 pill 렌더링 + 클릭 시 "모집 마감 임박 파티" 그리드 재필터</li>
  *   <li>서버가 내려준 두 목록을 카드로 렌더링
  *     <ul>
- *       <li>{@code HOT_PARTIES}  → #hot-party-grid : 잔여석 적은 순 모집중 파티(모집글) 상위 6개를 D-day/잔여석이 보이는 리스트로. 클릭 시 /party-board/{id}</li>
+ *       <li>{@code HOT_PARTIES}  → #hot-party-grid : 7일 안에 출발하는 모집중 파티(출발일 빠른 순) 상위 6개를 D-day/잔여석이 보이는 리스트로. 클릭 시 /party-board/{id}</li>
  *       <li>{@code POPULAR_SNAPS} → #snap-grid      : 좋아요순 커뮤니티 사진 글. 클릭 시 /board/{id}</li>
  *     </ul>
  *   </li>
@@ -83,7 +83,13 @@
 
     if (!list.length) {
       grid.innerHTML = '';
-      if (empty) empty.style.display = 'block';
+      if (empty) {
+        // 서버는 7일 안에 출발하는 파티만 내려준다 - 아예 없을 때와 태그 필터로 걸러졌을 때 문구를 나눈다.
+        empty.innerHTML = source.length
+          ? '이 카테고리에는 일주일 안에 출발하는 파티가 없어요.'
+          : '일주일 안에 출발하는 파티가 없어요.<br><a href="/party-board" style="color:var(--forest); font-weight:800;">파티 게시판에서 찾아보기 →</a>';
+        empty.style.display = 'block';
+      }
       return;
     }
     if (empty) empty.style.display = 'none';

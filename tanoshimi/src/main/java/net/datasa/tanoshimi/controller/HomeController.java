@@ -24,7 +24,7 @@ public class HomeController {
 
     @GetMapping("/")
     public String home(@RequestParam(required = false) String region, Model model) {
-        // "🔥 모집 마감 임박 파티" 그리드 재료 - 잔여석 적은 순으로 정렬된 모집중 파티 카드.
+        // "🔥 모집 마감 임박 파티" 재료 - 7일 안에 출발하는 모집중 파티 카드(출발일 빠른 순).
         model.addAttribute("urgentParties", partyService.urgentPartyCards());
         // [TNSM-53 재구현] "인기 스냅" 그리드 재료 - region이 선택되면 그 지역(+하위 지역)만.
         model.addAttribute("popularSnaps", postService.popularSnapCards(POPULAR_SNAP_LIMIT, region));
