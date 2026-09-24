@@ -564,3 +564,16 @@ CREATE TABLE IF NOT EXISTS persistent_logins (
     last_used   TIMESTAMP    NOT NULL COMMENT '이 토큰이 마지막으로 사용된 시각',
     PRIMARY KEY (series)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 관광지 추천 좋아요 - 한 사람당 추천글 하나에 한 번만 (v24).
+-- recommendation 테이블은 이 파일이 아니라 JPA(ddl-auto)가 만들어서, 여기서는 그쪽 FK 를 걸지 않는다
+-- (실행 순서상 아직 없을 수 있음). 애플리케이션이 뜨면 Hibernate 가 FK 를 채운다.
+CREATE TABLE IF NOT EXISTS recommendation_likes (
+    id                BIGINT   NOT NULL AUTO_INCREMENT,
+    recommendation_id BIGINT   NOT NULL,
+    user_id           BIGINT   NOT NULL,
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_rl_rec_user (recommendation_id, user_id),
+    CONSTRAINT fk_rl_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

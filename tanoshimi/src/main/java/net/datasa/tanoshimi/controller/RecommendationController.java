@@ -1,6 +1,9 @@
 package net.datasa.tanoshimi.controller;
 
 import lombok.RequiredArgsConstructor;
+import net.datasa.tanoshimi.auth.CustomUserDetails;
+import net.datasa.tanoshimi.domain.dto.ApiResponse;
+import net.datasa.tanoshimi.domain.dto.RecommendationLikeResult;
 import net.datasa.tanoshimi.service.RecommendationService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,8 +20,9 @@ public class RecommendationController {
     private final RecommendationService recommendationService;
 
     @GetMapping
-    public String list(Model model) {
+    public String list(Model model, @AuthenticationPrincipal CustomUserDetails principal) {
         model.addAttribute("recommendations", recommendationService.listNewestFirst());
+        model.addAttribute("likedIds", recommendationService.likedIds(principal.getId()));
         return "recommendations/list";
     }
 
@@ -40,7 +44,8 @@ public class RecommendationController {
 
     @PostMapping("/{id}/like")
     @ResponseBody
-    public String like(@PathVariable Long id) {
-        return String.valueOf(recommendationService.like(id));
+    public ApiResponse<RecommendationLikeResult> like(@PathVariable Long id,
+                                                      @AuthenticationPrincipal CustomUserDetails principal) {
+        return ApiResponse.ok(recommendationService.toggleLike(id, principal.getId()));
     }
 }
