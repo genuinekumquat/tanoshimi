@@ -31,6 +31,10 @@ public interface PartyRepository extends JpaRepository<PartyEntity, Long> {
     List<PartyEntity> findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
             String region, PartyStatus status, LocalDate from);
 
+    /** 메인 "모집 마감 임박" - 출발일이 from~to(양끝 포함) 사이인 파티, 출발일 빠른 순. */
+    List<PartyEntity> findByStatusAndBlindedFalseAndDepartureDateBetweenOrderByDepartureDateAsc(
+            PartyStatus status, LocalDate from, LocalDate to);
+
     /** 파티 게시판 "지난 모임 보기" 탭 - 출발일이 이미 지난 파티(상태 무관), 최근 출발순. */
     List<PartyEntity> findByBlindedFalseAndDepartureDateLessThanOrderByDepartureDateDesc(LocalDate before);
 

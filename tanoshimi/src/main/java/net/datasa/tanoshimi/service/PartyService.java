@@ -101,24 +101,27 @@ public class PartyService {
         return tourRepository.findByStatusOrderByIdDesc(ActiveStatus.active);
     }
 
+    /** 메인 "모집 마감 임박"으로 보여줄 출발일 범위 - 오늘부터 이 일수 안에 출발하는 파티. */
+    static final int URGENT_WITHIN_DAYS = 7;
+
     /**
-     * 메인 페이지 "모집 마감 임박" 카드 - 모집중이고 블라인드 아닌 파티를 잔여석 적은 순,
-     * 같으면 출발일 빠른 순으로 정렬해서 카드 뷰로 변환한다.
-     *
-     * <p>게시판 기본 목록과 같은 이유로 출발일이 지난 파티는 뺀다 - status 가 recruiting 으로
-     * 남아 있어도 이미 신청할 수 없는 글이다.
+     * 메인 페이지 "모집 마감 임박" 카드 - 모집중이고 블라인드 아닌 파티 중 오늘부터
+     * {@value #URGENT_WITHIN_DAYS}일 안에 출발하는 것만, 출발일 빠른 순(같으면 잔여석 적은 순)으로
+     * 카드 뷰로 변환한다. 출발일이 지난 파티는 게시판 기본 목록과 같은 이유로 뺀다 - status 가
+     * recruiting 으로 남아 있어도 이미 신청할 수 없는 글이다.
      */
     @Transactional(readOnly = true)
     public List<PartyCardView> urgentPartyCards() {
-        return partyRepository.findByStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
-                        PartyStatus.recruiting, LocalDate.now()).stream()
+        LocalDate today = LocalDate.now();
+        return partyRepository.findByStatusAndBlindedFalseAndDepartureDateBetweenOrderByDepartureDateAsc(
+                        PartyStatus.recruiting, today, today.plusDays(URGENT_WITHIN_DAYS)).stream()
                 .map(p -> new PartyCardView(
                         p.getId(), p.getTitle(), p.getRegion(),
                         p.getDepartureDate().format(URGENT_CARD_DATE_FMT),
                         p.getBudgetKrw(), p.getCapacity(), (int) partyMemberRepository.countByParty(p),
                         p.getThumbnailUrl(), p.getStyleTag()))
-                .sorted(Comparator.<PartyCardView>comparingInt(PartyCardView::remaining)
-                        .thenComparing(PartyCardView::departureDate))
+                .sorted(Comparator.comparing(PartyCardView::departureDate)
+                        .thenComparingInt(PartyCardView::remaining))
                 .toList();
     }
 
