@@ -150,29 +150,37 @@
 
       <div class="party-grid" id="party-grid">
         <a class="party-card card" th:each="party, iter : ${parties}" th:href="@{'/party-board/' + ${party.id}}">
+          <!-- 상태 뱃지 기준(statusKey):
+               - 여행 종료일(출발일 + 일수)이 지났거나 status=completed → 여행종료
+               - 출발일이 지났고 아직 안 끝남 → 여행중
+               - 그 외(출발 전·출발 당일) → party.status 그대로(모집중/정원마감/모집종료).
+                 출발 당일은 '모집 중' 탭에도 나오므로(listBoard: 출발일 >= 오늘) D-DAY 로 둔다.
+               status 를 completed 로 바꾸는 PartyCompletionScheduler 가 서버가 꺼져 있던 동안엔
+               못 돌기 때문에, 날짜로 한 번 더 판단해 '지난 모임'에 "모집중"이 뜨지 않게 한다.
+               (종료 판단은 스케줄러 쿼리와 같은 기준: departure_date + duration_days < 오늘) -->
           <div class="thumb" style="position:relative; height:168px; background:var(--parchment-deep);"
-               th:with="today=${T(java.time.LocalDate).now()}, recruiting=${party.status.name() == 'recruiting'}">
+               th:with="today=${T(java.time.LocalDate).now()},
+                        departed=${party.departureDate.isBefore(today)},
+                        ended=${party.status.name() == 'completed' or party.departureDate.plusDays(party.durationDays).isBefore(today)},
+                        statusKey=${ended ? 'party.status.completed' : (departed ? 'party.status.traveling' : 'party.status.' + party.status.name())},
+                        recruiting=${!departed and party.status.name() == 'recruiting'}">
             <div th:class="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'ph1 ph' : (party.thumbnailUrl ?: 'ph1') + ' ph'}"
                  style="position:absolute; inset:0;"
                  th:styleappend="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'background-image:url(' + party.thumbnailUrl + '); background-size:cover; background-position:center;' : ''}"></div>
 
-            <div class="chip-row">
+            <!-- 출발한 파티는 우상단 D-day 뱃지가 없으므로 그 자리를 비워 둘 필요가 없다 -->
+            <div class="chip-row" th:style="${departed} ? 'right:10px;' : null">
               <span class="chip chip-region" style="background:rgba(255,255,255,.92); color:#1c3a44;" th:text="'📍 ' + ${party.region}">지역</span>
-              <!-- 모집상태 뱃지는 party.status 하나만 본다. 예전엔 여기서 출발일까지 같이 따져
-                   'recruiting 이지만 출발일 지남'을 '모집종료'로 바꿔 보여줬는데(그러면서 우상단
-                   D-day 뱃지의 '여행중' 계산과 서로 어긋났다), 이제 출발일이 지난 파티는 이 기본
-                   목록에 아예 안 나오므로(PartyService.listBoard) 그 보정 자체가 필요 없어졌다.
-                   '지난 모임 보기' 탭에서 보이는 파티도 status 를 그대로 보여준다. -->
-              <span class="chip" th:with="statusKey=${'party.status.' + party.status.name()}"
+              <span class="chip"
                     th:text="#{__${statusKey}__}"
                     th:style="${recruiting} ? 'background:var(--forest);color:#fff;' : 'background:#8a7a63;color:#fff;'">상태</span>
             </div>
 
-            <!-- 우상단 뱃지: 출발 전이면 D-day 카운트다운, 출발일이 지난 파티('지난 모임 보기')는
-                 왼쪽 모집상태 뱃지와 같은 기준(party.status)으로 표시해 둘이 어긋나지 않게 한다. -->
-            <span class="dday-badge"
-                  th:with="statusKey=${'party.status.' + party.status.name()}, dday=${T(java.time.temporal.ChronoUnit).DAYS.between(today, party.departureDate)}"
-                  th:text="${dday > 0} ? 'D-' + ${dday} : (${dday == 0} ? 'D-DAY' : #{__${statusKey}__})">D-7</span>
+            <!-- 우상단 뱃지: 출발 전 파티에만 D-day 카운트다운. 출발한 파티는 예전엔 여기에도 상태 이름을
+                 채워서 왼쪽 상태 뱃지와 같은 글자("여행종료")가 두 번 보였다 → 표시하지 않는다. -->
+            <span class="dday-badge" th:unless="${departed}"
+                  th:with="dday=${T(java.time.temporal.ChronoUnit).DAYS.between(today, party.departureDate)}"
+                  th:text="${dday > 0} ? 'D-' + ${dday} : 'D-DAY'">D-7</span>
             <!-- report button -->
             <span style="position:absolute; bottom:10px; right:10px; z-index:10;" sec:authorize="isAuthenticated()">
               <span th:attr="data-report-type='party',data-report-id=${party.id},data-report-label=${party.title}" style="font-size:11px; padding:3px 6px; background:rgba(255,255,255,0.9); border:1px solid #ffcccc; color:red; border-radius:4px; font-weight:bold; cursor:pointer;">🚨 신고</span>

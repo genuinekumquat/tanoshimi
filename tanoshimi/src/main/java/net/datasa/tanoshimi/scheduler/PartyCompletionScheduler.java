@@ -10,6 +10,8 @@ import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.repository.PartyRepository;
 import net.datasa.tanoshimi.service.MannerTempService;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,11 +33,19 @@ public class PartyCompletionScheduler {
     private final PartyMemberRepository partyMemberRepository;
     private final MannerTempService mannerTempService;
 
-    /** 매일 새벽 0시 30분 - 자정을 살짝 지나 그날 종료된 파티들을 정리한다. */
-    @Scheduled(cron = "0 30 0 * * *")
+    /**
+     * 서버가 뜰 때 한 번 + 매시 30분마다 종료된 파티들을 정리한다.
+     *
+     * <p>예전엔 매일 새벽 0시 30분에만 돌아서, 그 시각에 서버가 꺼져 있는 로컬/시연 환경에서는
+     * 한 번도 실행되지 않아 여행이 끝난 파티가 계속 recruiting(모집중)으로 남았다.
+     * 이미 completed 인 파티는 조회되지 않으므로 여러 번 돌아도 매너온도가 중복 지급되지 않는다.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    @Scheduled(cron = "0 30 * * * *")
     @Transactional
     public void completeEndedParties() {
         List<PartyEntity> ended = partyRepository.findEndedButNotCompleted();
+        log.debug("파티 완료 자동처리 점검: 대상 {}건", ended.size());
         int completed = 0;
         for (PartyEntity party : ended) {
             List<UserEntity> members = partyMemberRepository.findByParty(party).stream()
