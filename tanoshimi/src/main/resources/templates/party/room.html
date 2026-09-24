@@ -22,6 +22,11 @@
   /* 파티 헤더 */
   .p-header { background:var(--card); border-radius:24px; padding:32px; border:1px solid var(--line); position:relative; overflow:hidden; }
   .p-thumb { width:100%; height:280px; border-radius:16px; object-fit:cover; margin-bottom:24px; background:var(--line); box-shadow:0 8px 24px rgba(0,0,0,.06); }
+  /* 사진 없는 파티의 헤더 - 위 .p-thumb 배경에 덮이지 않게 app.css 의 ph1~ph4 팔레트를 한 단계 구체적으로 다시 지정 */
+  .p-thumb.ph1{ background:linear-gradient(135deg,var(--sky),#c7dfe6); }
+  .p-thumb.ph2{ background:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
+  .p-thumb.ph3{ background:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
+  .p-thumb.ph4{ background:linear-gradient(135deg,#e3b7a0,#d99a86); }
   .p-title { font-size:28px; font-weight:900; color:var(--ink); margin:0 0 12px; }
   .p-meta { font-size:15px; color:var(--ink-soft); font-weight:600; margin:0; display:flex; gap:12px; flex-wrap:wrap; }
   .badge { background:var(--sky); color:var(--forest-deep); padding:6px 12px; border-radius:6px; font-size:13px; font-weight:800; }
@@ -107,7 +112,14 @@
     <!-- 헤더 -->
     <section class="p-header">
       <img th:if="${party.thumbnailUrl != null && !#strings.startsWith(party.thumbnailUrl,'ph')}" th:src="${party.thumbnailUrl}" class="p-thumb" onerror="this.style.display='none'">
-      <div th:if="${party.thumbnailUrl == null || #strings.startsWith(party.thumbnailUrl,'ph')}" class="p-thumb" style="display:flex;align-items:center;justify-content:center;background:#e2dac3;color:#7a6e60;font-weight:700;">기본 테마 이미지</div>
+      <!-- 사진이 없으면 게시판 카드와 같은 팔레트(ph1~ph4) 그라데이션 위에 지역명을 얹는다
+           (예전엔 "기본 테마 이미지"라는 개발용 문구가 그대로 노출됐다). -->
+      <div th:if="${party.thumbnailUrl == null || #strings.startsWith(party.thumbnailUrl,'ph')}"
+           th:class="'p-thumb ' + (${party.thumbnailUrl} ?: 'ph1')"
+           style="display:flex;align-items:flex-end;justify-content:flex-start;padding:22px 26px;box-sizing:border-box;">
+        <span style="font-family:'Jua',sans-serif;font-size:30px;color:rgba(255,255,255,.95);text-shadow:0 2px 8px rgba(0,0,0,.18);"
+              th:text="'📍 ' + ${party.region}">📍 지역</span>
+      </div>
       
       <button th:if="${isOwner}" class="btn-change-thumb" id="btn-change-thumb">📷 대표사진 변경</button>
       <input type="file" id="thumb-input" style="display:none;" accept="image/*">
@@ -115,7 +127,8 @@
       <h1 class="p-title" th:text="${party.title}"></h1>
       <p class="p-meta">
         <span class="badge" th:text="${party.region}">지역</span>
-        <span th:text="${party.departureDate + ' 출발 · ' + (party.budgetKrw != null ? party.budgetKrw + '원' : '')}"></span>
+        <!-- budgetKrw 는 만원 단위로 저장된다(파티 생성 폼 "1인 예산 (만원)") -->
+        <span th:text="${party.departureDate + ' 출발 · ' + party.durationDays + '일' + (party.budgetKrw != null ? ' · 1인 ' + party.budgetKrw + '만원 내외' : '')}"></span>
       </p>
     </section>
 
@@ -144,15 +157,22 @@
       <h2 class="sec-title">참가 신청자</h2>
       <p th:if="${pendingApplicants == null || pendingApplicants.isEmpty()}" style="color:#999;font-size:14px;">대기 중인 신청자가 없습니다.</p>
       <ul class="ul-users" th:if="${pendingApplicants != null && !pendingApplicants.isEmpty()}">
+        <!-- ApplicantSummaryDTO(applicationId, nickname, mannerTemp, nationality, message) - 팀 방침상
+             심사 화면엔 닉네임·매너온도·국적만 보여준다. 예전엔 없는 필드(userName, id)를 읽어서
+             신청자가 한 명이라도 있으면 파티방 렌더링이 통째로 실패했다. -->
         <li th:each="a : ${pendingApplicants}">
-          <div class="pf" th:text="${#strings.substring(a.userName,0,1)}"></div>
+          <div class="pf" th:text="${#strings.substring(a.nickname,0,1)}"></div>
           <div class="info">
-            <p class="name" th:text="${a.userName}">신청자명</p>
+            <p class="name">
+              <span th:text="${a.nickname}">신청자명</span>
+              <span style="font-size:11px; font-weight:600; color:var(--ink-soft); margin-left:4px;"
+                    th:text="${(a.nationality == 'JP' ? '🇯🇵' : '🇰🇷') + ' · 🌡️ ' + #numbers.formatDecimal(a.mannerTemp, 1, 1) + '℃'}">🇰🇷 · 🌡️ 36.5℃</span>
+            </p>
             <p class="msg" th:text="${a.message}">저도 가고 싶어요!</p>
           </div>
           <div>
-            <button class="btn-sm-ok btn-approve" th:attr="data-id=${a.id}">수락</button>
-            <button class="btn-sm-no btn-reject" th:attr="data-id=${a.id}">거절</button>
+            <button class="btn-sm-ok btn-approve" th:attr="data-id=${a.applicationId}">수락</button>
+            <button class="btn-sm-no btn-reject" th:attr="data-id=${a.applicationId}">거절</button>
           </div>
         </li>
       </ul>
