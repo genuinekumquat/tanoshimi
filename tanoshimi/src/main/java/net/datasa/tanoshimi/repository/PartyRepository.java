@@ -15,7 +15,6 @@ public interface PartyRepository extends JpaRepository<PartyEntity, Long> {
     /** [⑥ 마이페이지] '파티리더' 칭호용 - 내가 개설한 파티 수(상태 무관). */
     long countByOwner(UserEntity owner);
 
-    List<PartyEntity> findByStatusAndBlindedFalseOrderByDepartureDateAsc(PartyStatus status);
     org.springframework.data.domain.Page<PartyEntity> findByTitleContainingIgnoreCase(String title, org.springframework.data.domain.Pageable pageable);
     List<PartyEntity> findByRegionAndStatusAndBlindedFalse(String region, PartyStatus status);
 

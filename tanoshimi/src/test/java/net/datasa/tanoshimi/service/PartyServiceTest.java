@@ -189,7 +189,8 @@ class PartyServiceTest {
         PartyEntity a = party("A", LocalDate.now().plusDays(10), 4); // 잔여 1
         PartyEntity b = party("B", LocalDate.now().plusDays(5), 5);  // 잔여 4
         PartyEntity c = party("C", LocalDate.now().plusDays(3), 4);  // 잔여 1
-        when(partyRepository.findByStatusAndBlindedFalseOrderByDepartureDateAsc(PartyStatus.recruiting))
+        when(partyRepository.findByStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
+                PartyStatus.recruiting, LocalDate.now()))
                 .thenReturn(List.of(a, b, c));
         when(partyMemberRepository.countByParty(a)).thenReturn(3L);
         when(partyMemberRepository.countByParty(b)).thenReturn(1L);
