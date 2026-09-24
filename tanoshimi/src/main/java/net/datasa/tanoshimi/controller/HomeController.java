@@ -19,8 +19,8 @@ public class HomeController {
     private final BannerService bannerService;
     private final RegionCatalog regionCatalog;
 
-    /** 메인 페이지 "인기 스냅" 그리드에 노출할 사진 글 개수. */
-    private static final int POPULAR_SNAP_LIMIT = 4;
+    /** 메인 페이지 "인기 스냅" 그리드(3x3)에 노출할 사진 글 개수. */
+    private static final int POPULAR_SNAP_LIMIT = 9;
 
     @GetMapping("/")
     public String home(@RequestParam(required = false) String region, Model model) {

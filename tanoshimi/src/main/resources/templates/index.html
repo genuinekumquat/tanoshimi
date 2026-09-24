@@ -94,7 +94,20 @@
 
   .home-split .tag-scroll { justify-content:flex-start; gap:8px; padding:2px 2px 4px; }
   .home-split .tag-pill { padding:8px 14px; font-size:13px; }
-  .home-split .snap-grid { grid-template-columns:repeat(2, 1fr); gap:12px; }
+  .home-split .snap-grid { grid-template-columns:repeat(3, 1fr); gap:10px; }
+  .home-split .snap-card { border-radius:12px; }
+  .home-split .snap-overlay { padding:12px; }
+  .home-split .snap-overlay .t { font-size:14px; margin-bottom:4px; }
+  .home-split .snap-overlay .m { font-size:12px; }
+  /* 위아래로 쌓이는 폭에서는 사진까지 스크롤이 길어지지 않게 파티는 4개만 */
+  @media(max-width:900px){ .party-list .party-row:nth-child(n+5) { display:none; } }
+  /* 폰에서는 사진 한 칸이 110px 남짓이라 제목·지역은 빼고 하트 수만 */
+  @media(max-width:600px){
+    .home-split .snap-grid { gap:6px; }
+    .home-split .snap-card { border-radius:8px; }
+    .home-split .snap-overlay { padding:6px 8px; background:linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 45%); }
+    .home-split .snap-overlay .t, .home-split .snap-overlay .rg { display:none; }
+  }
 
   .party-list { display:flex; flex-direction:column; gap:10px; }
   .party-row { display:flex; align-items:center; gap:14px; padding:10px 14px 10px 10px; background:#fff; border:1px solid #eee; border-radius:14px; text-decoration:none; color:var(--ink); box-shadow:0 2px 10px rgba(0,0,0,0.03); transition:border-color 0.2s, transform 0.2s; }

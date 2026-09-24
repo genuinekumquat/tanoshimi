@@ -145,7 +145,7 @@
         const phClass = (p.thumbnailUrl && p.thumbnailUrl.startsWith('ph')) ? p.thumbnailUrl : PH_CYCLE[i % PH_CYCLE.length];
         thumbInner = `<div class="ph ${phClass}"></div>`;
       }
-      const region = p.region ? `📍 ${escapeHtml(p.region)} · ` : '';
+      const region = p.region ? `<span class="rg">📍 ${escapeHtml(p.region)} · </span>` : '';
       return `
       <a class="snap-card" href="/board/${p.id}">
         ${thumbInner}
