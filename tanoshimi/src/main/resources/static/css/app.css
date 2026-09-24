@@ -136,3 +136,37 @@ footer.note{ text-align:center; color:var(--ink-soft); font-size:12px; margin-to
     #companion-widget{ display:none; }
 }
 
+
+/* ===================== 공통 헤더 (fragments/layout.html :: header) =====================
+   - 헤더의 backdrop-filter 때문에 안에 있는 position:fixed 요소(우측 슬라이드 메뉴 #right-sidebar,
+     닫혀 있을 때 right:-320px)가 화면이 아니라 헤더 기준으로 배치돼, 모든 페이지에 가로 스크롤이
+     생겼다. 가로 방향만 잘라서 막는다(세로로 펼쳐지는 드롭다운·슬라이드 메뉴는 그대로 보임).
+   - hide-mobile 은 헤더에서 쓰고 있었지만 정의가 없어서, 좁은 화면에서 메뉴가 한 글자씩 세로로
+     쪼개졌다. 모바일에서는 상단 메뉴를 숨기고 ☰ 슬라이드 메뉴로 대신한다. */
+.site-header{ overflow-x:clip; }
+@media (max-width:768px){
+    .hide-mobile{ display:none !important; }
+    .site-header{ padding:10px 14px !important; }
+    .site-header .header-logo{ font-size:20px !important; }
+    .site-header .header-right{ gap:12px !important; }
+    #top-notif-dropdown{ width:min(320px, calc(100vw - 28px)) !important; right:-48px !important; }
+}
+
+/* 슬라이드 메뉴는 헤더(z-index:999) 안에 있어 그 쌓임 순서에 묶이므로, 캐릭터 위젯(9999~10001)
+   아래에 깔린다. 메뉴가 열려 있는 동안만 헤더를 위젯보다 위로 올린다. */
+body.sidebar-open .site-header{ z-index:100000 !important; }
+
+/* ===================== 마스코트 위젯 - 모바일 =====================
+   (위쪽 #companion-widget 규칙은 예전 마크업용이라 지금 위젯 #companion-widget-container 에는
+   적용되지 않는다.) 폰에서는 캐릭터가 본문을 크게 가리므로 캐릭터는 숨기고 "대화하기" 버튼만
+   남긴다. 채팅 패널은 데스크톱 기준 고정 위치/드래그 위치를 무시하고 화면 폭에 맞춘다. */
+@media (max-width:768px){
+    #companion-character-wrap{ display:none !important; }
+    #companion-chat-open{ right:16px !important; bottom:16px !important; padding:10px 18px !important; font-size:14px !important; }
+    #companion-chat-panel{
+        left:8px !important; right:8px !important; top:auto !important; bottom:8px !important;
+        width:auto !important; height:min(600px, 80vh) !important;
+    }
+    /* 패널이 열려 있으면(togglePanel 이 display:flex 로 바꿈) 입력창을 가리는 "대화하기" 버튼을 숨긴다 - 닫기는 패널의 ✖ */
+    #companion-chat-panel[style*="display: flex"] ~ #companion-chat-open{ display:none !important; }
+}
