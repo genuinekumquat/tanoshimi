@@ -9,7 +9,7 @@
  *   <li>태그 필터 pill 렌더링 + 클릭 시 "모집 마감 임박 파티" 그리드 재필터</li>
  *   <li>서버가 내려준 두 목록을 카드로 렌더링
  *     <ul>
- *       <li>{@code HOT_PARTIES}  → #hot-party-grid : 잔여석 적은 순 모집중 파티(모집글). 클릭 시 /party-board/{id}</li>
+ *       <li>{@code HOT_PARTIES}  → #hot-party-grid : 잔여석 적은 순 모집중 파티(모집글) 상위 6개를 D-day/잔여석이 보이는 리스트로. 클릭 시 /party-board/{id}</li>
  *       <li>{@code POPULAR_SNAPS} → #snap-grid      : 좋아요순 커뮤니티 사진 글. 클릭 시 /board/{id}</li>
  *     </ul>
  *   </li>
@@ -58,8 +58,18 @@
     });
   }
 
-  /* ================= 1. 모집 마감 임박 파티 그리드 ================= */
+  /* ================= 1. 모집 마감 임박 파티 리스트 (홈 왼쪽 칸) ================= */
   const PH_CYCLE = ['ph1', 'ph2', 'ph3', 'ph4'];
+  const HOT_PARTY_LIMIT = 6;
+
+  /** PartyCardView.departureDate("yyyy.MM.dd") 기준 D-day 라벨. 서버가 지난 파티는 이미 뺀다. */
+  function dDayLabel(departureDate) {
+    const [y, m, d] = String(departureDate || '').split('.').map(Number);
+    if (!y || !m || !d) return '';
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = Math.round((new Date(y, m - 1, d) - today) / 86400000);
+    return days <= 0 ? 'D-DAY' : 'D-' + days;
+  }
 
   function renderHotPartyGrid() {
     const grid = document.getElementById('hot-party-grid');
@@ -69,7 +79,7 @@
     const source = (typeof HOT_PARTIES !== 'undefined' && Array.isArray(HOT_PARTIES)) ? HOT_PARTIES : [];
     const list = source
       .filter(p => activeTag === '전체' || (p.styleTag && p.styleTag === activeTag))
-      .slice(0, 20);
+      .slice(0, HOT_PARTY_LIMIT);
 
     if (!list.length) {
       grid.innerHTML = '';
@@ -89,12 +99,17 @@
         ? `<img src="${thumbSrc}" alt="" onerror="this.style.display='none';">`
         : `<div class="ph ${phClass}"></div>`;
 
+      const remaining = Math.max(p.capacity - (p.joinedCount || 0), 0);
       return `
-      <a class="snap-card" href="/party-board/${p.id}">
-        ${thumbInner}
-        <div class="snap-overlay">
+      <a class="party-row" href="/party-board/${p.id}">
+        <div class="thumb">${thumbInner}</div>
+        <div class="info">
           <p class="t">${escapeHtml(p.title)}</p>
-          <div class="m">📍 ${escapeHtml(p.region)} <br> 멤버 ${p.joinedCount || 0}/${p.capacity}</div>
+          <div class="m">📍 ${escapeHtml(p.region)} · ${escapeHtml(p.departureDate)} 출발 · 멤버 ${p.joinedCount || 0}/${p.capacity}</div>
+        </div>
+        <div class="badges">
+          <span class="dday">${dDayLabel(p.departureDate)}</span>
+          <span class="seat ${remaining <= 1 ? 'last' : ''}">잔여 ${remaining}석</span>
         </div>
       </a>`;
     }).join('');
