@@ -318,8 +318,15 @@
     <section class="board card">
       <div class="board-top">
         
-        <div class="ttl" style="display:flex; align-items:center;">
-          지역일정 · <span th:text="${tour != null ? (tour.durationNights + '박 ' + (tour.durationNights + 1) + '일') : '일정 미정'}">일정 미정</span>
+        <!-- 파티의 지역·출발일·일수를 보여준다. 예전엔 패키지(tour)가 있을 때만 채워져서, 패키지 없이
+             만든 파티는 늘 "지역일정 · 일정 미정"으로 나왔다. -->
+        <div class="ttl" style="display:flex; align-items:center;"
+             th:with="p=${schedule.party}, days=${schedule.durationDays != null ? schedule.durationDays : (schedule.party != null ? schedule.party.durationDays : null)}">
+          <span th:text="'📍 ' + (${tour != null ? tour.region : (p != null ? p.region : '지역 미정')})">📍 지역</span>
+          <span>·</span>
+          <span th:text="${p != null ? #temporals.format(p.departureDate, 'M월 d일') + ' 출발' : '일정 미정'}">일정 미정</span>
+          <span th:if="${days != null and days > 1}" th:text="'· ' + (${days} - 1) + '박 ' + ${days} + '일'">· 2박 3일</span>
+          <span th:if="${days != null and days == 1}">· 당일치기</span>
         </div>
 
         <div class="board-tools">
@@ -403,12 +410,13 @@ const TOUR_REGION = /*[[${tour != null ? tour.region : schedule.party?.region}]]
 const DURATION_NIGHTS = /*[[${tour != null ? tour.durationNights : (schedule.party != null ? schedule.party.durationDays - 1 : 2)}]]*/ 2;
 const SCHEDULE_DAYS = /*[[${schedule.durationDays != null ? schedule.durationDays : (schedule.party != null ? schedule.party.durationDays : (tour != null ? tour.durationNights + 1 : 3))}]]*/ 3;
 const SCHEDULE_STATUS = /*[[${schedule.status}]]*/ 'draft';
+const TRIP_START_DATE = /*[[${schedule.party != null ? #temporals.format(schedule.party.departureDate, 'yyyy-MM-dd') : null}]]*/ null;
 const IS_PARTY_OWNER = /*[[${isPartyOwner}]]*/ false;
 const IS_LOCK_HOLDER = /*[[${isLockHolder}]]*/ false;
 /*]]>*/
 </script>
 
-<script th:src="@{/js/planner.js?v=99}" defer></script>
+<script th:src="@{/js/planner.js?v=100}" defer></script>
 <script th:src="@{/js/planner-owner.js}" defer></script>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>

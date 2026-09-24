@@ -402,12 +402,24 @@
     /* ---------------------------------------------------------------------
        일정 추가
        --------------------------------------------------------------------- */
+    /**
+     * "+" 버튼으로 넣는 일정의 시작 시각 - 그날 마지막 일정이 끝나는 시각(30분 단위로 올림).
+     * 예전엔 항상 12:00 에 넣어서 여러 개를 추가하면 같은 자리에 겹쳐 앞 일정이 가려졌다.
+     * 그날 일정이 없으면 10:00, 자정을 넘기면 그날 마지막 가능한 칸에 넣는다.
+     */
+    function nextFreeStart(day, durationMinute) {
+        const ends = items.filter(it => it.dayIndex === day).map(it => it.startMinute + it.durationMinute);
+        if (!ends.length) return 10 * 60;
+        const start = Math.ceil(Math.max(...ends) / SLOT_MIN) * SLOT_MIN;
+        return Math.min(start, END_HOUR * 60 - Math.max(durationMinute, SLOT_MIN));
+    }
+
     async function addBlank(dayKey) {
         const title = prompt('항목 이름을 입력하세요', '새로운 일정');
         if (!title) return;
         const day = parseInt(dayKey.replace('d', ''), 10) || 1;
         await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
-            dayIndex: day, startMinute: 12 * 60, durationMinute: 60, activityId: null, title: title, memo: null
+            dayIndex: day, startMinute: nextFreeStart(day, 60), durationMinute: 60, activityId: null, title: title, memo: null
         });
         await reload();
     }
@@ -441,7 +453,8 @@
                 title: item.title,
                 durationMin: item.durationMin 
             });
-            const priceText = item.priceKrw ? ` \${item.priceKrw.toLocaleString()}` : '';
+            // 예전엔 \${...} 로 이스케이프돼 있어 "${item.priceKrw.toLocaleString()}" 글자가 그대로 보였다.
+            const priceText = item.priceKrw ? ` · ${Number(item.priceKrw).toLocaleString()}원` : '';
             card.innerHTML = `
               <span class="sw" style="background:var(--cat-festival)"></span>
               <span class="info">
@@ -456,7 +469,7 @@
             card.querySelector('.put').addEventListener('click', async () => {
                   const finalDuration = (!isNaN(parseInt(item.durationMin)) && parseInt(item.durationMin) > 0) ? parseInt(item.durationMin) : 60;
                   const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
-                      dayIndex: 1, startMinute: 12*60, durationMinute: finalDuration,
+                      dayIndex: 1, startMinute: nextFreeStart(1, finalDuration), durationMinute: finalDuration,
                       activityId: item.activityId || null, title: item.title || '새 일정', memo: item.description || null
                   });
                   if(!res.success && res.message) { alert(res.message); } else { await reload(); }
@@ -482,7 +495,9 @@
         chat.scrollTop = chat.scrollHeight;
 
         try {
-            const qs = new URLSearchParams({ date: '2027-10-14', region: TOUR_REGION });
+            // 날씨 판단용 날짜 - 파티 출발일(없으면 오늘). 예전엔 '2027-10-14' 로 고정돼 있었다.
+            const tripDate = (typeof TRIP_START_DATE !== 'undefined' && TRIP_START_DATE) ? TRIP_START_DATE : new Date().toISOString().slice(0, 10);
+            const qs = new URLSearchParams({ date: tripDate, region: TOUR_REGION });
             if (keywordOverride !== null) {
                 if (keywordOverride) qs.set('keyword', keywordOverride);
             } else {
