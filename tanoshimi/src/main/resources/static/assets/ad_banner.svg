@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 300" preserveAspectRatio="xMidYMid slice">
+  <!-- 어드민이 등록한 배너가 없을 때 보여주는 기본 배너. 모바일(3.5:1)에서는 좌우가 잘리므로
+       글자는 가운데 1000px 안에만 둔다. SVG 를 <img> 로 쓰면 웹폰트를 못 불러와 시스템 글꼴을 쓴다. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#33472f"/>
+      <stop offset="1" stop-color="#4b6b4a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1500" height="300" fill="url(#bg)"/>
+
+  <!-- 해 -->
+  <circle cx="1270" cy="95" r="52" fill="#e0793f"/>
+  <!-- 후지산 실루엣 -->
+  <path d="M1040 300 L1200 150 Q1220 132 1240 150 L1400 300 Z" fill="#f3e8cf" opacity="0.18"/>
+  <path d="M1170 178 L1200 150 Q1220 132 1240 150 L1270 178 L1250 170 L1232 182 L1215 168 L1196 182 Z" fill="#fffcf4" opacity="0.55"/>
+  <!-- 아래쪽 물결 장식 -->
+  <path d="M0 262 Q75 240 150 262 T300 262 T450 262 T600 262 T750 262 T900 262 T1050 262 T1200 262 T1350 262 T1500 262 V300 H0 Z" fill="#f3e8cf" opacity="0.10"/>
+  <circle cx="190" cy="80" r="6" fill="#d9a441"/>
+  <circle cx="230" cy="110" r="4" fill="#d9a441" opacity="0.7"/>
+  <circle cx="160" cy="125" r="3" fill="#d9a441" opacity="0.5"/>
+
+  <g font-family="'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif" text-anchor="middle">
+    <text x="750" y="112" font-size="22" font-weight="700" fill="#d9a441" letter-spacing="6">TANOSHIMI</text>
+    <text x="750" y="172" font-size="48" font-weight="800" fill="#fffcf4">일본 여행, 같이 가면 더 즐거우니까</text>
+    <text x="750" y="218" font-size="22" font-weight="500" fill="#f3e8cf" opacity="0.85">파티를 만들고 여행 메이트와 함께 일정을 짜 보세요</text>
+  </g>
+</svg>

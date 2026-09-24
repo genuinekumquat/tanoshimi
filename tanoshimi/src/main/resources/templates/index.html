@@ -97,7 +97,7 @@
     <div class="banner-slider" id="banner-slider">
       <!-- 등록된 배너가 없을 경우 기본 배너 노출 -->
       <div th:if="${banners == null || banners.size() == 0}" class="banner-slide active">
-         <img src="/assets/ad_banner.png" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 1200 240\' fill=\'#dceef2\'><rect width=\'1200\' height=\'240\'/></svg>'">
+         <img src="/assets/ad_banner.svg" alt="타노시미 - 일본 여행, 같이 가면 더 즐거우니까" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 1200 240\' fill=\'#dceef2\'><rect width=\'1200\' height=\'240\'/></svg>'">
       </div>
       <!-- 어드민이 등록한 배너들 -->
             <div th:each="b, stat : ${banners}" class="banner-slide" th:classappend="${stat.index == 0} ? 'active'">
