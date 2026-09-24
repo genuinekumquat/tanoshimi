@@ -20,7 +20,7 @@ public class HomeController {
     private final RegionCatalog regionCatalog;
 
     /** 메인 페이지 "인기 스냅" 그리드에 노출할 사진 글 개수. */
-    private static final int POPULAR_SNAP_LIMIT = 8;
+    private static final int POPULAR_SNAP_LIMIT = 4;
 
     @GetMapping("/")
     public String home(@RequestParam(required = false) String region, Model model) {
