@@ -26,7 +26,7 @@
            th:styleappend="${(party.thumbnailUrl != null and !#strings.startsWith(party.thumbnailUrl,'ph')) ? 'background-image:url(' + party.thumbnailUrl + '); background-size:cover; background-position:center;' : ''}"></div>
 
       <div style="position:absolute; top:12px; left:12px; display:flex; gap:6px;">
-        <span class="chip chip-region" th:text="'📍 ' + ${party.region}" style="background:var(--sky); color:#1c3a44; font-size:12px; font-weight:700; border-radius:999px; padding:4px 11px; display:inline-block;">지역</span>
+        <span class="chip chip-region" th:text="'📍 ' + ${party.region}" style="background:var(--sky); color:#0f2247; font-size:12px; font-weight:700; border-radius:999px; padding:4px 11px; display:inline-block;">지역</span>
 
         <!-- '모집중'은 status==recruiting 뿐 아니라 출발일이 오늘보다 뒤일 때만 뜬다 - 출발 당일부터는
              신청 자체를 막기로 했으므로(PartyApplicationService.apply) 화면 문구도 그 기준을 따라야
@@ -57,7 +57,7 @@
 
       <p style="color:var(--ink-soft); font-size:13px; margin-top:6px; line-height:1.5;" id="party-desc" th:text="${party.description}">내용</p>
 
-      <div style="margin-top:16px; padding:16px; background:#f9f9f9; border-radius:8px; display:flex; flex-direction:column; gap:8px; font-size:13px;">
+      <div style="margin-top:16px; padding:16px; background:#f8f9fb; border-radius:8px; display:flex; flex-direction:column; gap:8px; font-size:13px;">
         <div style="display:flex; justify-content:space-between;">
           <span>[[#{party.meta.schedule}]] <b th:text="${party.departureDate}">-</b></span>
           <span th:if="${party.budgetKrw != null}">[[#{party.meta.budget}]] <b th:text="${party.budgetKrw} + #{party.meta.budget_approx}">-</b></span>
@@ -81,7 +81,7 @@
   <div style="margin-top:24px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px;">
     <h2 style="font-size:15px; margin-top:0;">[[#{party.apply}]]</h2>
     
-    <div th:if="${!eligible and ineligibleReasonKey != null}" style="padding:12px; background:#ffeeee; border:1px solid #ffcccc; color:#cc0000; border-radius:8px; font-size:13px;">
+    <div th:if="${!eligible and ineligibleReasonKey != null}" style="padding:12px; background:#ffeeee; border:1px solid #f7d8d1; color:#cc0000; border-radius:8px; font-size:13px;">
       🚫 <span th:text="#{${ineligibleReasonKey}}">조건에 맞지 않습니다.</span>
     </div>
 
@@ -178,6 +178,7 @@
       }
   }
 </script>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

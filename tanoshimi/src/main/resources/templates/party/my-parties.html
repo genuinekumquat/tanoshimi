@@ -30,10 +30,10 @@
   .thumb{
     width:80px; height:80px; flex:none; border-radius:10px; background-size:cover; background-position:center; position:relative;
   }
-  .thumb .ph1{ background:linear-gradient(135deg,var(--sky),#c7dfe6); }
-  .thumb .ph2{ background:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
-  .thumb .ph3{ background:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
-  .thumb .ph4{ background:linear-gradient(135deg,#e3b7a0,#d99a86); }
+  .thumb .ph1{ background:linear-gradient(135deg,var(--sky),#cfe0f3); }
+  .thumb .ph2{ background:linear-gradient(135deg,#dbe7f5,var(--parchment-deep)); }
+  .thumb .ph3{ background:linear-gradient(135deg,#e4e6f3,#c3c8e4); }
+  .thumb .ph4{ background:linear-gradient(135deg,#f0e7e4,#dcc7c0); }
   
   .info{ flex:1; min-width:0; }
   .info h3{ font-size:16px; margin:0 0 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px; }
@@ -45,9 +45,9 @@
   .status-chip{
     font-size:12px; font-weight:700; padding:6px 14px; border-radius:999px; flex:none;
   }
-  .status-upcoming{ background:var(--sky); color:#1c3a44; }
+  .status-upcoming{ background:var(--sky); color:#0f2247; }
   .status-progress{ background:var(--forest); color:#fff; }
-  .status-done{ background:#eee0cf; color:var(--ink-soft); }
+  .status-done{ background:#dfe4ec0cf; color:var(--ink-soft); }
 
   .empty{ text-align:center; padding:60px 0; color:var(--ink-soft); font-size:14px; }
   .empty .ic{ display:block; font-size:32px; margin-bottom:12px; filter:grayscale(1); opacity:.5; }
@@ -127,6 +127,7 @@
     });
   });
 </script>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

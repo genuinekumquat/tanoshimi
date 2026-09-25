@@ -3,18 +3,13 @@
 <head>
   <th:block th:replace="~{fragments/layout :: head('지역 스냅 | 타노시미')}"></th:block>
   <style>
-    :root{
-      --parchment:#f3e8cf; --parchment-deep:#e8dab3; --card:#fffcf4;
-      --forest:#4b6b4a; --forest-deep:#33472f; --sash:#e0793f; --sash-deep:#b85c2b;
-      --gold:#d9a441; --sky:#8fb9c9; --ink:#3a2e22; --ink-soft:#6b5c46; --rope:#c9b58b; --line:#d8c69a;
-    }
     *{ box-sizing:border-box; }
     body{
       margin:0;
       background:radial-gradient(ellipse at top left, rgba(255,255,255,.35), transparent 55%), var(--parchment);
       color:var(--ink); font-family:'Gowun Dodum','Apple SD Gothic Neo',sans-serif; line-height:1.6;
     }
-    h1,h2,h3{ font-family:'Jua','Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
+    h1,h2,h3{ font-family:var(--font-display),'Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
     a{ color:var(--forest-deep); text-decoration:none; }
     .wrap{ max-width:980px; margin:0 auto; padding:26px 22px 90px; }
     .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; }
@@ -36,10 +31,10 @@
     }
     .feed-item:hover{ transform:translateY(-2px); box-shadow:0 8px 18px rgba(59,44,20,.16); }
     .feed-item .ph{ position:absolute; inset:0; }
-    .ph.ph1{ background:linear-gradient(135deg,var(--sky),#c7dfe6); }
-    .ph.ph2{ background:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
-    .ph.ph3{ background:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
-    .ph.ph4{ background:linear-gradient(135deg,#e3b7a0,#d99a86); }
+    .ph.ph1{ background:linear-gradient(135deg,var(--sky),#cfe0f3); }
+    .ph.ph2{ background:linear-gradient(135deg,#dbe7f5,var(--parchment-deep)); }
+    .ph.ph3{ background:linear-gradient(135deg,#e4e6f3,#c3c8e4); }
+    .ph.ph4{ background:linear-gradient(135deg,#f0e7e4,#dcc7c0); }
     .feed-item .cap{
       position:absolute; left:0; right:0; bottom:0; padding:8px 9px 7px; font-size:11px; color:#fff;
       background:linear-gradient(to top, rgba(30,22,14,.78), transparent);
@@ -54,7 +49,7 @@
     .empty{
       text-align:center; color:var(--ink-soft); font-size:13.5px; padding:44px 20px; line-height:1.9;
     }
-    .empty b{ color:var(--forest-deep); font-family:'Jua',sans-serif; }
+    .empty b{ color:var(--forest-deep); font-family:var(--font-display); }
 
     @media (max-width:640px){ .feed-grid{ grid-template-columns:repeat(2,1fr); } }
     @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
@@ -95,5 +90,6 @@
 
 </main>
 
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 </body>
 </html>

@@ -5,15 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>여행 동선 지도</title>
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --parchment: #f3e8cf;
-            --forest: #4b6b4a;
-            --ink: #3a2e22;
-            --line: #d8c69a;
-            --accent: #d9a441;
-        }
         * { box-sizing: border-box; }
         body {
             font-family: 'Gowun Dodum', 'Apple SD Gothic Neo', sans-serif;
@@ -25,17 +18,17 @@
         }
         .wrap { max-width: 720px; margin: 0 auto; }
         h1, h2 {
-            font-family: 'Jua', 'Gowun Dodum', sans-serif;
+            font-family: var(--font-display), 'Gowun Dodum', sans-serif;
             color: var(--forest);
             margin: 0;
         }
         .header { text-align: center; padding-bottom: 16px; border-bottom: 2px solid var(--forest); margin-bottom: 20px; }
-        .header p { margin: 6px 0 0; color: #7a6a52; font-size: 14px; }
+        .header p { margin: 6px 0 0; color: #67718a; font-size: 14px; }
 
         .day-tabs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 24px; }
         .day-tab {
             border: 2px solid var(--forest); background: #fff; color: var(--forest);
-            border-radius: 999px; padding: 8px 18px; font-family: 'Jua', sans-serif;
+            border-radius: 999px; padding: 8px 18px; font-family: var(--font-display);
             font-size: 14px; cursor: pointer; transition: 0.15s;
         }
         .day-tab.active { background: var(--forest); color: #fff; }
@@ -51,7 +44,7 @@
             position: absolute; left: -34px; top: 2px; width: 28px; height: 28px;
             border-radius: 50%; background: var(--forest); color: #fff;
             display: flex; align-items: center; justify-content: center;
-            font-family: 'Jua', sans-serif; font-size: 13px; z-index: 2;
+            font-family: var(--font-display); font-size: 13px; z-index: 2;
         }
         .pin.no-loc { background: #b9ac8c; }
         .card {
@@ -60,7 +53,7 @@
         }
         .card .time { font-size: 12px; color: var(--accent); font-weight: bold; }
         .card .title { font-size: 16px; margin: 2px 0; }
-        .card .memo { font-size: 13px; color: #7a6a52; }
+        .card .memo { font-size: 13px; color: #67718a; }
         .map-link {
             display: inline-block; margin-top: 8px; font-size: 13px;
             color: var(--forest); text-decoration: none; border-bottom: 1px dashed var(--forest);
@@ -101,15 +94,15 @@
         .transit-step:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
         .transit-step .veh { font-weight: bold; color: var(--forest); margin-bottom: 2px; }
         .transit-step .stops { margin-bottom: 2px; }
-        .transit-step .meta, .transit-total { color: #7a6a52; }
+        .transit-step .meta, .transit-total { color: #67718a; }
         .transit-total { margin-top: 6px; font-weight: bold; color: var(--ink); }
         @media (max-width: 560px) {
             .leg-row { flex-direction: column; }
             .transit-info { max-width: none; }
         }
         .dir-link {
-            font-size: 12px; color: #7a6a52; text-decoration: none;
-            border-bottom: 1px dashed #7a6a52;
+            font-size: 12px; color: #67718a; text-decoration: none;
+            border-bottom: 1px dashed #67718a;
         }
         .empty-note { text-align: center; color: #a89a7d; padding: 40px 0; }
     </style>

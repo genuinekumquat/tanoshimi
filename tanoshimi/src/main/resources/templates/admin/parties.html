@@ -7,15 +7,15 @@
 <main class="wrap">
   
   <div style="margin-bottom: 20px; display:flex; gap: 10px;">
-    <a href="/admin" class="btn" style="background:#fff; border:1px solid #ccc;">회원 관리</a>
-    <a href="/admin/parties" class="btn btn-primary">파티 게시글 관리</a>    <a href="/admin/banners" class="btn" style="background:#fff; border:1px solid #ccc;">광고 배너 관리</a>
-    <a href="/admin/reports" class="btn" style="background:#fff; border:1px solid #ccc;">신고 처리</a>
+    <a href="/admin" class="btn" style="background:#fff; border:1px solid #dfe4ec;">회원 관리</a>
+    <a href="/admin/parties" class="btn btn-primary">파티 게시글 관리</a>    <a href="/admin/banners" class="btn" style="background:#fff; border:1px solid #dfe4ec;">광고 배너 관리</a>
+    <a href="/admin/reports" class="btn" style="background:#fff; border:1px solid #dfe4ec;">신고 처리</a>
   </div>
 
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <h1 style="font-size:22px; margin:0;">파티 게시글 관리</h1>
       <form method="get" action="/admin/parties" style="display:flex; gap:6px;">
-          <input type="text" name="keyword" th:value="${keyword}" placeholder="파티 제목 검색" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+          <input type="text" name="keyword" th:value="${keyword}" placeholder="파티 제목 검색" style="padding:6px; border:1px solid #dfe4ec; border-radius:4px;">
           <button type="submit" class="btn btn-primary" style="padding:6px 12px;">검색</button>
       </form>
   </div>
@@ -61,6 +61,7 @@
        style="width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:6px; font-size:12px;">1</a>
   </div>
 </main>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

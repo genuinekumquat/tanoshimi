@@ -16,7 +16,7 @@
     <form id="create-form" style="display:flex; flex-direction:column; gap:16px;">
       
       <div>
-        <label for="title" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">제목 <span style="color:#e53935;">*</span></label>
+        <label for="title" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">제목 <span style="color:#d64545;">*</span></label>
         <input type="text" id="title" maxlength="200" placeholder="예: 오사카 4박5일 먹방투어" style="width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
       </div>
 
@@ -32,7 +32,7 @@
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
         <div>
-          <label for="region" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">지역 <span style="color:#e53935;">*</span></label>
+          <label for="region" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">지역 <span style="color:#d64545;">*</span></label>
           <select id="region" style="width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
             <option value="">선택</option>
             <option>오사카</option><option>도쿄</option><option>교토</option>
@@ -43,11 +43,11 @@
           </select>
         </div>
         <div>
-          <label for="departureDate" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">출발일 <span style="color:#e53935;">*</span></label>
+          <label for="departureDate" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">출발일 <span style="color:#d64545;">*</span></label>
           <input type="date" id="departureDate" style="width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
         </div>
         <div>
-          <label for="durationDays" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">여행 일수 <span style="color:#e53935;">*</span></label>
+          <label for="durationDays" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">여행 일수 <span style="color:#d64545;">*</span></label>
           <input type="number" id="durationDays" min="1" max="30" value="1" placeholder="예: 3"
                  style="width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
         </div>
@@ -59,7 +59,7 @@
           <input type="number" id="budgetKrw" min="0" placeholder="예: 50" style="width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
         </div>
         <div>
-          <label for="capacity" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">모집 인원 <span style="color:#e53935;">*</span></label>
+          <label for="capacity" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">모집 인원 <span style="color:#d64545;">*</span></label>
           <input type="number" id="capacity" min="2" max="100" placeholder="예: 4" style="width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
         </div>
       </div>
@@ -181,6 +181,7 @@ document.getElementById('btn-create').addEventListener('click', async () => {
     }
 });
 </script>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

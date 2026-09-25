@@ -8,8 +8,8 @@
   
   <div style="margin-bottom: 20px; display:flex; gap: 10px;">
     <a href="/admin" class="btn btn-primary">회원 관리</a>
-    <a href="/admin/parties" class="btn" style="background:#fff; border:1px solid #ccc;">파티 게시글 관리</a>    <a href="/admin/banners" class="btn" style="background:#fff; border:1px solid #ccc;">광고 배너 관리</a>
-    <a href="/admin/reports" class="btn" style="background:#fff; border:1px solid #ccc; position:relative;">
+    <a href="/admin/parties" class="btn" style="background:#fff; border:1px solid #dfe4ec;">파티 게시글 관리</a>    <a href="/admin/banners" class="btn" style="background:#fff; border:1px solid #dfe4ec;">광고 배너 관리</a>
+    <a href="/admin/reports" class="btn" style="background:#fff; border:1px solid #dfe4ec; position:relative;">
       신고 처리
       <span th:if="${pendingReportCount != null and pendingReportCount > 0}" th:text="${pendingReportCount}"
             style="position:absolute; top:-8px; right:-8px; background:var(--danger); color:#fff; border-radius:999px; font-size:10px; padding:1px 6px; font-weight:700;"></span>
@@ -20,7 +20,7 @@
       <h1 style="font-size:22px; margin:0;">회원 관리 <small style="font-size:13px; color:var(--ink-soft); font-weight:400;"
           th:text="'(' + ${adminName} + ' 관리자)'">()</small></h1>
       <form method="get" action="/admin" style="display:flex; gap:6px;">
-          <input type="text" name="keyword" th:value="${keyword}" placeholder="이름 또는 이메일 검색" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+          <input type="text" name="keyword" th:value="${keyword}" placeholder="이름 또는 이메일 검색" style="padding:6px; border:1px solid #dfe4ec; border-radius:4px;">
           <button type="submit" class="btn btn-primary" style="padding:6px 12px;">검색</button>
       </form>
   </div>
@@ -88,6 +88,7 @@
        style="width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:6px; font-size:12px;">1</a>
   </div>
 </main>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

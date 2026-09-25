@@ -9,7 +9,7 @@
         .back:hover{ color:var(--sash-deep); }
       
         .post-head{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
-        .post-head .ava{ position:relative; width:38px; height:38px; border-radius:50%; background:var(--forest); flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Jua',sans-serif; overflow:hidden; }
+        .post-head .ava{ position:relative; width:38px; height:38px; border-radius:50%; background:var(--forest); flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-family:var(--font-display); overflow:hidden; }
         .post-head .nm{ font-size:13.5px; font-weight:700; color:var(--ink); text-decoration:none; }
         .post-head .rg{ font-size:11.5px; color:var(--ink-soft); }
       
@@ -41,7 +41,7 @@
       
         .comment-list{ display:flex; flex-direction:column; gap:12px; }
         .comment{ display:flex; gap:9px; }
-        .comment .ava{ width:30px; height:30px; border-radius:50%; background:var(--forest); flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-family:'Jua',sans-serif; overflow:hidden; }
+        .comment .ava{ width:30px; height:30px; border-radius:50%; background:var(--forest); flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-family:var(--font-display); overflow:hidden; }
         .comment .body{ flex:1; }
         .comment .name{ font-size:12.5px; font-weight:700; margin-right:6px; }
         .comment .txt{ font-size:12.8px; color:var(--ink); }
@@ -121,6 +121,7 @@
 </div>
 
 <script th:src="@{/js/post-detail.js}" defer></script>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>
