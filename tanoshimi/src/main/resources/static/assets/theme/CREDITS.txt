@@ -1,0 +1,37 @@
+TANOSHIMI - 테마 이미지 출처 (Image credits)
+===========================================
+아래 사진은 모두 Wikimedia Commons 에서 내려받아 크롭/리사이즈한 것입니다.
+대부분 CC BY-SA 계열 라이선스이므로, 서비스를 외부에 공개할 때는 이 표기를
+푸터나 별도 페이지에 그대로 유지해 주세요.
+
+hero-torii.jpg
+  원본 : File:MY - Great torii of Itsukushima Shrine at night, Miyajima, Japan
+  https://commons.wikimedia.org/wiki/File:MY_-_Great_torii_of_Itsukushima_Shrine_at_night,_Miyajima,_Japan.jpg
+
+band-tokyo.jpg
+  원본 : File:Government Building Sunset Tokyo Japan Travel Photography
+  https://commons.wikimedia.org/wiki/Category:Tokyo_Metropolitan_Government_Building
+
+dest-hokkaido.jpg
+  원본 : File:Otaru Canal HDR1.jpg
+  https://commons.wikimedia.org/wiki/File:Otaru_Canal_HDR1.jpg
+
+dest-tokyo.jpg
+  원본 : File:Neon in the streets of Shibuya (9412153000).jpg
+  https://commons.wikimedia.org/wiki/File:Neon_in_the_streets_of_Shibuya_(9412153000).jpg
+
+dest-chubu.jpg
+  원본 : File:Mount Fuji 2013-11-13 (10863193853).jpg
+  https://commons.wikimedia.org/wiki/File:Mount_Fuji_2013-11-13_(10863193853).jpg
+
+dest-kyoto.jpg
+  원본 : File:Yasaka-dori early morning with street lanterns and the Tower of Yasaka
+  https://commons.wikimedia.org/wiki/Category:Yasaka_Pagoda
+
+dest-fukuoka.jpg
+  원본 : File:Nakasu Yatai Stalls (19979437930).jpg
+  https://commons.wikimedia.org/wiki/File:Nakasu_Yatai_Stalls_(19979437930).jpg
+
+dest-okinawa.jpg
+  원본 : File:Kerama Island - 6080686821.jpg
+  https://commons.wikimedia.org/wiki/File:Kerama_Island_-_6080686821.jpg

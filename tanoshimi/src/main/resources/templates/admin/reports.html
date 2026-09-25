@@ -7,8 +7,8 @@
 <main class="wrap">
 
   <div style="margin-bottom: 20px; display:flex; gap: 10px;">
-    <a href="/admin" class="btn" style="background:#fff; border:1px solid #ccc;">회원 관리</a>
-    <a href="/admin/parties" class="btn" style="background:#fff; border:1px solid #ccc;">파티 게시글 관리</a>    <a href="/admin/banners" class="btn" style="background:#fff; border:1px solid #ccc;">광고 배너 관리</a>
+    <a href="/admin" class="btn" style="background:#fff; border:1px solid #dfe4ec;">회원 관리</a>
+    <a href="/admin/parties" class="btn" style="background:#fff; border:1px solid #dfe4ec;">파티 게시글 관리</a>    <a href="/admin/banners" class="btn" style="background:#fff; border:1px solid #dfe4ec;">광고 배너 관리</a>
     <a href="/admin/reports" class="btn btn-primary">신고 처리</a>
   </div>
 
@@ -65,6 +65,7 @@
        style="width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:6px; font-size:12px;">1</a>
   </div>
 </main>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

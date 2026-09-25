@@ -2,33 +2,8 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <th:block th:replace="~{fragments/layout :: head('Tanoshimi - ' + #{planner.title})}"></th:block>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-  :root{
-    --parchment:#f3e8cf;
-    --parchment-deep:#e8dab3;
-    --card:#fffcf4;
-    --forest:#4b6b4a;
-    --forest-deep:#33472f;
-    --sash:#e0793f;
-    --sash-deep:#b85c2b;
-    --gold:#d9a441;
-    --sky:#8fb9c9;
-    --ink:#3a2e22;
-    --ink-soft:#6b5c46;
-    --rope:#c9b58b;
-    --line:#d8c69a;
-
-    /* 일정 카테고리 (마치 지형 범례처럼 유니크) */
-    --cat-festival:#e0793f;
-    --cat-food:#d9a441;
-    --cat-sight:#4b6b4a;
-    --cat-move:#8fb9c9;
-    --cat-rest:#a58fb0;
-    --cat-blank:#c9b58b;
-
-    --slot-h:110px;
-  }
   *{ box-sizing:border-box; }
   body{
     margin:0;
@@ -39,7 +14,7 @@
     font-family:'Gowun Dodum','Apple SD Gothic Neo',sans-serif;
     line-height:1.55;
   }
-  h1,h2,h3,.disp{ font-family:'Jua','Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
+  h1,h2,h3,.disp{ font-family:var(--font-display),'Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
   .wrap{ max-width:1280px; margin:0 auto; padding:26px 22px 80px; }
 
   /* ---------- 상단 ---------- */
@@ -47,7 +22,7 @@
   .page-head h1{ font-size:30px; }
   .page-head .sub{ color:var(--ink-soft); font-size:13.5px; margin:4px 0 0; }
   .stamp{
-    font-family:'Jua',sans-serif; font-size:12px; letter-spacing:1px; color:var(--sash-deep);
+    font-family:var(--font-display); font-size:12px; letter-spacing:1px; color:var(--sash-deep);
     border:2px dashed var(--sash); border-radius:999px; padding:6px 16px;
     transform:rotate(-2deg); background:rgba(255,255,255,.5); white-space:nowrap;
   }
@@ -71,7 +46,7 @@
   .btn-ghost:hover{ border-color:var(--sash); color:var(--sash-deep); }
   .btn-sm{ font-size:12px; padding:6px 11px; border-radius:8px; }
   .chip{ font-size:11.5px; font-weight:700; border-radius:999px; padding:4px 11px; display:inline-block; }
-  .chip-region{ background:var(--sky); color:#1c3a44; }
+  .chip-region{ background:var(--sky); color:#0f2247; }
   .chip-soft{ background:var(--parchment-deep); color:var(--ink-soft); }
 
   /* ---------- 레이아웃 ---------- */
@@ -83,7 +58,7 @@
     display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
     padding:14px 18px; border-bottom:1px solid var(--line); background:var(--parchment-deep);
   }
-  .board-top .ttl{ font-family:'Jua',sans-serif; font-size:16px; color:var(--forest-deep); display:flex; align-items:center; gap:8px; }
+  .board-top .ttl{ font-family:var(--font-display); font-size:16px; color:var(--forest-deep); display:flex; align-items:center; gap:8px; }
   .board-tools{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
   .legend{ display:flex; gap:12px; flex-wrap:wrap; padding:10px 18px; font-size:11.5px; color:var(--ink-soft); border-bottom:1px solid var(--line); }
@@ -93,7 +68,7 @@
   .grid-head .corner{ border-right:1px solid var(--line); }
   .day-head{ padding:9px 8px; text-align:center; border-right:1px solid var(--line); }
   .day-head:last-child{ border-right:none; }
-  .day-head .d{ font-family:'Jua',sans-serif; font-size:15px; color:var(--forest-deep); }
+  .day-head .d{ font-family:var(--font-display); font-size:15px; color:var(--forest-deep); }
   .day-head .w{ font-size:11px; color:var(--ink-soft); }
   .day-head .add{
     margin-top:4px; font-size:11px; color:var(--ink-soft); background:var(--parchment);
@@ -159,7 +134,7 @@
     width:22px; height:2px; border-radius:2px; background:rgba(255,255,255,.65);
   }
   .block.blank{
-    background: var(--custom-slot-color, #ffa500);
+    background: var(--custom-slot-color, #c8a94b);
     color:var(--ink-soft); box-shadow:none;
   }
   .block.blank .t{ color:var(--custom-text-color, var(--ink)); }
@@ -187,7 +162,7 @@
   /* ---------- AI 패널 ---------- */
   .ai{ display:flex; flex-direction:column; height:calc(100vh - 220px); min-height:520px; position:sticky; top:70px; overflow:hidden; }
   .ai-head{ padding:13px 16px; border-bottom:1px solid var(--line); background:var(--forest); color:#fff; display:flex; align-items:center; gap:9px; }
-  .ai-head .nm{ font-family:'Jua',sans-serif; font-size:15px; }
+  .ai-head .nm{ font-family:var(--font-display); font-size:15px; }
   .ai-head .st{ font-size:11px; opacity:.85; }
   .ai-body{ flex:1; overflow:auto; padding:14px; background:var(--parchment); display:flex; flex-direction:column; gap:10px; }
   .msg{ max-width:88%; padding:9px 13px; border-radius:14px; font-size:13px; }
@@ -334,8 +309,8 @@
             <option value="public">대중교통</option>
             <option value="car">자동차</option>
           </select>
-          <input type="color" id="custom-slot-color" title="배경 색상 커스텀" value="#ffa500" style="width:30px; height:30px; padding:0; border:none; cursor:pointer;" />
-          <input type="color" id="custom-text-color" title="기존 계획표 글자색상" value="#4b6b4a" style="width:30px; height:30px; padding:0; border:none; cursor:pointer; margin-right:8px;" />
+          <input type="color" id="custom-slot-color" title="배경 색상 커스텀" value="#c8a94b" style="width:30px; height:30px; padding:0; border:none; cursor:pointer;" />
+          <input type="color" id="custom-text-color" title="기존 계획표 글자색상" value="#1b4a9c" style="width:30px; height:30px; padding:0; border:none; cursor:pointer; margin-right:8px;" />
           <button type="button" id="btn-ai-validate" class="btn btn-ghost btn-sm">일정 AI 검증 브리핑</button>
           <div style="font-weight:700; font-size:16px; color:var(--sash); display:inline-flex; align-items:center; margin-right:6px;">
             Total: <span id="total-price" style="letter-spacing:-0.5px; margin-left:4px;">0</span> ¥
@@ -418,6 +393,7 @@ const IS_LOCK_HOLDER = /*[[${isLockHolder}]]*/ false;
 
 <script th:src="@{/js/planner.js?v=100}" defer></script>
 <script th:src="@{/js/planner-owner.js}" defer></script>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

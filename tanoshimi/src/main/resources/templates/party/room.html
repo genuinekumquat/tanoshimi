@@ -3,15 +3,6 @@
 <head>
     <meta th:replace="~{fragments/layout :: head(${party.title})}">
 <style>
-  :root {
-    --card: #fff;
-    --sash: #ff7452; --sash-deep: #e56041;
-    --sky: #dceef2; --sky-deep: #b5ced5;
-    --forest: #3c5a3a; --forest-deep: #2a4128;
-    --ink: #3a2e22; --ink-soft: #7a6e60;
-    --line: #dedacb;
-    --parchment: #f9f6e9; --parchment-deep: #f0ead4;
-  }
   body { background:var(--parchment); margin:0; padding:0; font-family:'Pretendard', sans-serif; }
   
   .wrap { max-width:1200px; margin:0 auto; padding:30px 20px; display:grid; grid-template-columns:1fr 340px; gap:24px; align-items:start; }
@@ -23,10 +14,10 @@
   .p-header { background:var(--card); border-radius:24px; padding:32px; border:1px solid var(--line); position:relative; overflow:hidden; }
   .p-thumb { width:100%; height:280px; border-radius:16px; object-fit:cover; margin-bottom:24px; background:var(--line); box-shadow:0 8px 24px rgba(0,0,0,.06); }
   /* 사진 없는 파티의 헤더 - 위 .p-thumb 배경에 덮이지 않게 app.css 의 ph1~ph4 팔레트를 한 단계 구체적으로 다시 지정 */
-  .p-thumb.ph1{ background:linear-gradient(135deg,var(--sky),#c7dfe6); }
-  .p-thumb.ph2{ background:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
-  .p-thumb.ph3{ background:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
-  .p-thumb.ph4{ background:linear-gradient(135deg,#e3b7a0,#d99a86); }
+  .p-thumb.ph1{ background:linear-gradient(135deg,var(--sky),#cfe0f3); }
+  .p-thumb.ph2{ background:linear-gradient(135deg,#dbe7f5,var(--parchment-deep)); }
+  .p-thumb.ph3{ background:linear-gradient(135deg,#e4e6f3,#c3c8e4); }
+  .p-thumb.ph4{ background:linear-gradient(135deg,#f0e7e4,#dcc7c0); }
   .p-title { font-size:28px; font-weight:900; color:var(--ink); margin:0 0 12px; }
   .p-meta { font-size:15px; color:var(--ink-soft); font-weight:600; margin:0; display:flex; gap:12px; flex-wrap:wrap; }
   .badge { background:var(--sky); color:var(--forest-deep); padding:6px 12px; border-radius:6px; font-size:13px; font-weight:800; }
@@ -39,8 +30,8 @@
   
   /* 멤버/신청자 리스트 */
   .ul-users { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px; }
-  .ul-users li { display:flex; align-items:center; gap:12px; padding:12px; border-radius:12px; background:#fafafa; border:1px solid #f0f0f0; }
-  .ul-users .pf { width:40px; height:40px; border-radius:50%; object-fit:cover; background:#dceef2; color:#3c5a3a; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; line-height:1; }
+  .ul-users li { display:flex; align-items:center; gap:12px; padding:12px; border-radius:12px; background:#f8f9fb; border:1px solid #dfe4ec; }
+  .ul-users .pf { width:40px; height:40px; border-radius:50%; object-fit:cover; background:#e7edf8; color:#1b4a9c; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; line-height:1; }
   .ul-users .info { flex:1; }
   .ul-users .name { font-weight:700; font-size:15px; margin:0; color:var(--ink); }
   .ul-users .msg { font-size:13px; color:var(--ink-soft); margin:4px 0 0; }
@@ -50,7 +41,7 @@
 
   /* 추억 사진첩 */
   .grid-photos { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:12px; }
-  .photo-card { aspect-ratio:1; border-radius:12px; overflow:hidden; position:relative; background:#eee; cursor:pointer; }
+  .photo-card { aspect-ratio:1; border-radius:12px; overflow:hidden; position:relative; background:#dfe4ec; cursor:pointer; }
   .photo-card img { width:100%; height:100%; object-fit:cover; transition:transform .3s; }
   .photo-card:hover img { transform:scale(1.05); }
   .photo-overlay { position:absolute; inset:0; background:linear-gradient(0deg, rgba(0,0,0,.5), transparent); display:flex; align-items:flex-end; padding:12px; opacity:0; transition:.2s; }
@@ -64,7 +55,7 @@
   
   .chat-box { flex:1; min-height:400px; display:flex; flex-direction:column; background:var(--card); border-radius:24px; border:1px solid var(--line); overflow:hidden; }
   .chat-head { padding:16px 20px; background:var(--forest); color:#fff; font-weight:800; font-size:16px; display:flex; justify-content:space-between; align-items:center; }
-  .chat-msg-area { flex:1; padding:20px; overflow-y:auto; background:#fafafa; display:flex; flex-direction:column; gap:12px; height: 400px; }
+  .chat-msg-area { flex:1; padding:20px; overflow-y:auto; background:#f8f9fb; display:flex; flex-direction:column; gap:12px; height: 400px; }
   .chat-ctrl { padding:16px; border-top:1px solid var(--line); display:flex; gap:8px; background:#fff; }
   .chat-ctrl input { flex:1; padding:12px 16px; border-radius:999px; border:1px solid var(--line); font-size:14px; }
   .chat-ctrl input:focus { outline:none; border-color:var(--forest); }
@@ -73,7 +64,7 @@
   .msg-row { display:flex; flex-direction:column; max-width:85%; }
   .msg-row.me { align-self:flex-end; align-items:flex-end; }
   .msg-row.other { align-self:flex-start; align-items:flex-start; }
-  .msg-info { font-size:11px; color:#999; margin-bottom:4px; font-weight:600; }
+  .msg-info { font-size:11px; color:#98a1b4; margin-bottom:4px; font-weight:600; }
   .msg-row.sys .msg-info { display:none; }
   .msg-bubble { padding:10px 16px; border-radius:16px; font-size:14px; line-height:1.4; word-break:break-all; position:relative;}
   .msg-row.me .msg-bubble { background:var(--sky); color:var(--ink); border-bottom-right-radius:4px; }
@@ -96,7 +87,7 @@
   .modal-box textarea { height:120px; resize:none; }
   .modal-box .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
   .modal-box .actions button { padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; border:none; }
-  .btn-modal-x { background:#eee; color:var(--ink-soft); }
+  .btn-modal-x { background:#dfe4ec; color:var(--ink-soft); }
   .btn-modal-ok { background:var(--forest); color:#fff; }
 </style>
 <!-- 사내 벤더 스크립트 -->
@@ -117,7 +108,7 @@
       <div th:if="${party.thumbnailUrl == null || #strings.startsWith(party.thumbnailUrl,'ph')}"
            th:class="'p-thumb ' + (${party.thumbnailUrl} ?: 'ph1')"
            style="display:flex;align-items:flex-end;justify-content:flex-start;padding:22px 26px;box-sizing:border-box;">
-        <span style="font-family:'Jua',sans-serif;font-size:30px;color:rgba(255,255,255,.95);text-shadow:0 2px 8px rgba(0,0,0,.18);"
+        <span style="font-family:var(--font-display);font-size:30px;color:rgba(255,255,255,.95);text-shadow:0 2px 8px rgba(0,0,0,.18);"
               th:text="'📍 ' + ${party.region}">📍 지역</span>
       </div>
       
@@ -155,7 +146,7 @@
     <!-- 신청자 목록 (방장만) -->
     <section class="sec" th:if="${isOwner}">
       <h2 class="sec-title">참가 신청자</h2>
-      <p th:if="${pendingApplicants == null || pendingApplicants.isEmpty()}" style="color:#999;font-size:14px;">대기 중인 신청자가 없습니다.</p>
+      <p th:if="${pendingApplicants == null || pendingApplicants.isEmpty()}" style="color:#98a1b4;font-size:14px;">대기 중인 신청자가 없습니다.</p>
       <ul class="ul-users" th:if="${pendingApplicants != null && !pendingApplicants.isEmpty()}">
         <!-- ApplicantSummaryDTO(applicationId, nickname, mannerTemp, nationality, message) - 팀 방침상
              심사 화면엔 닉네임·매너온도·국적만 보여준다. 예전엔 없는 필드(userName, id)를 읽어서
@@ -181,10 +172,10 @@
     <!-- 추억 사진첩 -->
     <section class="sec">
       <h2 class="sec-title">추억 사진첩 <button class="btn-write" id="btn-write">+ 사진 올리기</button></h2>
-      <p th:if="${partyPosts == null || partyPosts.isEmpty()}" style="color:#999;font-size:14px;">아직 공유된 사진이 없습니다.</p>
+      <p th:if="${partyPosts == null || partyPosts.isEmpty()}" style="color:#98a1b4;font-size:14px;">아직 공유된 사진이 없습니다.</p>
       <div class="grid-photos" th:if="${partyPosts != null && !partyPosts.isEmpty()}">
         <div class="photo-card" th:each="p : ${partyPosts}" th:attr="data-id=${p.id}, data-img=${p.thumbnailUrl}, data-title=${p.title}, data-content=${p.content}">
-          <img th:src="${p.thumbnailUrl}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'100%\' height=\'100%\' fill=\'#eee\'/></svg>'">
+          <img th:src="${p.thumbnailUrl}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'100%\' height=\'100%\' fill=\'#dfe4ec\'/></svg>'">
           <div class="photo-overlay"><span th:text="${p.title}"></span></div>
         </div>
       </div>
@@ -228,7 +219,7 @@
       </div>
     </div>
     <div th:if="${roomId == null}" class="chat-box" style="align-items:center; justify-content:center;">
-       <p style="color:#999; font-size:14px;">오픈된 채팅방이 없습니다.</p>
+       <p style="color:#98a1b4; font-size:14px;">오픈된 채팅방이 없습니다.</p>
     </div>
   </div>
 </div>
@@ -237,7 +228,7 @@
 <div class="modal-overlay" id="view-modal">
   <div class="modal-box" style="align-items:center;">
     <h3 id="v-title" style="align-self:flex-start; margin-bottom: 8px;">제목</h3>
-    <img id="v-img" src="" style="width:100%; max-height:400px; object-fit:contain; border-radius:8px; background:#f4f5f7;">
+    <img id="v-img" src="" style="width:100%; max-height:400px; object-fit:contain; border-radius:8px; background:#f2f6fc;">
     <p id="v-content" style="align-self:flex-start; font-size:14px; line-height:1.6; color:var(--ink); margin-top:12px; width:100%; white-space:pre-wrap; word-break:keep-all;"></p>
     
     <!-- 댓글 영역 -->
@@ -266,7 +257,7 @@
     <input type="text" id="w-title" placeholder="제목을 입력하세요">
     <textarea id="w-content" placeholder="내용이나 소감을 적어보세요"></textarea>
     
-    <label style="background:#f4f5f7; border:1px dashed #ccc; padding:20px; text-align:center; border-radius:8px; cursor:pointer;" id="w-file-label">
+    <label style="background:#f2f6fc; border:1px dashed #dfe4ec; padding:20px; text-align:center; border-radius:8px; cursor:pointer;" id="w-file-label">
       📷 사진 첨부 (클릭)
       <input type="file" id="w-file" accept="image/*" style="display:none;">
     </label>
@@ -347,7 +338,7 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
             trBtn.style.marginLeft = '6px';
             trBtn.style.padding = '2px 4px';
             trBtn.style.border = '1px solid var(--line)';
-            trBtn.style.background = '#f4f5f7';
+            trBtn.style.background = '#f2f6fc';
             trBtn.style.cursor = 'pointer';
             
             trBtn.addEventListener('click', async () => {
@@ -365,7 +356,7 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
                         origBtn.style.marginLeft = '6px';
                         origBtn.style.padding = '2px 4px';
                         origBtn.style.border = '1px solid var(--line)';
-                        origBtn.style.background = '#f4f5f7';
+                        origBtn.style.background = '#f2f6fc';
                         origBtn.style.cursor = 'pointer';
                         origBtn.addEventListener('click', () => {
                             contEl.textContent = msg.content;
@@ -540,7 +531,7 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
     async function loadComments(postId) {
         const cContainer = document.getElementById('v-comments');
         if (!cContainer) return;
-        cContainer.innerHTML = '<div style="color:#999;font-size:13px;">댓글을 불러오는 중...</div>';
+        cContainer.innerHTML = '<div style="color:#98a1b4;font-size:13px;">댓글을 불러오는 중...</div>';
         
         try {
             const res = await window.api.get(`/api/posts/${postId}/comments`);
@@ -548,7 +539,7 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
                 cContainer.innerHTML = '';
                 const comments = res.data;
                 if (comments.length === 0) {
-                    cContainer.innerHTML = '<div style="color:#999;font-size:13px;text-align:center;">첫 댓글을 작성해보세요!</div>';
+                    cContainer.innerHTML = '<div style="color:#98a1b4;font-size:13px;text-align:center;">첫 댓글을 작성해보세요!</div>';
                     return;
                 }
                 
@@ -574,13 +565,13 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
                     div.style.display = 'flex';
                     div.style.gap = '8px';
                     
-                    let avatarHtml = `<div class="pf" style="width:30px;height:30px;border-radius:50%;background:#dceef2;color:#3c5a3a;display:flex;align-items:center;justify-content:center;font-weight:700;">${c.authorName[0]}</div>`;
+                    let avatarHtml = `<div class="pf" style="width:30px;height:30px;border-radius:50%;background:#e7edf8;color:#1b4a9c;display:flex;align-items:center;justify-content:center;font-weight:700;">${c.authorName[0]}</div>`;
                     if (c.authorImage) {
                         avatarHtml = `<img src="${c.authorImage}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">`;
                     }
                     
                     div.innerHTML = `
-                      ${depth > 0 ? '<div style="color:#ccc; font-size:18px;">↳</div>' : ''}
+                      ${depth > 0 ? '<div style="color:#dfe4ec; font-size:18px;">↳</div>' : ''}
                       ${avatarHtml}
                       <div style="flex:1;">
                           <div style="display:flex; gap:6px; align-items:center;">

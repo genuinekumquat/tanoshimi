@@ -8,101 +8,17 @@
 <header th:replace="~{fragments/layout :: header}"></header>
 
 <style>
-    .layout { display: flex; gap: 24px; align-items: flex-start; margin-top: 20px; }
-    .main-col { flex: 1; min-width: 0; }
-    aside { width: 300px; flex-shrink: 0; }
-    .party-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
+    /* 이 페이지에서만 쓰는 배치 규칙.
+       카드/뱃지/정렬탭/페이지헤더 같은 공통 컴포넌트는 전부 app.css 로 옮겼습니다. */
+    .layout { display:flex; gap:26px; align-items:flex-start; margin-top:4px; }
+    .main-col { flex:1; min-width:0; }
+    aside { width:300px; flex-shrink:0; }
+    @media(max-width:900px){
+        .layout { flex-direction:column; }
+        aside { width:100%; }
     }
-    @media(max-width: 900px) {
-        .party-grid { grid-template-columns: repeat(3, 1fr); }
-        .layout { flex-direction: column; }
-        aside { width: 100%; position: static !important; }
-    }
-    @media(max-width: 600px) {
-        .party-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-    .party-card { display: flex; flex-direction: column; overflow: hidden; text-decoration: none; color: inherit; transition: transform 0.2s; }
-    .party-card:hover { transform: translateY(-4px); }
-
-    /* 썸네일 위 뱃지 - .chip 은 정의가 없어 글자에 배경만 칠해진 것처럼 보였다.
-       왼쪽 뱃지 줄은 우상단 D-day 뱃지 자리(right:64px)를 비워 두고, 좁으면 다음 줄로 넘긴다. */
-    .party-card .chip-row { position: absolute; top: 10px; left: 10px; right: 64px; display: flex; gap: 5px; flex-wrap: wrap; }
-    .party-card .chip {
-        display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px;
-        font-size: 11.5px; font-weight: 700; line-height: 1.4; white-space: nowrap;
-        box-shadow: 0 1px 3px rgba(0,0,0,.12);
-    }
-    .party-card .dday-badge {
-        position: absolute; top: 10px; right: 10px; font-family: 'Jua', sans-serif; font-size: 12px; color: #fff;
-        background: var(--sash); border-radius: 999px; padding: 3px 9px; box-shadow: 0 1px 3px rgba(0,0,0,.15); white-space: nowrap;
-    }
-    .party-card .card-body { padding: 14px; display: flex; flex-direction: column; flex: 1; }
-    /* 제목은 2줄까지만 - 카드 높이가 제목 길이에 따라 들쭉날쭉하지 않게 */
-    .party-card .party-list-title {
-        font-size: 15px; font-weight: 700; margin: 0 0 6px; line-height: 1.4;
-        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.8em;
-    }
-    .party-card .card-meta { font-size: 12px; color: var(--ink-soft); display: flex; flex-direction: column; gap: 4px; }
-    .party-card .card-meta b { color: var(--ink); }
-    .party-card .seat-left { font-style: normal; font-weight: 700; color: var(--forest); margin-left: 4px; white-space: nowrap; }
-    .party-card .seat-left.last { color: var(--sash-deep, #b85c2b); }
-    .party-card .card-conds {
-        margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px;
-        display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 11.5px;
-    }
-    .party-card .card-conds > span { background: var(--parchment-deep); color: var(--ink-soft); padding: 3px 8px; border-radius: 4px; }
-    @media(max-width: 600px) {
-        .party-card .chip-row { right: 10px; top: 40px; }  /* 폰 카드 폭에선 D-day 아래 줄로 */
-        .party-card .card-body { padding: 12px; }
-        .party-card .party-list-title { font-size: 14px; }
-    }
-    .board-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .board-count { font-size: 15px; font-weight: 700; color: var(--ink); }
-    .sort { display: flex; gap: 8px; }
-    .sort button {
-        background: none; border: none; font-size: 13px; color: var(--ink-soft); cursor: pointer; padding: 4px 8px; font-weight: 700; border-radius: 6px;
-        white-space: nowrap;
-    }
-    @media(max-width: 600px) {
-        .board-top { flex-wrap: wrap; gap: 8px; }
-        .sort { gap: 2px; }
-    }
-    .sort button.on { color: var(--forest); background: #f4f5f7; }
-
-    .board-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-    .board-tab {
-        font-size: 13px; font-weight: 700; color: var(--ink-soft); text-decoration: none;
-        padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px;
-    }
-    .board-tab.on { color: #fff; background: var(--forest); border-color: var(--forest); }
-
-    /* ===== 상단 타이틀 영역 ===== */
-    .page-head{
-        display: flex; justify-content: space-between; align-items: center;
-        gap: 20px; padding-bottom: 18px; margin-bottom: 4px;
-        border-bottom: 1px dashed var(--line);
-    }
-    .page-head h1{ font-size: 26px; margin: 0 0 6px; color: var(--ink); }
-    .page-head .sub{ font-size: 13.5px; color: var(--ink-soft); margin: 0; }
-    .page-head .stamp{
-        flex: none; font-family: 'Jua', sans-serif; font-size: 13px; color: var(--forest);
-        border: 2px solid var(--forest); border-radius: 10px; padding: 8px 16px;
-        transform: rotate(-6deg); letter-spacing: 1px; white-space: nowrap;
-        position: relative; opacity: .85;
-    }
-    .page-head .stamp::before, .page-head .stamp::after{
-        content:''; position:absolute; top:3px; bottom:3px; width:1px;
-        border-left: 2px dotted var(--forest); opacity:.6;
-    }
-    .page-head .stamp::before{ left: 5px; }
-    .page-head .stamp::after{ right: 5px; }
-    @media(max-width: 600px){
-        .page-head{ flex-direction: column; align-items: flex-start; gap: 12px; }
-        .page-head .stamp{ align-self: flex-end; }
-    }
+    /* 썸네일 영역 — 카드 안에서 위치 기준이 되어야 뱃지가 제자리에 붙는다 */
+    .party-card .thumb-wrap { position:relative; }
 </style>
 
 <main class="wrap">
@@ -170,10 +86,10 @@
 
             <!-- 출발한 파티는 우상단 D-day 뱃지가 없으므로 그 자리를 비워 둘 필요가 없다 -->
             <div class="chip-row" th:style="${departed} ? 'right:10px;' : null">
-              <span class="chip chip-region" style="background:rgba(255,255,255,.92); color:#1c3a44;" th:text="'📍 ' + ${party.region}">지역</span>
+              <span class="chip chip-region" style="background:rgba(255,255,255,.92); color:#0f2247;" th:text="'📍 ' + ${party.region}">지역</span>
               <span class="chip"
                     th:text="#{__${statusKey}__}"
-                    th:style="${recruiting} ? 'background:var(--forest);color:#fff;' : 'background:#8a7a63;color:#fff;'">상태</span>
+                    th:style="${recruiting} ? 'background:var(--forest);color:#fff;' : 'background:#67718a;color:#fff;'">상태</span>
             </div>
 
             <!-- 우상단 뱃지: 출발 전 파티에만 D-day 카운트다운. 출발한 파티는 예전엔 여기에도 상태 이름을
@@ -183,7 +99,7 @@
                   th:text="${dday > 0} ? 'D-' + ${dday} : 'D-DAY'">D-7</span>
             <!-- report button -->
             <span style="position:absolute; bottom:10px; right:10px; z-index:10;" sec:authorize="isAuthenticated()">
-              <span th:attr="data-report-type='party',data-report-id=${party.id},data-report-label=${party.title}" style="font-size:11px; padding:3px 6px; background:rgba(255,255,255,0.9); border:1px solid #ffcccc; color:red; border-radius:4px; font-weight:bold; cursor:pointer;">🚨 신고</span>
+              <span th:attr="data-report-type='party',data-report-id=${party.id},data-report-label=${party.title}" style="font-size:11px; padding:3px 6px; background:rgba(255,255,255,0.9); border:1px solid #f7d8d1; color:red; border-radius:4px; font-weight:bold; cursor:pointer;">🚨 신고</span>
             </span>
           </div>
 
@@ -286,6 +202,7 @@
       }
   })();
 </script>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 <div th:replace="~{fragments/layout :: companion}"></div>
 </body>
 </html>

@@ -3,30 +3,13 @@
 <head>
   <th:block th:replace="~{fragments/layout :: head('마이페이지 | 타노시미')}"></th:block>
   <style>
-    :root{
-      --parchment:#f3e8cf; --parchment-deep:#e8dab3; --card:#fffcf4;
-      --forest:#4b6b4a; --forest-deep:#33472f; --sash:#e0793f; --sash-deep:#b85c2b;
-      --gold:#d9a441; --sky:#8fb9c9; --ink:#3a2e22; --ink-soft:#6b5c46; --rope:#c9b58b; --line:#d8c69a;
-      --warm:#ff8a00; --map-line:#33302a;
-
-      /* 여행 지수 색 단계.
-         단계 경계(1 / 8 / 16 / 26점)는 TravelHeatmapService 와 mypage-heatmap.js 의 TIERS 가
-         함께 쓰는 값이라 셋 중 하나만 고치면 안 된다. 지수 = 완료 여행 1건당 3점 + 1일당 1점.
-         지도를 점 마커에서 면(지역 경계) 칠하기로 바꾸면서, 안 가본 땅이 바다처럼 보이지
-         않도록 0단계를 하늘색에서 빈 땅 색으로 바꿨다. */
-      --tier-0:#e3e8dd;   /* 0점 — 아직 안 가봄 */
-      --tier-1:#a8c6d6;   /* 1~7점 — 가끔 */
-      --tier-2:#e6c463;   /* 8~15점 — 여러 번 */
-      --tier-3:#dd8b46;   /* 16~25점 — 자주 */
-      --tier-4:#c25235;   /* 26점 이상 — 단골 */
-    }
     *{ box-sizing:border-box; }
     body{
       margin:0;
       background:radial-gradient(ellipse at top left, rgba(255,255,255,.35), transparent 55%), var(--parchment);
       color:var(--ink); font-family:'Gowun Dodum','Apple SD Gothic Neo',sans-serif; line-height:1.6;
     }
-    h1,h2,h3,.disp{ font-family:'Jua','Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
+    h1,h2,h3,.disp{ font-family:var(--font-display),'Gowun Dodum',sans-serif; color:var(--forest-deep); margin:0; }
     a{ color:var(--forest-deep); text-decoration:none; }
     .wrap{ max-width:980px; margin:0 auto; padding:26px 22px 90px; }
 
@@ -70,7 +53,7 @@
     .photo-wrap .ph{
       width:100%; height:100%; border-radius:50%; border:4px solid var(--gold); background-size:cover; background-position:center;
       background-color:var(--forest); display:flex; align-items:center; justify-content:center; color:#fff;
-      font-family:'Jua',sans-serif; font-size:38px; box-shadow:0 6px 14px rgba(59,44,20,.18);
+      font-family:var(--font-display); font-size:38px; box-shadow:0 6px 14px rgba(59,44,20,.18);
     }
     .photo-edit{
       position:absolute; right:-2px; bottom:-2px; width:36px; height:36px; border-radius:50%;
@@ -80,15 +63,15 @@
     .photo-edit:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
 
     .profile-info{ flex:1; min-width:220px; padding-top:2px; }
-    .profile-name{ font-family:'Jua',sans-serif; font-size:19px; color:var(--forest-deep); display:flex; align-items:baseline; gap:5px; }
+    .profile-name{ font-family:var(--font-display); font-size:19px; color:var(--forest-deep); display:flex; align-items:baseline; gap:5px; }
     .profile-name .nim{ font-size:12px; color:var(--ink-soft); font-family:'Gowun Dodum',sans-serif; }
     .profile-stats{ display:flex; gap:16px; margin:12px 0; font-size:12.5px; color:var(--ink-soft); flex-wrap:wrap; }
-    .profile-stats b{ color:var(--forest-deep); font-family:'Jua',sans-serif; font-size:14px; margin-right:3px; }
+    .profile-stats b{ color:var(--forest-deep); font-family:var(--font-display); font-size:14px; margin-right:3px; }
 
     /* 여행 거리(집 기준 왕복 누적) */
     .dist-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0 2px; }
     .dist{ font-size:13px; color:var(--sky); font-weight:700; }
-    .dist b{ color:var(--forest-deep); font-family:'Jua',sans-serif; font-size:15px; }
+    .dist b{ color:var(--forest-deep); font-family:var(--font-display); font-size:15px; }
     .home-btn{
       font-size:11.5px; color:var(--ink-soft); background:var(--parchment); border:1px solid var(--line);
       border-radius:999px; padding:4px 11px; cursor:pointer; font-family:'Gowun Dodum',sans-serif;
@@ -117,7 +100,7 @@
       display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:999px;
       border:1.5px solid var(--sash); background:rgba(224,121,63,.08); font-size:12.5px; color:var(--sash-deep);
     }
-    .tchip b{ font-family:'Jua',sans-serif; }
+    .tchip b{ font-family:var(--font-display); }
     .more-btn{
       margin-left:auto; font-size:12px; color:var(--forest-deep); background:none; border:none; cursor:pointer;
       font-family:'Gowun Dodum',sans-serif; font-weight:700; display:inline-flex; align-items:center; gap:3px;
@@ -147,9 +130,9 @@
     .toggle-btn.on{ color:#fff; }
 
     .map-stat{ font-size:12.5px; color:var(--ink-soft); }
-    .map-stat b{ color:var(--forest-deep); font-family:'Jua',sans-serif; font-size:15px; }
+    .map-stat b{ color:var(--forest-deep); font-family:var(--font-display); font-size:15px; }
     .map-crumb{ font-size:12.5px; color:var(--ink-soft); }
-    .map-crumb b{ color:var(--forest-deep); font-family:'Jua',sans-serif; }
+    .map-crumb b{ color:var(--forest-deep); font-family:var(--font-display); }
 
     .map-back{
       position:absolute; top:64px; left:26px; z-index:7; font-family:'Gowun Dodum',sans-serif; font-weight:700;
@@ -195,7 +178,7 @@
     }
     .active-clone.on{ opacity:1; transform:scale(1.34); }
     .rlabel{
-      font-family:'Jua',sans-serif; fill:var(--ink); pointer-events:none; paint-order:stroke;
+      font-family:var(--font-display); fill:var(--ink); pointer-events:none; paint-order:stroke;
       stroke:var(--card); stroke-width:2.8px; stroke-linejoin:round; text-anchor:middle;
       opacity:0; transition:opacity .4s ease;
     }
@@ -205,7 +188,7 @@
 
     .readout{ display:flex; align-items:center; gap:10px; min-height:28px; margin:14px 4px 0; font-size:14.5px; color:var(--ink-soft); }
     .readout .pip{ width:12px; height:12px; border-radius:3px; flex:none; border:1px solid rgba(0,0,0,.12); }
-    .readout .msg b{ color:var(--forest-deep); font-family:'Jua',sans-serif; }
+    .readout .msg b{ color:var(--forest-deep); font-family:var(--font-display); }
 
     .legend{ display:flex; justify-content:center; gap:14px; flex-wrap:wrap; margin-top:18px; padding-top:16px; border-top:1px dashed var(--line); font-size:11.5px; color:var(--ink-soft); }
     .legend .sw{ width:12px; height:12px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:-2px; border:1px solid rgba(0,0,0,.15); }
@@ -245,10 +228,10 @@
     .snap-poke:focus-visible .snap-in{
       transform:scale(1.16); box-shadow:0 15px 32px rgba(40,30,15,.36); border-color:var(--gold);
     }
-    .snap-in.s1{ background-color:#c7dfe6; background-image:linear-gradient(135deg,var(--sky),#c7dfe6); }
-    .snap-in.s2{ background-color:var(--parchment-deep); background-image:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
-    .snap-in.s3{ background-color:#a9c7a1; background-image:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
-    .snap-in.s4{ background-color:#d99a86; background-image:linear-gradient(135deg,#e3b7a0,#d99a86); }
+    .snap-in.s1{ background-color:#cfe0f3; background-image:linear-gradient(135deg,var(--sky),#cfe0f3); }
+    .snap-in.s2{ background-color:var(--parchment-deep); background-image:linear-gradient(135deg,#dbe7f5,var(--parchment-deep)); }
+    .snap-in.s3{ background-color:#c3c8e4; background-image:linear-gradient(135deg,#e4e6f3,#c3c8e4); }
+    .snap-in.s4{ background-color:#dcc7c0; background-image:linear-gradient(135deg,#f0e7e4,#dcc7c0); }
 
     /* ===================== 칭호 관리 뷰 ===================== */
     .tm-head{ display:flex; align-items:center; gap:12px; margin-bottom:18px; }
@@ -263,14 +246,14 @@
       border:2px solid var(--sash); display:flex; align-items:center; justify-content:center; font-size:38px;
     }
     .rep-info .lbl{ font-size:11.5px; color:var(--ink-soft); letter-spacing:.04em; }
-    .rep-info .rep-name{ font-family:'Jua',sans-serif; font-size:22px; color:var(--forest-deep); margin:3px 0 2px; }
+    .rep-info .rep-name{ font-family:var(--font-display); font-size:22px; color:var(--forest-deep); margin:3px 0 2px; }
     .rep-info .rep-cond{ font-size:12.5px; color:var(--ink-soft); }
     .rep-edit{ margin-left:auto; }
 
     .tgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; }
     .tcat{
       grid-column:1/-1; display:flex; align-items:baseline; gap:10px; margin:14px 2px 2px;
-      font-family:'Jua',sans-serif; font-size:15px; color:var(--forest-deep);
+      font-family:var(--font-display); font-size:15px; color:var(--forest-deep);
       border-bottom:1.5px dashed var(--line); padding-bottom:6px;
     }
     .tcat:first-child{ margin-top:0; }
@@ -285,7 +268,7 @@
     .tcard.locked{ opacity:.55; filter:grayscale(1); background:var(--parchment-deep); border-style:dashed; cursor:help; }
     .tcard.locked .tc-ic{ opacity:.5; }
     .tcard .tc-ic{ font-size:30px; }
-    .tcard .tc-name{ font-family:'Jua',sans-serif; font-size:14px; color:var(--forest-deep); margin-top:6px; }
+    .tcard .tc-name{ font-family:var(--font-display); font-size:14px; color:var(--forest-deep); margin-top:6px; }
     .tcard.locked .tc-name{ color:var(--ink-soft); }
     .tcard .tc-badge{ position:absolute; top:8px; right:8px; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; }
     .tcard .tc-badge.on{ background:var(--gold); color:#fff; }
@@ -307,7 +290,7 @@
       border:1px solid var(--line); background:var(--parchment);
     }
     .trip-card .trip-main{ flex:1; min-width:0; }
-    .trip-card .trip-title{ font-family:'Jua',sans-serif; font-size:14.5px; color:var(--forest-deep); }
+    .trip-card .trip-title{ font-family:var(--font-display); font-size:14.5px; color:var(--forest-deep); }
     .trip-card .trip-sub{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
     .trip-card .trip-memo{ font-size:12px; color:var(--ink-soft); margin-top:6px; white-space:pre-line; }
     .trip-badge{
@@ -336,7 +319,7 @@
     .modal{ position:fixed; inset:0; background:rgba(30,22,14,.42); display:none; align-items:center; justify-content:center; z-index:80; padding:20px; }
     .modal.show{ display:flex; }
     .modal-panel{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; width:min(460px,100%); box-shadow:0 20px 50px rgba(30,22,14,.3); }
-    .modal-panel h3{ font-family:'Jua',sans-serif; color:var(--forest-deep); margin:0 0 4px; font-size:18px; }
+    .modal-panel h3{ font-family:var(--font-display); color:var(--forest-deep); margin:0 0 4px; font-size:18px; }
     .modal-panel .m-sub{ font-size:12.5px; color:var(--ink-soft); margin-bottom:16px; }
     .m-list{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px; max-height:320px; overflow-y:auto; }
     .m-opt{
@@ -346,7 +329,7 @@
     .m-opt:hover{ border-color:var(--sash); }
     .m-opt.sel{ border-color:var(--sash); background:rgba(224,121,63,.1); box-shadow:0 0 0 2px rgba(224,121,63,.15); }
     .m-opt .mo-ic{ font-size:22px; }
-    .m-opt .mo-name{ font-family:'Jua',sans-serif; font-size:13.5px; color:var(--forest-deep); }
+    .m-opt .mo-name{ font-family:var(--font-display); font-size:13.5px; color:var(--forest-deep); }
     .m-actions{ display:flex; gap:9px; justify-content:flex-end; }
 
     /* ===================== 피드 섹션 ===================== */
@@ -356,10 +339,10 @@
       border:1px solid var(--line);
     }
     .feed-item .ph{ position:absolute; inset:0; }
-    .ph.ph1{ background:linear-gradient(135deg,var(--sky),#c7dfe6); }
-    .ph.ph2{ background:linear-gradient(135deg,#e7cf9d,var(--parchment-deep)); }
-    .ph.ph3{ background:linear-gradient(135deg,#cfe0c8,#a9c7a1); }
-    .ph.ph4{ background:linear-gradient(135deg,#e3b7a0,#d99a86); }
+    .ph.ph1{ background:linear-gradient(135deg,var(--sky),#cfe0f3); }
+    .ph.ph2{ background:linear-gradient(135deg,#dbe7f5,var(--parchment-deep)); }
+    .ph.ph3{ background:linear-gradient(135deg,#e4e6f3,#c3c8e4); }
+    .ph.ph4{ background:linear-gradient(135deg,#f0e7e4,#dcc7c0); }
     .feed-item .cap{
       position:absolute; left:0; right:0; bottom:0; padding:8px 9px 7px; font-size:11px; color:#fff;
       background:linear-gradient(to top, rgba(30,22,14,.78), transparent);
@@ -698,5 +681,6 @@
 <script th:src="@{/js/post-write.js}" defer></script>
 <script th:src="@{/js/avatar-upload.js}" defer></script>
 
+<footer th:replace="~{fragments/layout :: footer}"></footer>
 </body>
 </html>
