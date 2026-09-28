@@ -20,6 +20,37 @@
   .banner-slide{ position:absolute; inset:0; opacity:0; transition:opacity .9s ease-in-out; }
   .banner-slide.active{ opacity:1; z-index:1; }
   .banner-slide img{ width:100%; height:100%; object-fit:contain; display:block; background:var(--washi-2); }
+  /* 등록된 배너가 없을 때의 기본 배너 - 사진 + 오른쪽 어둠 그라데이션 + HTML 문구.
+     (예전엔 글자까지 그려 넣은 SVG 였는데, <img> 안의 SVG 는 웹폰트를 못 써서 글꼴이 튀었다.)
+     사진(유카타 입은 두 친구)은 두 사람이 왼쪽~가운데(가로 23~52%)에 있고 오른쪽이 어두운
+     인력거라 문구를 오른쪽에 둔다. object-position 세로 20% = 5:1 로 잘려도 머리부터 오비(허리띠)
+     까지 보이게 맞춘 값 - 사진을 바꾸면 이 값과 문구 위치를 같이 다시 맞춰야 한다. */
+  .banner-default{ display:block; color:#fff; background:#08132a; }
+  .banner-default img{ object-fit:cover; object-position:50% 20%; background:#08132a; }
+  .banner-default::after{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(270deg, rgba(8,19,42,.9) 0%, rgba(8,19,42,.66) 32%, rgba(8,19,42,0) 60%);
+  }
+  .banner-copy{
+    position:absolute; z-index:1; right:clamp(18px,4.5%,56px); top:50%; transform:translateY(-50%);
+    max-width:min(40%,440px); text-align:right;
+  }
+  .banner-copy .hero-eyebrow{ margin-bottom:10px; }
+  .banner-title{
+    margin:0; font-family:var(--font-display); font-weight:700; color:#fff;
+    font-size:clamp(16px,2.3vw,28px); line-height:1.3; letter-spacing:-.02em; word-break:keep-all;
+  }
+  .banner-sub{ margin:8px 0 0; font-size:13.5px; color:rgba(255,255,255,.8); word-break:keep-all; }
+  .banner-more{ display:inline-block; margin-top:12px; font-size:12.5px; font-weight:700; color:var(--gold); }
+  .banner-default:hover .banner-more,
+  .banner-default:focus-visible .banner-more{ text-decoration:underline; }
+  .banner-default:focus-visible{ outline:3px solid var(--gold); outline-offset:-3px; }
+  @media(max-width:768px){
+    .banner-default::after{ background:linear-gradient(270deg, rgba(8,19,42,.92) 0%, rgba(8,19,42,.6) 55%, rgba(8,19,42,.15) 100%); }
+    .banner-copy{ max-width:62%; }
+    .banner-copy .hero-eyebrow, .banner-sub{ display:none; }
+    .banner-more{ margin-top:6px; font-size:11.5px; }
+  }
   .banner-admin-panel{
     position:absolute; top:10px; right:10px; z-index:10;
     display:flex; align-items:center; gap:10px;
@@ -169,9 +200,17 @@
   <!-- ===================== 4. 광고 배너 (관리자 등록) ===================== -->
   <section class="ad-band">
     <div id="banner-slider">
-      <div th:if="${banners == null || banners.size() == 0}" class="banner-slide active">
-        <img src="/assets/ad_banner.svg" alt="타노시미 - 일본 여행, 같이 가면 더 즐거우니까">
-      </div>
+      <!-- 사진: Pexels, Satoshi Hirayama - 교토 거리를 유카타 입고 나란히 걷는 두 친구 (assets/theme/CREDITS.txt) -->
+      <a th:if="${banners == null || banners.size() == 0}" class="banner-slide active banner-default"
+         th:href="@{/party-board}">
+        <img src="/assets/theme/band-yukata-kyoto.jpg" alt="" loading="lazy">
+        <div class="banner-copy">
+          <span class="hero-eyebrow">Tanoshimi</span>
+          <p class="banner-title">일본 여행,<br>같이 가면 더 즐거우니까</p>
+          <p class="banner-sub">파티를 만들고 여행 메이트와 함께 일정을 짜 보세요</p>
+          <span class="banner-more">함께 갈 파티 찾기 →</span>
+        </div>
+      </a>
       <div th:each="b, stat : ${banners}" class="banner-slide" th:classappend="${stat.index == 0} ? 'active'">
         <a th:if="${b.targetUrl != null and b.targetUrl != ''}"
            th:href="${b.targetUrl.startsWith('http') ? b.targetUrl : 'https://' + b.targetUrl}" target="_blank">
