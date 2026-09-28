@@ -997,3 +997,45 @@ footer.note{ text-align:center; color:var(--ink-faint); font-size:12px; margin-t
   }
   #companion-chat-panel[style*="display: flex"] ~ #companion-chat-open{ display:none !important; }
 }
+
+/* ===================== [FR-MYP-08] 프로필 배경 꾸미기 =====================
+   키 목록은 UserProfileThemeService.THEMES 와 1:1 - 테마를 늘리면 두 곳을 같이 늘린다.
+   .profile-theme-<key> 는 색 변수만 정하고(스와치 미리보기에도 재사용), 실제로 카드에
+   입히는 건 .profile-themed 다. 글자 대비를 지키려고 전부 밝은 톤으로만 칠하고,
+   진한 색은 윗선(border-top)과 장식 원에만 쓴다. */
+.profile-theme-forest_green { --pt-tint:#e3ebf7; --pt-accent:#1b4a9c; --pt-glow:rgba(27,74,156,.14); }
+.profile-theme-sakura_pink  { --pt-tint:#fbe6ec; --pt-accent:#e07a98; --pt-glow:rgba(224,122,152,.20); }
+.profile-theme-sea_blue     { --pt-tint:#dff3f5; --pt-accent:#0e9aac; --pt-glow:rgba(14,154,172,.18); }
+.profile-theme-sunset_orange{ --pt-tint:#fdebdf; --pt-accent:#e8614d; --pt-glow:rgba(232,97,77,.18); }
+.profile-theme-matcha       { --pt-tint:#e8f0dc; --pt-accent:#6f8f3a; --pt-glow:rgba(111,143,58,.18); }
+.profile-theme-night_sky    { --pt-tint:#e4e3f3; --pt-accent:#3b3f7a; --pt-glow:rgba(125,128,181,.24); }
+
+.card.profile-themed{
+  position:relative; isolation:isolate; overflow:hidden;
+  border-top:4px solid var(--pt-accent);
+  background:linear-gradient(160deg, var(--pt-tint) 0%, var(--card) 62%);
+  transition:background .3s var(--ease), border-color .3s var(--ease);
+}
+.card.profile-themed::before{
+  content:""; position:absolute; z-index:-1; pointer-events:none;
+  width:260px; height:260px; right:-70px; top:-110px; border-radius:50%;
+  background:radial-gradient(circle, var(--pt-glow) 0%, transparent 70%);
+}
+
+.theme-picker{
+  display:none; flex-wrap:wrap; gap:10px; margin-top:12px; padding:12px;
+  border:1px dashed var(--line); border-radius:12px; background:var(--card);
+}
+.theme-picker.on{ display:flex; }
+.theme-picker legend{ font-size:12px; color:var(--ink-soft); padding:0 4px; }
+.theme-opt{ position:relative; display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; font-size:11.5px; color:var(--ink-soft); }
+.theme-opt input{ position:absolute; opacity:0; width:1px; height:1px; }
+.theme-sw{
+  width:40px; height:40px; border-radius:50%; border:2px solid var(--card);
+  background:linear-gradient(135deg, var(--pt-tint) 0%, var(--pt-tint) 45%, var(--pt-accent) 100%);
+  box-shadow:0 0 0 1.5px var(--line); transition:box-shadow .2s var(--ease), transform .2s var(--ease);
+}
+.theme-opt:hover .theme-sw{ transform:translateY(-2px); }
+.theme-opt input:checked + .theme-sw{ box-shadow:0 0 0 2.5px var(--pt-accent); }
+.theme-opt input:checked ~ .theme-name{ color:var(--ink); font-weight:700; }
+.theme-opt input:focus-visible + .theme-sw{ outline:3px solid var(--gold); outline-offset:3px; }

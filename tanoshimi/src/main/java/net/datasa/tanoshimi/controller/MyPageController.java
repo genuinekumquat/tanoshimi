@@ -7,6 +7,7 @@ import net.datasa.tanoshimi.domain.dto.ApiResponse;
 import net.datasa.tanoshimi.domain.dto.ChangePasswordRequest;
 import net.datasa.tanoshimi.domain.dto.IntroUpdateRequest;
 import net.datasa.tanoshimi.domain.dto.MyTripView;
+import net.datasa.tanoshimi.domain.dto.ThemeUpdateRequest;
 import net.datasa.tanoshimi.domain.dto.TitleEquipRequest;
 import net.datasa.tanoshimi.domain.dto.TravelHeatmapView;
 import net.datasa.tanoshimi.domain.entity.MyTripEntity;
@@ -23,6 +24,7 @@ import net.datasa.tanoshimi.service.MyTripService;
 import net.datasa.tanoshimi.service.PostService;
 import net.datasa.tanoshimi.service.TitleService;
 import net.datasa.tanoshimi.service.TravelHeatmapService;
+import net.datasa.tanoshimi.service.UserProfileThemeService;
 import net.datasa.tanoshimi.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
@@ -73,6 +75,7 @@ public class MyPageController {
     private final net.datasa.tanoshimi.service.BlockService blockService;
     private final UserNotificationSettingsService userNotificationSettingsService;
     private final UserService userService;
+    private final UserProfileThemeService userProfileThemeService;
 
     @GetMapping("/mypage")
     public String myPage(@AuthenticationPrincipal CustomUserDetails principal, Model model) {
@@ -121,6 +124,8 @@ public class MyPageController {
         model.addAttribute("visitedRegions", heatmap.visitedRegions());
         model.addAttribute("myTitle", titleService.latestTitle(me));
         model.addAttribute("myTitles", titleService.ownedTitles(me));
+        model.addAttribute("profileTheme", userProfileThemeService.currentTheme(me));
+        model.addAttribute("themeOptions", UserProfileThemeService.THEMES);
 
         return "mypage/index";
     }
@@ -326,6 +331,21 @@ public class MyPageController {
     }
 
     /**
+     * [FR-MYP-08] 프로필 배경 꾸미기 저장. 마이페이지 프로필 카드의 "🎨 배경 꾸미기"
+     * 선택기(mypage-theme.js)가 스와치를 누를 때마다 호출한다. 허용된 테마 키인지는
+     * UserProfileThemeService 가 검사한다(아니면 INVALID_INPUT).
+     */
+    @PostMapping("/api/mypage/theme")
+    @ResponseBody
+    public ApiResponse<String> updateTheme(@RequestBody ThemeUpdateRequest request,
+                                           @AuthenticationPrincipal CustomUserDetails principal) {
+        UserEntity me = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        userProfileThemeService.changeTheme(me, request.themeKey());
+        return ApiResponse.ok("배경을 바꿨어요.", request.themeKey());
+    }
+
+    /**
      * 비밀번호 변경 - 자발적 변경과, 비밀번호 재발급으로 받은 임시 비밀번호 이후 강제 변경
      * 모달(fragments/layout.html 헤더) 양쪽에서 공용으로 쓴다. /api/mypage/** 는
      * SecurityConfig에서 permitAll 대상이 아니라 인증된 사용자만 호출할 수 있다.
@@ -380,6 +400,8 @@ public class MyPageController {
         model.addAttribute("privateAndNotOwner", privateAndNotOwner);
 
         if (!privateAndNotOwner) {
+            // 비공개 프로필에는 테마도 입히지 않는다 - 스켈레톤+자물쇠 화면은 기본 배경 그대로.
+            model.addAttribute("profileTheme", userProfileThemeService.currentTheme(target));
             model.addAttribute("followerCount", followService.followerCount(target));
             model.addAttribute("followingCount", followService.followingCount(target));
             if (principal != null) {
