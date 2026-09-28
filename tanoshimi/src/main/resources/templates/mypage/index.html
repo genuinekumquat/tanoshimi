@@ -399,7 +399,11 @@
     <div class="trail"><span class="dot"></span><span class="ln"></span><span class="dot"></span><span class="ln"></span><span class="dot"></span></div>
 
     <!-- ================= 프로필 ================= -->
-    <section class="profile card">
+    <!-- [FR-MYP-08] 배경 테마는 profile-theme-<key> 클래스 하나로 결정된다(색은 app.css).
+         선택기에서 바꾸면 mypage-theme.js 가 저장 후 이 클래스만 갈아 끼운다. -->
+    <section class="profile card profile-themed" id="profile-card"
+             th:classappend="'profile-theme-' + ${profileTheme}"
+             th:attr="data-theme=${profileTheme}">
       <div class="photo-wrap" id="avatar-wrap" style="cursor:pointer;">
         <div class="ph" id="avatar-fallback" th:text="${#strings.substring(me.name,0,1)}" style="display:flex;"></div>
         <img class="ph" th:if="${me.profileImageUrl}" th:src="@{${me.profileImageUrl}}" id="avatar-img"
@@ -459,8 +463,19 @@
              예전엔 자기소개 라벨 옆 작은 연필이었는데 목업대로 버튼으로 올렸다. -->
         <div class="prow">
           <button type="button" class="btn btn-ghost" id="btn-intro">✍ 프로필 수정</button>
+          <button type="button" class="btn btn-ghost" id="btn-theme"
+                  aria-expanded="false" aria-controls="theme-picker">🎨 배경 꾸미기</button>
           <a th:href="@{/messages}" class="btn btn-ghost">💬 쪽지함(DM)</a>
         </div>
+
+        <fieldset class="theme-picker" id="theme-picker">
+          <legend>프로필 배경 고르기 · 누르면 바로 저장돼요</legend>
+          <label class="theme-opt" th:each="opt : ${themeOptions}" th:classappend="'profile-theme-' + ${opt.key}">
+            <input type="radio" name="profile-theme" th:value="${opt.key}" th:checked="${opt.key == profileTheme}">
+            <span class="theme-sw" aria-hidden="true"></span>
+            <span class="theme-name" th:text="${opt.label}">기본</span>
+          </label>
+        </fieldset>
       </div>
     </section>
 
@@ -678,6 +693,7 @@
 <script th:src="@{/js/mypage-heatmap.js}"></script>
 <script th:src="@{/js/mypage-titles.js}"></script>
 <script th:src="@{/js/mypage-profile.js}"></script>
+<script th:src="@{/js/mypage-theme.js}"></script>
 <script th:src="@{/js/post-write.js}" defer></script>
 <script th:src="@{/js/avatar-upload.js}" defer></script>
 

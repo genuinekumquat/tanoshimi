@@ -21,7 +21,10 @@
 <header th:replace="~{fragments/layout :: header}"></header>
 
 <main class="wrap" style="max-width:600px;">
-  <div class="card pp-gate" style="padding:22px;">
+  <!-- [FR-MYP-08] 프로필 주인이 고른 배경. 비공개라 가려지는 경우엔 profileTheme 이
+       모델에 없어서(MyPageController.renderProfile) 기본 카드 그대로 보인다. -->
+  <div class="card pp-gate" style="padding:22px;"
+       th:classappend="${profileTheme != null} ? 'profile-themed profile-theme-' + ${profileTheme} : ''">
 
     <!-- [account-settings v2] 비공개 + 본인/관리자 아님 -> 진짜 데이터는 애초에 이 블록에서
          참조하지 않는다(모델에도 안 실려 있음 - MyPageController.publicProfile 참고). 자리만
