@@ -35,3 +35,9 @@ dest-fukuoka.jpg
 dest-okinawa.jpg
   원본 : File:Kerama Island - 6080686821.jpg
   https://commons.wikimedia.org/wiki/File:Kerama_Island_-_6080686821.jpg
+
+band-yukata-kyoto.jpg  (메인 기본 배너 - 등록된 관리자 배너가 없을 때)
+  원본 : Pexels "Two Woman Wearing Kimono Dress Walking Beside Sidewalk" - 사진가 Satoshi Hirayama
+  https://www.pexels.com/photo/two-woman-wearing-kimono-dress-walking-beside-sidewalk-1270210/
+  라이선스 : Pexels License (무료, 출처 표기 의무 없음 - 예의상 기록). 2400px 폭으로 받아
+  세로 42% 지점부터 2400x960 으로 크롭.
