@@ -64,16 +64,13 @@
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script th:src="@{/js/notifications.js}" defer></script>
-
-    <!-- ================= 여행 도우미 마스코트 위젯 (Live2D) ================= -->
-    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.2/dist/browser/pixi.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
 </head>
 
 <!-- ============================================== -->
 <!-- 💡 여행 도우미 위젯 UI (우측 하단 고정) 💡 -->
+<!-- 2026-09-28 결정: 타미는 계획표(planner/index.html)에서만 띄운다. 다른 화면에서는
+     역할이 불분명하고 버튼을 자주 가려서 뺐다(#60, #66 참고). 다른 화면에 다시 넣으려면
+     그 템플릿 끝에 th:replace="~{fragments/layout :: companion}" 한 줄만 추가하면 된다. -->
 <!-- ============================================== -->
 <div th:fragment="companion" id="companion-widget-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none;">
 
@@ -125,6 +122,13 @@
         <canvas id="companion-canvas" style="pointer-events: auto; cursor: grab; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2)); transition: filter 0.2s;"></canvas>
     </div>
 
+    <!-- Live2D 라이브러리는 이 위젯을 쓰는 화면에서만 불러온다. 예전엔 공통 head 에 있어서
+         위젯이 없는 화면까지 CDN 스크립트 4개를 매번 받았다. 순서 중요 - companion-widget.js 가
+         이 전역(PIXI, Live2DCubismCore)을 바로 쓴다. -->
+    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.2/dist/browser/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
     <script src="/js/companion-widget.js?v=999129"></script>
 </div>
 
