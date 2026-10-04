@@ -213,13 +213,12 @@ public class PlannerController {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "지역을 선택해주세요.");
         }
         LocalDate d = LocalDate.parse(date);
-
-        boolean badWeather = false;
-        if (tour != null && tour.getLatitude() != null) {
-            var advice = weatherAdvisorService.adviseForTour(tour, d);
-            badWeather = !advice.recommend();
-        }
-        return ApiResponse.ok(chatbotActivityService.recommend(targetRegion, d, keyword, pastStyleTags, badWeather));
+        
+        // [TNSM-72] 추천 단계에서부터 날씨로 걸러버리면 "그래도 가고 싶은" 선택지가 아예
+        // 안 보이게 된다 - 추천은 날씨와 상관없이 전부 보여주고, 실제로 일정에 "추가"할 때
+        // 그 장소 날씨를 확인해서 경고만 하는 방식으로 바꾼다
+        // (실제 체크는 /api/weather/check, planner.js의 confirmWeatherOk()에서 호출).
+        return ApiResponse.ok(chatbotActivityService.recommend(targetRegion, d, keyword, pastStyleTags, false));
     }
 
     // ===================== [신규] AI 일정 검증 =====================
@@ -266,6 +265,13 @@ public class PlannerController {
         }
         
         String responseText = geminiClient.ask(prompt.toString());
+// [TNSM-63] geminiClient.ask()가 null을 돌려주는 경로(예: 응답에 candidates/parts가
+// 없는 경우)가 있었는데 여기서 바로 .indexOf()를 호출해 NPE -> 500으로 이어졌다.
+// GeminiClient 구현체들이 실패 시 안내 JSON을 돌려주게 고쳤지만, 혹시 모를 null도
+// 방어적으로 처리해 조용히 폴백 메시지로 넘어가게 한다.
+        if (responseText == null) {
+            return ApiResponse.ok(java.util.Map.of("briefing", "AI 응답을 처리하지 못했어요. 잠시 후 다시 시도해 주세요."));
+        }
         int startIndex = responseText.indexOf("{");
         int endIndex = responseText.lastIndexOf("}");
         if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
@@ -455,5 +461,16 @@ public class PlannerController {
             @RequestParam String date) {
         LocalDate d = LocalDate.parse(date);
         return ApiResponse.ok(weatherAdvisorService.checkActivityWeather(activityId, d));
+    }
+    
+    @GetMapping("/api/weather/check-coords")
+    @ResponseBody
+    public ApiResponse<WeatherAdviceResponse> checkWeatherAdviceByCoords(
+            @RequestParam double lat,
+            @RequestParam double lon,
+            @RequestParam(required = false) String venueType,
+            @RequestParam String date) {
+        LocalDate d = LocalDate.parse(date);
+        return ApiResponse.ok(weatherAdvisorService.checkCoordsWeather(lat, lon, venueType, d));
     }
 }

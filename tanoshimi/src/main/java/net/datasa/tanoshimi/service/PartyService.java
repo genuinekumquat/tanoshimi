@@ -1,11 +1,5 @@
 package net.datasa.tanoshimi.service;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.domain.dto.PartyCardView;
 import net.datasa.tanoshimi.domain.dto.PartyCreateRequest;
@@ -15,6 +9,13 @@ import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 파티 만들기.
@@ -28,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class PartyService {
-
+    
     private final UserRepository userRepository;
     private final PartyRepository partyRepository;
     private final PartyMemberRepository partyMemberRepository;
@@ -39,19 +40,27 @@ public class PartyService {
     private final NotificationService notificationService;
     private final MannerTempService mannerTempService;
     private final FileStorageService fileStorageService;
-
+    // [TNSM-72] deleteParty() 에서 자식 테이블들을 먼저 지우기 위해 추가
+    private final PartyApplicationRepository partyApplicationRepository;
+    private final TripScheduleItemRepository tripScheduleItemRepository;
+    private final TripScheduleVoteRepository tripScheduleVoteRepository;
+    private final TripScheduleSnapshotRepository tripScheduleSnapshotRepository;
+    private final ChatMessageRepository chatMessageRepository;
+    private final PostRepository postRepository;
+    private final MyTripRepository myTripRepository;
+    
     /** 메인 페이지 "모집 마감 임박" 카드의 출발일 표기 포맷. */
     private static final DateTimeFormatter URGENT_CARD_DATE_FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
-
+    
     // ---------------------------------------------------------------- 조회 (컨트롤러가 Repository 를 직접 부르지 않도록 여기로 모음)
-
+    
     /** 파티 1건. 없으면 PARTY_NOT_FOUND. 블라인드 여부는 공개 화면에서만 따지므로 여기선 보지 않는다. */
     @Transactional(readOnly = true)
     public PartyEntity getParty(Long id) {
         return partyRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PARTY_NOT_FOUND));
     }
-
+    
     /** 공개 상세/신청 화면용 - 존재 + 블라인드 아님까지 확인한다. */
     @Transactional(readOnly = true)
     public PartyEntity getVisibleParty(Long id) {
@@ -61,19 +70,19 @@ public class PartyService {
         }
         return party;
     }
-
+    
     /** 파티원 목록. */
     @Transactional(readOnly = true)
     public List<PartyMemberEntity> members(PartyEntity party) {
         return partyMemberRepository.findByParty(party);
     }
-
+    
     /** 내가 속한 파티(가입일 최신순) - 마이페이지 / 내 파티 목록 공용. */
     @Transactional(readOnly = true)
     public List<PartyMemberEntity> myMemberships(UserEntity user) {
         return partyMemberRepository.findByUserOrderByJoinedAtDesc(user);
     }
-
+    
     /** 파티원 중 지정한 유저(보통 본인)를 뺀 나머지 유저 목록 - 계획표 편집권 위임 대상 등. */
     @Transactional(readOnly = true)
     public List<UserEntity> otherMembers(PartyEntity party, Long excludeUserId) {
@@ -82,7 +91,7 @@ public class PartyService {
                 .map(PartyMemberEntity::getUser)
                 .toList();
     }
-
+    
     /** URL 만 알고 들어온 비파티원을 막는 최종 방어선. 파티 전용 화면 진입 시 호출. */
     @Transactional(readOnly = true)
     public void assertMember(PartyEntity party, UserEntity user) {
@@ -90,19 +99,19 @@ public class PartyService {
             throw new BusinessException(ErrorCode.NOT_PARTY_MEMBER);
         }
     }
-
+    
     /** 이 파티의 전용 채팅방(파티 생성 시 함께 만들어진다 - createParty 참고). 옛날 데이터는 없을 수 있어 Optional. */
     @Transactional(readOnly = true)
     public java.util.Optional<ChatRoomEntity> chatRoomOf(PartyEntity party) {
         return chatRoomRepository.findByParty(party);
     }
-
+    
     /** 파티 만들기 폼에서 고를 수 있는 패키지(투어) 목록. */
     @Transactional(readOnly = true)
     public List<TourEntity> selectableTours() {
         return tourRepository.findByStatusOrderByIdDesc(ActiveStatus.active);
     }
-
+    
     /**
      * 파티 게시판 카드에 "현재 인원/정원"을 보여주기 위한 파티 id → 파티원 수(파티장 포함).
      * 카드마다 countByParty 를 부르지 않고 한 번의 group by 쿼리로 센다.
@@ -116,10 +125,10 @@ public class PartyService {
         }
         return counts;
     }
-
+    
     /** 메인 "모집 마감 임박"으로 보여줄 출발일 범위 - 오늘부터 이 일수 안에 출발하는 파티. */
     static final int URGENT_WITHIN_DAYS = 7;
-
+    
     /**
      * 메인 페이지 "모집 마감 임박" 카드 - 모집중이고 블라인드 아닌 파티 중 오늘부터
      * {@value #URGENT_WITHIN_DAYS}일 안에 출발하는 것만, 출발일 빠른 순(같으면 잔여석 적은 순)으로
@@ -140,7 +149,7 @@ public class PartyService {
                         .thenComparingInt(PartyCardView::remaining))
                 .toList();
     }
-
+    
     /**
      * 파티 게시판(둘러보기) 목록.
      *
@@ -162,11 +171,11 @@ public class PartyService {
         }
         return (region == null || region.isBlank())
                 ? partyRepository.findByStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
-                        PartyStatus.recruiting, today)
+                PartyStatus.recruiting, today)
                 : partyRepository.findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
-                        region, PartyStatus.recruiting, today);
+                region, PartyStatus.recruiting, today);
     }
-
+    
     /**
      * TNSM-54: 위 3-인자 listBoard 에 성별/국적 조건, 연령 필터를 추가한 버전.
      * 기존 listBoard(region, keyword, includePast)와 그 테스트(PartyServiceTest)는 정확한
@@ -176,7 +185,7 @@ public class PartyService {
      */
     @Transactional(readOnly = true)
     public List<PartyEntity> listBoard(String region, String keyword, boolean includePast,
-                                        GenderRestriction gender, NationalityRestriction nationality, Integer age) {
+                                       GenderRestriction gender, NationalityRestriction nationality, Integer age) {
         if (gender == null && nationality == null && age == null) {
             return listBoard(region, keyword, includePast);
         }
@@ -189,11 +198,11 @@ public class PartyService {
                 (keyword == null || keyword.isBlank()) ? null : keyword.trim(),
                 gender, nationality, age);
     }
-
+    
     @Transactional
     public Long createParty(UserEntity owner, PartyCreateRequest req) {
         TourEntity tour = req.tourId() == null ? null : tourRepository.findById(req.tourId()).orElse(null);
-
+        
         PartyEntity party = PartyEntity.builder()
                 .owner(owner)
                 .tour(tour)
@@ -213,17 +222,17 @@ public class PartyService {
                 .build();
         partyRepository.save(party);
         fileStorageService.markActive(req.thumbnailUrl());
-
+        
         partyMemberRepository.save(new PartyMemberEntity(party, owner, PartyMemberRole.owner));
-
+        
         ChatRoomEntity room = chatRoomRepository.save(ChatRoomEntity.forParty(party));
         chatRoomMemberRepository.save(new ChatRoomMemberEntity(room, owner));
-
+        
         tripScheduleRepository.save(new TripScheduleEntity(party));
-
+        
         return party.getId();
     }
-
+    
     /**
      * 계획표가 없으면 만들어서 반환한다.
      * data.sql 로 미리 넣어둔 더미 파티처럼, 이 변경 이전에 만들어진 파티는 계획표가 없을 수 있어서
@@ -234,7 +243,7 @@ public class PartyService {
         return tripScheduleRepository.findByParty(party)
                 .orElseGet(() -> tripScheduleRepository.save(new TripScheduleEntity(party)));
     }
-
+    
     @Transactional
     public void updateParty(Long partyId, UserEntity owner, PartyCreateRequest req) {
         PartyEntity party = partyRepository.findById(partyId)
@@ -263,7 +272,7 @@ public class PartyService {
             fileStorageService.markActive(req.thumbnailUrl());
         }
     }
-
+    
     @Transactional
     public void closeParty(Long partyId, UserEntity owner) {
         PartyEntity party = partyRepository.findById(partyId)
@@ -273,7 +282,17 @@ public class PartyService {
         }
         party.close();
     }
-
+    
+    /**
+     * [TNSM-72] 예전엔 partyRepository.delete(party) 한 줄뿐이었는데, parties 를 참조하는
+     * 자식 테이블(party_members, party_applications, trip_schedules, chat_rooms 등)에
+     * DB CASCADE 설정이 없어서 바로 FK 위반(DataIntegrityViolationException)이 났고,
+     * GlobalExceptionHandler 의 공용 500 처리로 빠져 "일시적인 오류가 발생했습니다"만 떴다.
+     * 그래서 여기서 자식 -> 부모 순서로 직접 지운다.
+     *
+     * <p>posts(스냅)/my_trips(내 여행)는 사용자의 기록이라 파티가 지워져도 같이 지우지 않고,
+     * party 참조만 끊어서(detachParty) FK 위반만 피한다.
+     */
     @Transactional
     public void deleteParty(Long partyId, UserEntity owner) {
         PartyEntity party = partyRepository.findById(partyId)
@@ -281,12 +300,35 @@ public class PartyService {
         if (!party.getOwner().getId().equals(owner.getId()) && !owner.isAdmin()) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED, "파티장만 파티를 삭제할 수 있습니다.");
         }
-        // 관련된 계획표, 채팅방, 지원서, 멤버 등은 DB CASCADE 설정에 따라 삭제되거나, 수동 삭제 필요.
-        // 현재 JPA cascade 설정이 안되어있을 수 있으므로 직접 의존성을 지워주는 것도 고려할 수 있음.
-        // 여기서는 가장 뼈대가 되는 partyRepository.delete(party) 만 먼저 호출.
+        
+        // 1) 계획표(trip_schedules)와 그 자식들(투표/아이템/스냅샷)
+        tripScheduleRepository.findByParty(party).ifPresent(schedule -> {
+            tripScheduleVoteRepository.deleteBySchedule(schedule);
+            tripScheduleItemRepository.deleteBySchedule(schedule);
+            tripScheduleSnapshotRepository.deleteBySchedule(schedule);
+            tripScheduleRepository.delete(schedule);
+        });
+        
+        // 2) 채팅방(chat_rooms)과 그 자식들(메시지/멤버)
+        chatRoomRepository.findByParty(party).ifPresent(room -> {
+            chatMessageRepository.deleteByRoom(room);
+            chatRoomMemberRepository.deleteByRoom(room);
+            chatRoomRepository.delete(room);
+        });
+        
+        // 3) 참가 신청(party_applications)
+        partyApplicationRepository.deleteByParty(party);
+        
+        // 4) 파티원(party_members)
+        partyMemberRepository.deleteAll(partyMemberRepository.findByParty(party));
+        
+        // 5) 스냅/내 여행은 지우지 않고 party 참조만 끊는다
+        postRepository.findByPartyOrderByCreatedAtDesc(party).forEach(PostEntity::detachParty);
+        myTripRepository.findByParty(party).forEach(MyTripEntity::detachParty);
+        
         partyRepository.delete(party);
     }
-
+    
     /**
      * 파티 탈퇴 - 파티장은 탈퇴할 수 없다(파티장이 나가려면 파티를 마감/삭제하거나
      * 다음 단계에서 "파티장 위임" 기능을 붙여야 한다 - 지금은 범위 밖).
@@ -303,19 +345,19 @@ public class PartyService {
         PartyMemberEntity membership = partyMemberRepository.findByPartyAndUser(party, user)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_PARTY_MEMBER));
         partyMemberRepository.delete(membership);
-
+        
         chatRoomRepository.findByParty(party).ifPresent(room ->
                 chatRoomMemberRepository.findByRoomAndUser(room, user)
                         .ifPresent(chatRoomMemberRepository::delete));
-
+        
         if (party.getStatus() == PartyStatus.full) {
             party.reopen();
         }
-
+        
         // [v16 신규] 중도이탈 매너온도 -0.5
         mannerTempService.applyLeaveOrKickPenalty(user, party.getId());
     }
-
+    
     /**
      * 강퇴 - 파티장만 할 수 있고, 파티장 본인은 강퇴 대상이 될 수 없다(파티장이 파티를 나가려면
      * 마감/삭제를 쓰거나, 다음 단계에서 "파티장 위임" 기능이 필요하다 - 지금은 범위 밖).
@@ -337,20 +379,20 @@ public class PartyService {
         PartyMemberEntity membership = partyMemberRepository.findByPartyAndUser(party, target)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_PARTY_MEMBER));
         partyMemberRepository.delete(membership);
-
+        
         chatRoomRepository.findByParty(party).ifPresent(room ->
                 chatRoomMemberRepository.findByRoomAndUser(room, target)
                         .ifPresent(chatRoomMemberRepository::delete));
-
+        
         if (party.getStatus() == PartyStatus.full) {
             party.reopen();
         }
-
+        
         notificationService.notify(target, "party_kicked",
                 "파티에서 내보내졌어요",
                 "'" + party.getTitle() + "' 파티장이 회원님을 파티에서 내보냈습니다.",
                 "/party-board");
-
+        
         // [v16 신규] 강퇴 매너온도 -0.5 (본인 귀책이 아니어도 동일 규칙 적용 - 필드제약조건 확정 사항)
         mannerTempService.applyLeaveOrKickPenalty(target, party.getId());
     }

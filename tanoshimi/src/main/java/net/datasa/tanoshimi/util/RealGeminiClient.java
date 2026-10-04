@@ -14,19 +14,19 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Component
 @ConditionalOnProperty(name = "app.companion.provider", havingValue = "gemini")
 public class RealGeminiClient implements GeminiClient {
-
+    
     private final WebClient webClient = WebClient.builder()
             .baseUrl("https://generativelanguage.googleapis.com")
             .build();
-
+    
     private final ObjectMapper objectMapper = new ObjectMapper();
-
+    
     @Value("${app.companion.api-key:}")
     private String apiKey;
-
+    
     @Value("${app.companion.model:gemini-3.5-flash-lite}")
     private String model;
-
+    
     @Override
     public String ask(String prompt) {
         if (apiKey == null || apiKey.isBlank()) {
@@ -43,23 +43,27 @@ public class RealGeminiClient implements GeminiClient {
             parts.add(part);
             contentNode.set("parts", parts);
             contents.add(contentNode);
-
+            
             ObjectNode body = objectMapper.createObjectNode();
             body.set("contents", contents);
             
             // Higher temperature for variance requested by user
             ObjectNode generationConfig = objectMapper.createObjectNode();
             generationConfig.put("temperature", 0.8);
-            generationConfig.put("response_mime_type", "application/json");
+            // [TNSM-63] response_mime_type(JSON 강제)과 tools(구글 검색 그라운딩)를 같이 보내면
+            // Gemini API가 candidates[0].content.parts 가 빈 응답을 돌려주는 경우가 있었다
+            // (ai-validate 호출에서 NPE로 이어짐 - PlannerController.aiValidate 참고).
+            // 구글 공식 문서상 responseMimeType(구조화 출력)과 tools는 함께 쓰는 게 권장되지 않는
+            // 조합이라, JSON 강제는 빼고 프롬프트 지시문 + 아래 markdown 스트립으로만 JSON을 받는다.
             body.set("generationConfig", generationConfig);
-
+            
             // Google Search Grounding to fetch internet tourist data
             ArrayNode tools = objectMapper.createArrayNode();
             ObjectNode googleSearchTool = objectMapper.createObjectNode();
             googleSearchTool.set("googleSearch", objectMapper.createObjectNode());
             tools.add(googleSearchTool);
             body.set("tools", tools);
-
+            
             JsonNode response = webClient.post()
                     .uri("/v1beta/models/{model}:generateContent", model)
                     .header("x-goog-api-key", apiKey)
@@ -68,8 +72,16 @@ public class RealGeminiClient implements GeminiClient {
                     .retrieve()
                     .bodyToMono(JsonNode.class)
                     .block();
-
-            return extractText(response);
+            
+            String text = extractText(response);
+            if (text == null) {
+                // [TNSM-63] 예외는 안 났지만 candidates/parts가 비어있는 경우(안전 필터, 빈 응답 등).
+                // 원본 응답은 로그로만 남기고(디버깅용), 호출부(recommend/aiValidate)가 null을
+                // 받아 그대로 NPE 나지 않도록 친절한 안내 JSON으로 대체한다.
+                log.warn("Gemini 응답에 candidates/parts가 없음. 원본 응답: {}", response);
+                return "{\"briefing\": \"지금은 AI가 잠깐 쉬고 있어요. 잠시 후 다시 시도해 주세요.\", \"newSchedule\": []}";
+            }
+            return text;
         } catch (Exception e) {
             log.error("Gemini Real API call failed", e);
             if (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException we) {
@@ -82,7 +94,7 @@ public class RealGeminiClient implements GeminiClient {
             return "{\"briefing\": \"지금은 AI가 잠깐 쉬고 있어요. 잠시 후 다시 시도해 주세요.\", \"newSchedule\": []}";
         }
     }
-
+    
     private String extractText(JsonNode response) {
         if (response == null) return null;
         JsonNode parts = response.path("candidates").path(0).path("content").path("parts");
@@ -96,5 +108,3 @@ public class RealGeminiClient implements GeminiClient {
         return sb.toString();
     }
 }
-
-

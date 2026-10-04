@@ -1,7 +1,6 @@
 package net.datasa.tanoshimi.domain.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -9,6 +8,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
 
 /**
  * 여행 게시판 글이자 마이페이지 피드.
@@ -90,4 +91,7 @@ public class PostEntity {
 
     public void increaseLike() { this.likeCount++; }
     public void decreaseLike() { if (this.likeCount > 0) this.likeCount--; }
+    
+    /** [TNSM-72] 파티 삭제 시 사용 - 스냅(posts)은 지우지 않고 party 참조만 끊어서 FK 위반을 막는다. */
+    public void detachParty() { this.party = null; }
 }

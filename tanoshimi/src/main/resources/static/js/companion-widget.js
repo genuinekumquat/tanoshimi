@@ -322,6 +322,13 @@
         log.scrollTop = log.scrollHeight;
     }
 
+    window.companionAddBotMessage = function (text) {
+        if (!text) return;
+        appendBubble('bot', text);
+        history.push({ role: 'assistant', content: text });
+        saveHistory(history);
+    };
+
     function togglePanel() {
         const opening = panel.style.display === 'none' || !panel.style.display;
         panel.style.display = opening ? 'flex' : 'none';

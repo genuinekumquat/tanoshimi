@@ -4,9 +4,10 @@ import net.datasa.tanoshimi.domain.entity.ApplicationStatus;
 import net.datasa.tanoshimi.domain.entity.PartyApplicationEntity;
 import net.datasa.tanoshimi.domain.entity.PartyEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PartyApplicationRepository extends JpaRepository<PartyApplicationEntity, Long> {
     Optional<PartyApplicationEntity> findByPartyAndApplicant(PartyEntity party, UserEntity applicant);
@@ -17,4 +18,8 @@ public interface PartyApplicationRepository extends JpaRepository<PartyApplicati
     @org.springframework.data.jpa.repository.Query(
             "select a from PartyApplicationEntity a join fetch a.party join fetch a.applicant where a.id = :id")
     Optional<PartyApplicationEntity> findWithPartyAndApplicantById(@org.springframework.data.repository.query.Param("id") Long id);
+    
+    
+    /** [TNSM-72] 파티 삭제 시 먼저 지워야 하는 자식 테이블. */
+    void deleteByParty(PartyEntity party);
 }

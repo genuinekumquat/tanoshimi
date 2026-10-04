@@ -83,6 +83,40 @@ public class WeatherAdvisorService {
 	}
 	
 	// ----------------------------------------------------------------
+	// [TNSM-72] AI가 구글검색으로 새로 찾아준 장소(DB에 없음, activityId=null)용 날씨체크.
+	// ChatbotActivityService.recommend() 프롬프트가 kind=custom 항목에 latitude/longitude/
+	// venueType을 같이 돌려주도록 해서, DB 조회 없이 좌표로 바로 날씨를 확인한다.
+	// ----------------------------------------------------------------
+	
+	public WeatherAdviceResponse checkCoordsWeather(double latitude, double longitude, String venueTypeStr, LocalDate date) {
+		VenueType vType;
+		try {
+			vType = (venueTypeStr != null && !venueTypeStr.isBlank()) ? VenueType.valueOf(venueTypeStr.trim().toLowerCase()) : VenueType.mixed;
+		} catch (IllegalArgumentException e) {
+			vType = VenueType.mixed;
+		}
+		
+		WeatherResult weather = weatherClient.getForecast(latitude, longitude, date);
+		boolean isBadWeather = !weather.isGood();
+		
+		if (isBadWeather && vType == VenueType.outdoor) {
+			return WeatherAdviceResponse.builder()
+					.recommendable(false)
+					.weatherCondition(weather.condition())
+					.message(String.format("선택하신 날짜에 '%s' 예보가 있습니다. 야외 장소인데 그대로 진행하시겠어요?", weather.condition()))
+					.alternatives(null)
+					.build();
+		}
+		
+		return WeatherAdviceResponse.builder()
+				.recommendable(true)
+				.weatherCondition(weather.condition())
+				.message("일정에 추가하기 좋은 조건입니다!")
+				.alternatives(null)
+				.build();
+	}
+	
+	// ----------------------------------------------------------------
 	// [v16 신규] 액티비티를 계획표에 담을 때 쓰는 날씨체크
 	// ----------------------------------------------------------------
 	
@@ -90,6 +124,11 @@ public class WeatherAdvisorService {
 	public WeatherAdviceResponse checkActivityWeather(Long activityId, LocalDate date) {
 		ActivityEntity activity = activityRepository.findById(activityId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.ACTIVITY_NOT_FOUND));
+		
+		// [TNSM-72 디버그용 임시 로그] 실제 DB에 저장된 좌표/타입을 눈으로 확인하기 위함 - 확인 끝나면 지워도 됨
+		log.info("[날씨체크 디버그] id={}, title={}, venueType={}, lat={}, lon={}, date={}",
+				activity.getId(), activity.getTitle(), activity.getVenueType(),
+				activity.getLatitude(), activity.getLongitude(), date);
 		
 		String region = activity.getRegion();
 		
@@ -105,7 +144,7 @@ public class WeatherAdvisorService {
 		if (activity.getLatitude() == null || activity.getLongitude() == null) {
 			// 좌표 없는 액티비티는 날씨 조회 생략, 항상 통과
 			return WeatherAdviceResponse.builder()
-					.isRecommendable(true)
+					.recommendable(true)
 					.weatherCondition("정보 없음")
 					.message("이 장소는 날씨 정보를 제공하지 않아요. 그대로 추가할 수 있어요.")
 					.alternatives(null)
@@ -123,7 +162,7 @@ public class WeatherAdvisorService {
 					.toList();
 			
 			return WeatherAdviceResponse.builder()
-					.isRecommendable(false)
+					.recommendable(false)
 					.weatherCondition(weather.condition())
 					.message(String.format("선택하신 날짜에 '%s' 예보가 있습니다. 야외 활동 대신 이런 실내 명소는 어떠세요?", weather.condition()))
 					.alternatives(alternatives)
@@ -131,7 +170,7 @@ public class WeatherAdvisorService {
 		}
 		
 		return WeatherAdviceResponse.builder()
-				.isRecommendable(true)
+				.recommendable(true)
 				.weatherCondition(weather.condition())
 				.message("일정에 추가하기 좋은 조건입니다!")
 				.alternatives(null)

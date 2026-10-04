@@ -3,11 +3,12 @@ package net.datasa.tanoshimi.repository;
 import net.datasa.tanoshimi.domain.entity.ChatRoomEntity;
 import net.datasa.tanoshimi.domain.entity.ChatRoomMemberEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
-import java.util.List;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+import java.util.Optional;
 
 public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMemberEntity, Long> {
     Optional<ChatRoomMemberEntity> findByRoomAndUser(ChatRoomEntity room, UserEntity user);
@@ -20,4 +21,8 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMemberEn
     /** DM 방에서 "상대방"을 찾을 때 사용 - user 를 미리 JOIN FETCH. */
     @Query("select crm from ChatRoomMemberEntity crm join fetch crm.user where crm.room = :room and crm.user <> :me")
     Optional<ChatRoomMemberEntity> findOtherMember(@Param("room") ChatRoomEntity room, @Param("me") UserEntity me);
+    
+    
+    /** [TNSM-72] 파티(채팅방) 삭제 시 먼저 지워야 하는 자식 테이블. */
+    void deleteByRoom(ChatRoomEntity room);
 }

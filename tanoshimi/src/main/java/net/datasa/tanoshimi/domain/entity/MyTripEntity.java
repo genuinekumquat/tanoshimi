@@ -1,9 +1,6 @@
 package net.datasa.tanoshimi.domain.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,6 +8,10 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 /**
  * "내 여행" - 마이페이지 여행 횟수/지역 집계의 단일 근거. 담당: 김민규(⑥ 마이페이지). v19 신규.
@@ -117,4 +118,6 @@ public class MyTripEntity {
         this.endDate = (endDate == null || endDate.isBefore(startDate)) ? startDate : endDate;
         this.memo = memo;
     }
+    /** [TNSM-72] 파티 삭제 시 사용 - "내 여행" 기록은 지우지 않고 party 참조만 끊어서 FK 위반을 막는다. */
+    public void detachParty() { this.party = null; }
 }

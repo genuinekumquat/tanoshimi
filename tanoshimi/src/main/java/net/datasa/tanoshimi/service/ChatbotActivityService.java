@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -62,7 +63,7 @@ public class ChatbotActivityService {
         
         // Return existing items if no keyword specified
         if (keyword == null || keyword.isBlank()) {
-            return pool.stream().limit(5).map(a -> new RecommendationDto("recommend", a.getId(), a.getTitle(), a.getDurationMin(), a.getPriceKrw(), a.getDescription())).toList();
+            return pool.stream().limit(5).map(a -> new RecommendationDto("recommend", a.getId(), a.getTitle(), a.getDurationMin(), a.getPriceKrw(), a.getDescription(), null, null, null)).toList();
         }
         
         // [TNSM-62] 키워드 기반 로컬 폴백 - 항상 먼저 계산해 둔다.
@@ -91,9 +92,12 @@ public class ChatbotActivityService {
                             "The remaining 2 or 3 items MUST be creative, varied, lesser-known, or unique spots that rotate randomly so if I ask again, I get different suggestions! " +
                             "Use Google Search to find real tourist information for this region. " +
                             "You can pick from these existing DB items if relevant:\n%s\n" +
-                            "If using an existing item, set 'kind' to 'recommend', keeping its exact 'activityId', 'title', 'durationMin'. " +
-                            "If you invent a new web-sourced activity, set 'kind' to 'custom', 'activityId' to null, and give it a good 'title' and 'durationMin'. " +
-                            "Output ONLY a valid JSON array with keys: kind, activityId (number or null), title (string), durationMin (number). Strip markdown blocks.",
+                            "If using an existing item, set 'kind' to 'recommend', keeping its exact 'activityId', 'title', 'durationMin', and leave 'latitude', 'longitude', 'venueType' as null. " +
+                            "If you invent a new web-sourced activity, set 'kind' to 'custom', 'activityId' to null, give it a good 'title' and 'durationMin', " +
+                            "AND include its real-world 'latitude', 'longitude' (numbers, from Google Search) and 'venueType' " +
+                            "(one of exactly: \"indoor\", \"outdoor\", \"mixed\" - so we can warn the user if the weather is bad for that day). " +
+                            "Output ONLY a valid JSON array with keys: kind, activityId (number or null), title (string), durationMin (number), " +
+                            "latitude (number or null), longitude (number or null), venueType (string or null). Strip markdown blocks.",
                     region, keyword, safeTags, date != null ? date.toString() : "Unknown", poolContext.toString()
             );
             
@@ -110,6 +114,25 @@ public class ChatbotActivityService {
             
             ObjectMapper mapper = new ObjectMapper();
             List<RecommendationDto> resp = mapper.readValue(jsonRaw, new TypeReference<List<RecommendationDto>>() {});
+            
+            // [TNSM-72] AI가 사실은 pool 안에 있는(=DB에 실제 존재하는) 장소인데도 'kind'를
+            // "custom"으로 잘못 표시하면서 latitude/longitude를 안 채워주는 경우가 실제로 있었다
+            // (예: "오다이바 야경"). 이러면 프론트의 confirmWeatherOk가 activityId도 좌표도 없는
+            // 카드로 보고 날씨체크 자체를 건너뛰어버려서, 날씨가 나빠도 경고가 전혀 안 뜬다.
+            // 그래서 'custom'인데 제목이 pool 안의 실제 항목과 같으면 'recommend'로 되돌려서
+            // 진짜 activityId 기반 날씨체크(/api/weather/check)를 타게 한다.
+            Map<String, ActivityEntity> poolByNormalizedTitle = pool.stream()
+                    .collect(Collectors.toMap(a -> normalizeTitle(a.getTitle()), a -> a, (a, b) -> a));
+            resp = resp.stream()
+                    .map(dto -> {
+                        if (!"custom".equals(dto.getKind())) return dto;
+                        ActivityEntity matched = poolByNormalizedTitle.get(normalizeTitle(dto.getTitle()));
+                        if (matched == null) return dto;
+                        return new RecommendationDto("recommend", matched.getId(), matched.getTitle(),
+                                matched.getDurationMin(), matched.getPriceKrw(), matched.getDescription(),
+                                null, null, null);
+                    })
+                    .toList();
             
             // [TNSM-62] 응답 검증 - "recommend" 항목인데 activityId가 이번 조회의 pool(지역·날씨
             // 필터링된 범위) 밖을 가리키면 신뢰할 수 없는 응답으로 보고 폴백으로 보낸다.
@@ -144,8 +167,13 @@ public class ChatbotActivityService {
         return pool.stream()
                 .sorted(Comparator.comparingInt((ActivityEntity a) -> -matchScore(a, tokens)))
                 .limit(5)
-                .map(a -> new RecommendationDto("recommend", a.getId(), a.getTitle(), a.getDurationMin(), a.getPriceKrw(), a.getDescription()))
+                .map(a -> new RecommendationDto("recommend", a.getId(), a.getTitle(), a.getDurationMin(), a.getPriceKrw(), a.getDescription(), null, null, null))
                 .toList();
+    }
+    
+    /** [TNSM-72] 공백 제거 + 소문자화해서 "오다이바 야경"과 "오다이바야경" 같은 표기 차이를 흡수한다. */
+    private String normalizeTitle(String title) {
+        return title == null ? "" : title.replaceAll("\\s+", "").toLowerCase();
     }
     
     private int matchScore(ActivityEntity a, String[] tokens) {

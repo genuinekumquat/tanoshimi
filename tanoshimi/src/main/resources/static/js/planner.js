@@ -381,6 +381,7 @@
         const startMinute = START_HOUR * 60 + Math.max(0, rawSlot) * SLOT_MIN;
 
         if (data.kind === 'recommend' || data.kind === 'custom') {
+            if (!(await confirmWeatherOk({ activityId: data.activityId, latitude: data.latitude, longitude: data.longitude, venueType: data.venueType }, day))) return;
             const parsedDuration = parseInt(data.durationMin, 10);
             const finalDuration = (!isNaN(parsedDuration) && parsedDuration > 0) ? parsedDuration : 60;
             const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
@@ -438,6 +439,38 @@
         return div;
     }
 
+    // [TNSM-72] 추천 목록은 날씨와 상관없이 전부 보여주고, 실제로 일정에 추가하는 순간에만
+    // 날씨를 확인해서 안 좋으면 "그래도 추가하시겠어요?" 라고 물어본다.
+    // "며칠차"에 넣는지에 따라 그 날짜(출발일 + dayIndex-1)의 날씨를 확인한다.
+    function dateForDay(dayIndex) {
+        if (typeof TRIP_START_DATE === 'undefined' || !TRIP_START_DATE) {
+            return new Date().toISOString().slice(0, 10);
+        }
+        const d = new Date(TRIP_START_DATE + 'T00:00:00');
+        d.setDate(d.getDate() + (Math.max(1, dayIndex || 1) - 1));
+        return d.toISOString().slice(0, 10);
+    }
+
+    async function confirmWeatherOk(target, dayIndex) {
+        if (!target) return true;
+        const activityId = target.activityId;
+        const lat = target.latitude, lon = target.longitude;
+        if (!activityId && (lat == null || lon == null)) return true;
+        try {
+            const targetDate = dateForDay(dayIndex);
+            const url = activityId
+                ? `/api/weather/check?activityId=${activityId}&date=${encodeURIComponent(targetDate)}`
+                : `/api/weather/check-coords?lat=${lat}&lon=${lon}&venueType=${encodeURIComponent(target.venueType || '')}&date=${encodeURIComponent(targetDate)}`;
+            const res = await window.api.get(url);
+            if (res.success && res.data && res.data.recommendable === false) {
+                return confirm(`${res.data.message}\n\n그래도 추가하시겠어요?`);
+            }
+        } catch (e) {
+            // 날씨 체크가 실패해도 추가 자체를 막지는 않는다.
+        }
+        return true;
+    }
+
     function recCards(list) {
         const chat = document.getElementById('chat');
         if (!chat || !list.length) return;
@@ -447,11 +480,14 @@
             const card = document.createElement('div');
             card.className = 'rec-card';
             card.draggable = true;
-            card.dataset.payload = JSON.stringify({ 
-                kind: item.kind || 'recommend', 
-                activityId: item.activityId || null, 
+            card.dataset.payload = JSON.stringify({
+                kind: item.kind || 'recommend',
+                activityId: item.activityId || null,
                 title: item.title,
-                durationMin: item.durationMin 
+                durationMin: item.durationMin,
+                latitude: item.latitude != null ? item.latitude : null,
+                longitude: item.longitude != null ? item.longitude : null,
+                venueType: item.venueType || null
             });
             // 예전엔 \${...} 로 이스케이프돼 있어 "${item.priceKrw.toLocaleString()}" 글자가 그대로 보였다.
             const priceText = item.priceKrw ? ` · ${Number(item.priceKrw).toLocaleString()}원` : '';
@@ -467,7 +503,8 @@
                 e.dataTransfer.setData('text/plain', card.dataset.payload);
             });
             card.querySelector('.put').addEventListener('click', async () => {
-                  const finalDuration = (!isNaN(parseInt(item.durationMin)) && parseInt(item.durationMin) > 0) ? parseInt(item.durationMin) : 60;
+                if (!(await confirmWeatherOk({ activityId: item.activityId, latitude: item.latitude, longitude: item.longitude, venueType: item.venueType }, 1))) return;
+                const finalDuration = (!isNaN(parseInt(item.durationMin)) && parseInt(item.durationMin) > 0) ? parseInt(item.durationMin) : 60;
                   const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
                       dayIndex: 1, startMinute: nextFreeStart(1, finalDuration), durationMinute: finalDuration,
                       activityId: item.activityId || null, title: item.title || '새 일정', memo: item.description || null
@@ -682,18 +719,27 @@
             }
             const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/ai-validate?mode=${encodeURIComponent(mode)}`, {});
             if (res.success) {
-                if (vBubble) {
+                // [TNSM-70] 말풍선은 몇 초 뒤 사라지고 기록이 안 남아서 가독성이 떨어진다는
+                // 피드백 반영 - 타미 채팅 기록(💬 대화하기 패널, 로컬스토리지 저장)에도 남긴다.
+                if (window.companionAddBotMessage) {
+                    window.companionAddBotMessage(`[AI 검증 · ${mode}] ` + res.data.briefing);
+                } else if (vBubble) {
                     vBubble.innerText = res.data.briefing;
                     if (window.companionTimeout) clearTimeout(window.companionTimeout);
                 }
                 await reload();
             } else {
-                if (vBubble) {
-                    vBubble.innerText = '검증에 실패했습니다. ' + (res.message || '');
+                const failMsg = '검증에 실패했습니다. ' + (res.message || '');
+                if (window.companionAddBotMessage) {
+                    window.companionAddBotMessage(`[AI 검증 · ${mode}] ` + failMsg);
+                } else if (vBubble) {
+                    vBubble.innerText = failMsg;
                 }
             }
         } catch (e) {
-            if (vBubble) {
+            if (window.companionAddBotMessage) {
+                window.companionAddBotMessage(`[AI 검증 · ${mode}] 오류가 발생했습니다.`);
+            } else if (vBubble) {
                 vBubble.innerText = '오류가 발생했습니다.';
             }
         } finally {
