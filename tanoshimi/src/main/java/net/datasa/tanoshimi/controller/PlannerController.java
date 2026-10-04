@@ -218,7 +218,14 @@ public class PlannerController {
         // 안 보이게 된다 - 추천은 날씨와 상관없이 전부 보여주고, 실제로 일정에 "추가"할 때
         // 그 장소 날씨를 확인해서 경고만 하는 방식으로 바꾼다
         // (실제 체크는 /api/weather/check, planner.js의 confirmWeatherOk()에서 호출).
-        return ApiResponse.ok(chatbotActivityService.recommend(targetRegion, d, keyword, pastStyleTags, false));
+        ChatbotActivityService.RecommendResult result =
+                chatbotActivityService.recommend(scheduleId, targetRegion, d, keyword, pastStyleTags, false);
+        // [TNSM-72] usedAi=false면(키워드 없음 / AI 호출·파싱 실패) 위에서 미리 깎은 크레딧
+        // 1개를 돌려준다 - "AI 추천을 못 받았는데 크레딧만 날아가는" 문제 수정.
+        if (!result.usedAi()) {
+            aiCreditService.refund(requester);
+        }
+        return ApiResponse.ok(result.items());
     }
 
     // ===================== [신규] AI 일정 검증 =====================

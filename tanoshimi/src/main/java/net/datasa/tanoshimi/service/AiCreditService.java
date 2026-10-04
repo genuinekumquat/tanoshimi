@@ -1,6 +1,5 @@
 package net.datasa.tanoshimi.service;
 
-import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.domain.entity.AiCreditUsageEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
@@ -8,6 +7,8 @@ import net.datasa.tanoshimi.repository.AiCreditUsageRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
 
 /**
  * [v16 신규] AI 챗봇 추천 / 동선 최적화가 소모하는 일일 크레딧을 관리한다.
@@ -37,7 +38,21 @@ public class AiCreditService {
         aiCreditUsageRepository.save(usage);
         return true;
     }
-
+    
+    /**
+     * [TNSM-72] recommend()가 실제로 AI를 쓰지 못하고 폴백(키워드 매칭/빈 키워드)으로
+     * 빠졌을 때, tryConsume()에서 미리 깎아버린 크레딧 1개를 되돌려준다. 오늘 사용량 행이
+     * 아직 없으면(= tryConsume을 호출한 적이 없는 상태) 아무 것도 하지 않는다.
+     */
+    @Transactional
+    public void refund(UserEntity user) {
+        aiCreditUsageRepository.findByUserAndUsageDate(user, LocalDate.now())
+                .ifPresent(usage -> {
+                    usage.refund();
+                    aiCreditUsageRepository.save(usage);
+                });
+    }
+    
     @Transactional(readOnly = true)
     public int remaining(UserEntity user) {
         if (user == null) return 0;

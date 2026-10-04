@@ -1,29 +1,21 @@
 package net.datasa.tanoshimi.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.datasa.tanoshimi.domain.entity.ActiveStatus;
-import net.datasa.tanoshimi.domain.entity.ActivityEntity;
-import net.datasa.tanoshimi.domain.entity.PartyEntity;
-import net.datasa.tanoshimi.domain.entity.PartyStatus;
-import net.datasa.tanoshimi.domain.entity.UserEntity;
-import net.datasa.tanoshimi.domain.entity.VenueType;
+import net.datasa.tanoshimi.domain.dto.RecommendationDto;
+import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.repository.ActivityRepository;
 import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.util.GeminiClient;
-import net.datasa.tanoshimi.domain.dto.RecommendationDto;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 
 // 누락되었던 import 추가 완료
@@ -38,12 +30,37 @@ public class ChatbotActivityService {
     private final GeminiClient geminiClient; // MockGeminiClient가 자동으로 주입됨
     private final PartyMemberRepository partyMemberRepository; // [TNSM-18] 활동이력 조회용
     
+    // [TNSM-72 추가제안] "또 추천해줘"를 눌러도 매번 같은 5개가 나오는 문제를 줄이기 위해,
+    // 계획표(scheduleId)별로 최근에 보여준 activityId를 메모리에 잠깐 기억해둔다.
+    // 서버 재시작하면 날아가는 가벼운 캐시라서 DB 스키마 변경 없이 적용 가능.
+    private static final int RECENTLY_SHOWN_MAX = 15;
+    private final Map<Long, Deque<Long>> recentlyShownByScheduleId = new ConcurrentHashMap<>();
+    
+    private Set<Long> recentlyShown(Long scheduleId) {
+        if (scheduleId == null) return Set.of();
+        Deque<Long> deque = recentlyShownByScheduleId.get(scheduleId);
+        return deque == null ? Set.of() : new HashSet<>(deque);
+    }
+    
+    private void recordShown(Long scheduleId, List<RecommendationDto> items) {
+        if (scheduleId == null) return;
+        Deque<Long> deque = recentlyShownByScheduleId.computeIfAbsent(scheduleId, k -> new ConcurrentLinkedDeque<>());
+        for (RecommendationDto dto : items) {
+            if (dto.getActivityId() != null) {
+                deque.addLast(dto.getActivityId());
+            }
+        }
+        while (deque.size() > RECENTLY_SHOWN_MAX) {
+            deque.pollFirst();
+        }
+    }
+    
     /**
      * [기존 호출부 방어용 오버로딩]
      * 정태웅님의 PlannerController가 깨지지 않도록 기존 4개짜리 파라미터 메서드를 남겨둡니다.
      */
     @Transactional
-    public List<RecommendationDto> recommend(String region, LocalDate date, String keyword, String pastStyleTags, boolean todayIsBadWeather) {
+    public RecommendResult recommend(Long scheduleId, String region, LocalDate date, String keyword, String pastStyleTags, boolean todayIsBadWeather) {
         activityRepository.findByRegionAndStatus(region, ActiveStatus.active).stream()
                 .filter(ActivityEntity::needsVenueTypeJudgement)
                 .forEach(this::judgeAndCacheVenueType);
@@ -61,9 +78,33 @@ public class ChatbotActivityService {
             pool = activityRepository.findByStatus(ActiveStatus.active);
         }
         
+        // [TNSM-72 추가제안] "또 추천해줘"를 눌러도 똑같은 5개가 반복해서 나오는 문제 완화.
+        // 이 계획표(scheduleId)에서 최근에 보여준 activityId들은 일단 pool에서 빼고 고른다.
+        // 다 빼고 나니 pool이 너무 작아지면(= 그 지역에 활동이 몇 개 안 됨) 다양성보다
+        // "추천 자체가 비어버리는 것"이 더 나쁘니 원래 pool로 되돌린다.
+        Set<Long> recentlyShownIds = recentlyShown(scheduleId);
+        if (!recentlyShownIds.isEmpty()) {
+            List<ActivityEntity> fresh = pool.stream()
+                    .filter(a -> !recentlyShownIds.contains(a.getId()))
+                    .toList();
+            // [TNSM-72 수정] 원래 "5개 이상 안 겹치는 게 남아야만" 썼는데, 지금 데이터가
+            // 지역당 3~5개뿐이라 이 조건이 항상 실패해서 다양성 캐시가 아예 작동을 안 했다.
+            // 1개라도 안 본 게 남아있으면 그것부터 우선 보여주는 게 낫다 - fresh가 완전히
+            // 0개일 때만(= 그 지역 활동을 전부 다 보여준 상태) 어쩔 수 없이 원래 풀로 되돌린다.
+            if (!fresh.isEmpty()) {
+                pool = fresh;
+            }
+        }
+        
         // Return existing items if no keyword specified
         if (keyword == null || keyword.isBlank()) {
-            return pool.stream().limit(5).map(a -> new RecommendationDto("recommend", a.getId(), a.getTitle(), a.getDurationMin(), a.getPriceKrw(), a.getDescription(), null, null, null)).toList();
+            // [TNSM-72] 이 경로는 AI를 전혀 호출하지 않는데도 컨트롤러에서 미리 크레딧을
+            // 차감해버리고 있었다 - usedAi=false로 돌려줘서 컨트롤러가 환불하게 한다.
+            List<RecommendationDto> items = pool.stream().limit(5)
+                    .map(a -> new RecommendationDto("recommend", a.getId(), a.getTitle(), a.getDurationMin(), a.getPriceKrw(), a.getDescription(), null, null, null))
+                    .toList();
+            recordShown(scheduleId, items);
+            return new RecommendResult(items, false);
         }
         
         // [TNSM-62] 키워드 기반 로컬 폴백 - 항상 먼저 계산해 둔다.
@@ -146,12 +187,41 @@ public class ChatbotActivityService {
                 throw new IllegalStateException("AI 응답이 현재 조회 범위(지역/날씨) 밖의 activityId를 포함함");
             }
             
-            return resp;
+            // [TNSM-72] 프롬프트가 AI에게 요구하는 필드엔 priceKrw/description이 없어서,
+            // kind="recommend"로 정상 응답된 항목도 Jackson이 priceKrw=0/description=null로
+            // 채워버려 추천 카드에 가격·설명이 비어 보이는 버그였다. activityId는 바로 위에서
+            // poolIds 안에 있는 것만 통과시켰으니 신뢰할 수 있어서, pool의 실제 값으로 채운다.
+            Map<Long, ActivityEntity> poolById = pool.stream()
+                    .collect(Collectors.toMap(ActivityEntity::getId, a -> a, (a, b) -> a));
+            resp = resp.stream()
+                    .map(dto -> {
+                        if (!"recommend".equals(dto.getKind()) || dto.getActivityId() == null) return dto;
+                        ActivityEntity real = poolById.get(dto.getActivityId());
+                        if (real == null) return dto;
+                        return new RecommendationDto(dto.getKind(), dto.getActivityId(), dto.getTitle(),
+                                dto.getDurationMin(), real.getPriceKrw(), real.getDescription(),
+                                dto.getLatitude(), dto.getLongitude(), dto.getVenueType());
+                    })
+                    .toList();
+            
+            recordShown(scheduleId, resp);
+            return new RecommendResult(resp, true);
         } catch (Exception e) {
+            // [TNSM-72] AI 호출/파싱이 실패해서 폴백으로 빠진 경우다 - usedAi=false로 돌려줘서
+            // 컨트롤러가 미리 차감한 크레딧 1개를 환불하게 한다. 이전엔 이 경로로 빠져도
+            // 크레딧은 이미 깎인 채로 끝나서, 사용자가 AI 추천을 못 받았는데도 크레딧만
+            // 날아가는 문제가 있었다.
             log.error("AI recommendation parse error", e);
-            return keywordMatchedFallback;
+            recordShown(scheduleId, keywordMatchedFallback);
+            return new RecommendResult(keywordMatchedFallback, false);
         }
     }
+    
+    /**
+     * [TNSM-72] 컨트롤러가 "이번 호출이 진짜 AI 추천이었는지, 폴백이었는지"를 알아야
+     * 실패 시 크레딧을 환불할 수 있어서 추가한 결과 래퍼.
+     */
+    public record RecommendResult(List<RecommendationDto> items, boolean usedAi) {}
     
     /**
      * [TNSM-62] 키워드 ↔ DB 관광지 이름/설명 매칭 폴백.
@@ -245,18 +315,42 @@ public class ChatbotActivityService {
             
             String aiResponse = geminiClient.ask(prompt); // Mock 객체가 응답
             
-            if (aiResponse == null || aiResponse.isBlank()) {
-                throw new IllegalStateException("API 응답 없음");
+            // [TNSM-72] RealGeminiClient.ask()는 API 호출이 실패하면(429 한도초과, 빈 응답 등)
+            // 빈 문자열이 아니라 {"briefing":...,"newSchedule":[]} 같은 안내용 JSON을 돌려준다.
+            // isBlank()만 체크하면 이걸 못 걸러내서 VenueType.valueOf()가 IllegalArgumentException을
+            // 던지고, 그게 바로 아래 catch에서 VenueType.mixed로 "영구 캐싱"돼버렸다 - cacheVenueType()
+            // 이후엔 다시 판정하지 않으므로, API가 잠깐 막힌 순간에 생긴 액티비티는 진짜 outdoor여도
+            // 평생 mixed로 고정되어 날씨 경고가 안 뜨는 버그였다. JSON 폴백 응답도 "API 응답 없음"과
+            // 동일하게 취급해서 캐싱하지 않고 다음 요청 때 재판정하도록 한다.
+            if (aiResponse == null || aiResponse.isBlank() || aiResponse.trim().startsWith("{")) {
+                throw new IllegalStateException("API 응답 없음 또는 폴백 JSON: " + aiResponse);
             }
             
             String cleanResponse = aiResponse.trim().toLowerCase();
-            activity.cacheVenueType(VenueType.valueOf(cleanResponse));
-            activityRepository.save(activity);
-        } catch (IllegalArgumentException e) {
-            activity.cacheVenueType(VenueType.mixed);
+            // [TNSM-72] "Reply ONLY with the single word"라고 프롬프트에 써놔도 Gemini가
+            // 종종 "Outdoor." 처럼 마침표를 붙이거나 "This place is OUTDOOR." 처럼 문장으로
+            // 답하는 경우가 있다. VenueType.valueOf()는 완전히 똑같은 문자열만 허용해서
+            // 이런 경우 전부 IllegalArgumentException이 나고, 그걸 mixed로 "영구 캐싱"해버리면
+            // 실제로는 outdoor인 곳도 포맷이 조금만 어긋나면 평생 mixed로 고정되는 2차 버그가
+            // 생긴다. valueOf 대신 포함(contains) 검사로 느슨하게 판정한다.
+            VenueType judged = null;
+            for (VenueType vt : VenueType.values()) {
+                if (cleanResponse.contains(vt.name())) {
+                    judged = vt;
+                    break;
+                }
+            }
+            if (judged == null) {
+                throw new IllegalStateException("AI 응답에서 venueType을 못 찾음: " + cleanResponse);
+            }
+            activity.cacheVenueType(judged);
             activityRepository.save(activity);
         } catch (Exception e) {
-            log.error("AI 호출 중 오류 발생. 장소: {}", activity.getTitle(), e);
+            // [TNSM-72] 판정 실패는 "mixed가 맞다"는 뜻이 아니다. 여기서 캐싱해버리면
+            // cacheVenueType() 이후엔 재판정을 안 하므로, 아예 캐싱하지 않고 넘어가서
+            // 다음 호출(API가 정상일 때) 때 다시 판정하도록 한다(needsVenueTypeJudgement()가
+            // 계속 true로 남음).
+            log.error("AI 호출/파싱 중 오류 발생. 장소: {}", activity.getTitle(), e);
         }
     }
 }
