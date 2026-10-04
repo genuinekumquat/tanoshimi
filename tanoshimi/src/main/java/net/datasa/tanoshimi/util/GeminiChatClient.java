@@ -4,18 +4,19 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Locale;
 import lombok.extern.slf4j.Slf4j;
 import net.datasa.tanoshimi.domain.dto.CompanionChatTurn;
+import net.datasa.tanoshimi.service.VivianQueryService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import net.datasa.tanoshimi.service.VivianQueryService;
-import org.springframework.beans.factory.annotation.Autowired;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -110,6 +111,11 @@ public class GeminiChatClient implements CompanionChatClient {
             tools.add(googleSearchTool);
 
             body.set("tools", tools);
+            // Gemini 스펙 변경(2026-10) — Function calling + 내장툴(googleSearch) 같이 쓰려면
+            // 이 설정을 명시적으로 켜야 함. 안 그러면 400 INVALID_ARGUMENT.
+            ObjectNode toolConfig = objectMapper.createObjectNode();
+            toolConfig.put("includeServerSideToolInvocations", true);
+            body.set("toolConfig", toolConfig);
 
             JsonNode lastResponse = null;
             for (int i = 0; i < 5; i++) {
@@ -165,7 +171,7 @@ public class GeminiChatClient implements CompanionChatClient {
                             ArrayNode respParts = objectMapper.createArrayNode();
                             respParts.add(funcResponsePart);
                             ObjectNode funcResponseContent = objectMapper.createObjectNode();
-                            funcResponseContent.put("role", "function");
+                            funcResponseContent.put("role", "user");
                             funcResponseContent.set("parts", respParts);
                             contents.add(funcResponseContent);
                             break;

@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -64,6 +65,13 @@ public class ChatbotActivityService {
             return pool.stream().limit(5).map(a -> new RecommendationDto("recommend", a.getId(), a.getTitle(), a.getDurationMin(), a.getPriceKrw(), a.getDescription())).toList();
         }
         
+        // [TNSM-62] 키워드 기반 로컬 폴백 - 항상 먼저 계산해 둔다.
+        // Gemini 결제 크레딧이 없어 폴백으로 빠지는 경우(또는 Mock이 입력과 무관한 고정 응답을
+        // 주는 경우)에도, 적어도 사용자가 입력한 단어와 관련된 장소부터 보여주기 위함이다.
+        // (docs/known-issue-ai-api-keys-and-tami.md 의 B-1 제안 반영)
+        List<RecommendationDto> keywordMatchedFallback = keywordMatchedFallback(pool, keyword);
+        Set<Long> poolIds = pool.stream().map(ActivityEntity::getId).collect(Collectors.toSet());
+        
         try {
             StringBuilder poolContext = new StringBuilder();
             pool.stream().limit(20).forEach(a -> {
@@ -92,7 +100,7 @@ public class ChatbotActivityService {
             // 수정 후
             String aiResponse = geminiClient.ask(prompt);
             String jsonRaw = aiResponse == null ? "" : aiResponse.trim();
-
+            
             // 응답 전체가 진짜 배열(예: "[...]")로 시작하는 경우만 신뢰한다.
             // {"briefing":..., "newSchedule": []} 같은 "에러를 감싼 객체" 안의 []는
             // 진짜 추천 배열이 아니므로 여기서 걸러내고 바로 폴백으로 보낸다.
@@ -102,11 +110,55 @@ public class ChatbotActivityService {
             
             ObjectMapper mapper = new ObjectMapper();
             List<RecommendationDto> resp = mapper.readValue(jsonRaw, new TypeReference<List<RecommendationDto>>() {});
+            
+            // [TNSM-62] 응답 검증 - "recommend" 항목인데 activityId가 이번 조회의 pool(지역·날씨
+            // 필터링된 범위) 밖을 가리키면 신뢰할 수 없는 응답으로 보고 폴백으로 보낸다.
+            // MockGeminiClient는 입력과 무관하게 오사카 ID(1,2,3)를 고정 반환하므로, 다른 지역을
+            // 조회하면 이 검증에서 걸러져 키워드 매칭 폴백으로 넘어간다 - 그래야 "뭘 물어봐도
+            // 똑같은 답"이 아니라 최소한 입력/지역에 맞는 답이 나온다.
+            boolean hasOutOfPoolRecommend = resp.stream()
+                    .filter(dto -> "recommend".equals(dto.getKind()))
+                    .anyMatch(dto -> dto.getActivityId() == null || !poolIds.contains(dto.getActivityId()));
+            if (hasOutOfPoolRecommend) {
+                throw new IllegalStateException("AI 응답이 현재 조회 범위(지역/날씨) 밖의 activityId를 포함함");
+            }
+            
             return resp;
         } catch (Exception e) {
             log.error("AI recommendation parse error", e);
-            return pool.stream().limit(5).map(a -> new RecommendationDto("recommend", a.getId(), a.getTitle(), a.getDurationMin(), a.getPriceKrw(), a.getDescription())).toList();
+            return keywordMatchedFallback;
         }
+    }
+    
+    /**
+     * [TNSM-62] 키워드 ↔ DB 관광지 이름/설명 매칭 폴백.
+     * Gemini를 못 쓰는 상황(크레딧 소진·Mock)에서도 "뭘 물어보든 같은 5개"가 되지 않도록,
+     * 사용자가 입력한 단어가 제목/설명/스타일태그에 들어있는 항목을 앞으로 올린다.
+     * 매칭되는 게 하나도 없으면 기존 동작대로 pool 순서 그대로 앞 5개를 보여준다.
+     */
+    private List<RecommendationDto> keywordMatchedFallback(List<ActivityEntity> pool, String keyword) {
+        // 키워드를 공백/쉼표 기준으로 나눠 토큰화 - "라멘 먹으러 가고싶어" 같은 문장에서도
+        // "라멘" 토큰이 활동 설명에 포함되면 매칭되게 한다.
+        String[] tokens = keyword.trim().toLowerCase().split("[\\s,]+");
+        
+        return pool.stream()
+                .sorted(Comparator.comparingInt((ActivityEntity a) -> -matchScore(a, tokens)))
+                .limit(5)
+                .map(a -> new RecommendationDto("recommend", a.getId(), a.getTitle(), a.getDurationMin(), a.getPriceKrw(), a.getDescription()))
+                .toList();
+    }
+    
+    private int matchScore(ActivityEntity a, String[] tokens) {
+        String haystack = ((a.getTitle() != null ? a.getTitle() : "") + " "
+                + (a.getDescription() != null ? a.getDescription() : "") + " "
+                + (a.getStyleTag() != null ? a.getStyleTag() : "")).toLowerCase();
+        int score = 0;
+        for (String token : tokens) {
+            if (!token.isBlank() && haystack.contains(token)) {
+                score++;
+            }
+        }
+        return score;
     }
     
     /**
