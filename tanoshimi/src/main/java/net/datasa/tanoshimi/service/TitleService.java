@@ -2,6 +2,7 @@ package net.datasa.tanoshimi.service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -304,6 +305,34 @@ public class TitleService {
                         .findFirst()
                         .map(UserTitleEntity::getTitle)
                         .orElse(null));
+    }
+
+    /**
+     * 여러 사람의 대표 칭호를 한 번에 - 파티원 목록 등 남에게 보여주는 화면용.
+     * 고르는 규칙은 {@link #latestTitle} 과 같다(장착한 것, 없으면 가장 최근에 딴 것).
+     *
+     * @return user id → 대표 칭호. 칭호가 하나도 없는 사람은 맵에 들어가지 않는다.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, TitleEntity> representativeTitles(Collection<UserEntity> users) {
+        if (users.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, UserTitleEntity> picked = new HashMap<>();
+        for (UserTitleEntity ut : userTitleRepository.findByUserIn(users)) {
+            picked.merge(ut.getUser().getId(), ut, TitleService::moreRepresentative);
+        }
+        Map<Long, TitleEntity> result = new HashMap<>();
+        picked.forEach((userId, ut) -> result.put(userId, ut.getTitle()));
+        return result;
+    }
+
+    /** 장착한 쪽이 우선, 둘 다 같으면 더 최근에 딴 쪽. */
+    private static UserTitleEntity moreRepresentative(UserTitleEntity a, UserTitleEntity b) {
+        if (a.isEquipped() != b.isEquipped()) {
+            return a.isEquipped() ? a : b;
+        }
+        return b.getEarnedAt().isAfter(a.getEarnedAt()) ? b : a;
     }
 
     /**

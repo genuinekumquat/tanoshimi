@@ -3,6 +3,7 @@ package net.datasa.tanoshimi.repository;
 import net.datasa.tanoshimi.domain.entity.TitleEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.domain.entity.UserTitleEntity;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -24,4 +25,8 @@ public interface UserTitleRepository extends JpaRepository<UserTitleEntity, Long
     /** [TNSM-20] 현재 장착한 대표 칭호. 위와 같은 이유로 title 을 미리 JOIN FETCH 한다. */
     @EntityGraph(attributePaths = {"title"})
     Optional<UserTitleEntity> findByUserAndEquippedTrue(UserEntity user);
+
+    /** 여러 사람의 보유 칭호를 한 번에 - 파티원 목록처럼 사람마다 대표 칭호를 붙일 때 N+1 을 피하려고 쓴다. */
+    @EntityGraph(attributePaths = {"title"})
+    List<UserTitleEntity> findByUserIn(Collection<UserEntity> users);
 }
