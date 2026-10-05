@@ -26,6 +26,8 @@ mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migrati
   `migration_v22_remember_me.sql` 을 실행하지 않아도 된다.** 이 마이그레이션은 이 변경 이전에
   만들어 둔 DB 에만 한 번 돌리면 된다(안 돌리면 로그아웃 시 500).
 - `migration_v21_remove_reservation_payment.sql` 도 마찬가지로 기존 DB 전용이다(아래 참고).
+- `migration_v25_snapshot_trigger_ai_valid.sql` 도 기존 DB 전용이다. `schema.sql` 로 만든 DB 에서
+  계획표 "AI 검증"이 `Data truncated for column 'trigger_type'` 로 실패하면 이걸 한 번 실행한다.
 
 ## (선택) 마이페이지 데모 데이터 채우기
 

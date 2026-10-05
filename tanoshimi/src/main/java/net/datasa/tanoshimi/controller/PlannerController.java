@@ -48,6 +48,19 @@ public class PlannerController {
     @org.springframework.beans.factory.annotation.Value("${app.maps.embed-api-key:}")
     private String mapsEmbedApiKey;
 
+    /**
+     * 헤더/푸터의 "여행 플래너" 메뉴. 계획표는 파티마다 하나라서 주소에 scheduleId 가 필요하므로,
+     * 내가 참여한 최근 파티의 계획표로 보내고, 참여한 파티가 없으면 내 파티 목록으로 보낸다.
+     */
+    @GetMapping("/planner")
+    public String plannerHome(@AuthenticationPrincipal CustomUserDetails principal) {
+        UserEntity me = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return partyService.latestScheduleFor(me)
+                .map(schedule -> "redirect:/planner/" + schedule.getId())
+                .orElse("redirect:/my-parties");
+    }
+
     @GetMapping("/planner/{scheduleId}")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public String planner(@PathVariable Long scheduleId, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
