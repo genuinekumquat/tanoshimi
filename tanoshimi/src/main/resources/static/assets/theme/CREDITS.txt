@@ -41,3 +41,125 @@ band-yukata-kyoto.jpg  (메인 기본 배너 - 등록된 관리자 배너가 없
   https://www.pexels.com/photo/two-woman-wearing-kimono-dress-walking-beside-sidewalk-1270210/
   라이선스 : Pexels License (무료, 출처 표기 의무 없음 - 예의상 기록). 2400px 폭으로 받아
   세로 42% 지점부터 2400x960 으로 크롭.
+
+
+관광지/스냅 사진 (static/assets/places/) - 2026-10-05 추가·교체분
+-------------------------------------------------------------
+Wikimedia Commons 원본을 4:3(800x600)으로 크롭/리사이즈. 기존 파일 중 10장이 같은 고양이 동상 사진이었고
+(다운로드 실패 대체 이미지로 추정) 몇 장은 다른 장소 사진이어서, 아래 파일들은 같은 이름으로 교체했다.
+
+﻿gyeongnam_haeundae.jpg
+  원본 : File:Haeundae Beach in Busan.jpg (CC BY 2.0, StephNurnberg)
+  https://commons.wikimedia.org/wiki/File:Haeundae_Beach_in_Busan.jpg
+
+gyeongnam_gamcheon.jpg
+  원본 : File:Gamcheon Culture Village.jpg (CC0, Bernard Gagnon)
+  https://commons.wikimedia.org/wiki/File:Gamcheon_Culture_Village.jpg
+
+busan_gwangan.jpg
+  원본 : File:Gwangan Bridge seen Marine City at Night 02.jpg (Public domain, Jeena Paradies)
+  https://commons.wikimedia.org/wiki/File:Gwangan_Bridge_seen_Marine_City_at_Night_02.jpg
+
+busan_jagalchi.jpg
+  원본 : File:Jagalchi Market 01.jpg (CC0, Bernard Gagnon)
+  https://commons.wikimedia.org/wiki/File:Jagalchi_Market_01.jpg
+
+busan_yonggungsa.jpg
+  원본 : File:Haedong Yonggungsa Temple near Busan.jpg (CC BY-SA 4.0, Christian Bolz)
+  https://commons.wikimedia.org/wiki/File:Haedong_Yonggungsa_Temple_near_Busan.jpg
+
+capital_cheonggyecheon.jpg
+  원본 : File:Cheonggyecheon stream at sunrise with trees in Seoul.jpg (CC BY-SA 4.0, Basile Morin)
+  https://commons.wikimedia.org/wiki/File:Cheonggyecheon_stream_at_sunrise_with_trees_in_Seoul.jpg
+
+capital_changdeokgung.jpg
+  원본 : File:Exterior front view of Daejojeon Hall of Changdeokgung Palace with blue sky in Seoul.jpg (CC BY-SA 4.0, Basile Morin)
+  https://commons.wikimedia.org/wiki/File:Exterior_front_view_of_Daejojeon_Hall_of_Changdeokgung_Palace_with_blue_sky_in_Seoul.jpg
+
+capital_myeongdong.jpg
+  원본 : File:Myeongdong night market seoul 3.jpg (CC BY-SA 4.0, Sgroey)
+  https://commons.wikimedia.org/wiki/File:Myeongdong_night_market_seoul_3.jpg
+
+capital_lotte_tower.jpg
+  원본 : File:Han River and Lotte World Tower.jpg (CC0, mauveine.kim)
+  https://commons.wikimedia.org/wiki/File:Han_River_and_Lotte_World_Tower.jpg
+
+jeju_seopjikoji.jpg
+  원본 : File:Seopjikoji-ro, Seongsan-eup, Seogwipo-si, Jeju-do, South Korea - panoramio.jpg (CC BY 3.0, song songroov)
+  https://commons.wikimedia.org/wiki/File:Seopjikoji-ro,_Seongsan-eup,_Seogwipo-si,_Jeju-do,_South_Korea_-_panoramio.jpg
+
+jeju_cheonjiyeon.jpg
+  원본 : File:Korea-Jeju-Cheonjiyeon Waterfall-01.jpg (CC BY 2.0, Martin Chen)
+  https://commons.wikimedia.org/wiki/File:Korea-Jeju-Cheonjiyeon_Waterfall-01.jpg
+
+osaka_castle.jpg
+  원본 : File:Osaka Castle 02bs3200.jpg (CC BY 2.5, 663highland)
+  https://commons.wikimedia.org/wiki/File:Osaka_Castle_02bs3200.jpg
+
+osaka_shinsekai.jpg
+  원본 : File:Shinsekai and Tsutenkaku Tower.jpg (CC0, Sakai Yayoi)
+  https://commons.wikimedia.org/wiki/File:Shinsekai_and_Tsutenkaku_Tower.jpg
+
+osaka_kaiyukan.jpg
+  원본 : File:Osaka Aquarium Kaiyukan 2022-04-24.jpg (CC BY 2.0, Dick Thomas Johnson)
+  https://commons.wikimedia.org/wiki/File:Osaka_Aquarium_Kaiyukan_2022-04-24.jpg
+
+fukuoka_canalcity.jpg
+  원본 : File:Canal City Hakata at dusk 20170929.jpg (CC BY-SA 4.0, そらみみ)
+  https://commons.wikimedia.org/wiki/File:Canal_City_Hakata_at_dusk_20170929.jpg
+
+gangwon_anmok.jpg
+  원본 : File:Anmok Beach 20220430 002.jpg (CC BY-SA 4.0, Mobius6)
+  https://commons.wikimedia.org/wiki/File:Anmok_Beach_20220430_002.jpg
+
+gyeongbuk_hahoe.jpg
+  원본 : File:Hahoe Folk Village 03.jpg (CC0, Bernard Gagnon)
+  https://commons.wikimedia.org/wiki/File:Hahoe_Folk_Village_03.jpg
+
+gyeongbuk_homigot.jpg
+  원본 : File:Homigot 20240113 004.jpg (CC BY 4.0, Mobius6)
+  https://commons.wikimedia.org/wiki/File:Homigot_20240113_004.jpg
+
+gyeongnam_tongyeong.jpg
+  원본 : File:Korea-Tongyeong-Chubongdo-Gokryongpo Harbor-01.jpg (CC BY-SA 3.0, Asfreeas at Korean Wikipedia)
+  https://commons.wikimedia.org/wiki/File:Korea-Tongyeong-Chubongdo-Gokryongpo_Harbor-01.jpg
+
+hokkaido_otaru.jpg
+  원본 : File:Otaru Canal 20140817.jpg (CC BY-SA 4.0, Suicasmo)
+  https://commons.wikimedia.org/wiki/File:Otaru_Canal_20140817.jpg
+
+jeju_halla.jpg
+  원본 : File:Baengnokdam on top of Hallasan.jpg (CC BY-SA 2.5, Yoo Chung)
+  https://commons.wikimedia.org/wiki/File:Baengnokdam_on_top_of_Hallasan.jpg
+
+jeju_hyeopjae.jpg
+  원본 : File:Hyeopjae Beach.jpg (CC BY-SA 3.0, Naturehead)
+  https://commons.wikimedia.org/wiki/File:Hyeopjae_Beach.jpg
+
+jeju_udo.jpg
+  원본 : File:Udo, Jeju Province, South Korea 02.jpg (KOGL Type 1, 제주영상문화산업진흥원-공공누리 제1유형)
+  https://commons.wikimedia.org/wiki/File:Udo,_Jeju_Province,_South_Korea_02.jpg
+
+okinawa_manzamo.jpg
+  원본 : File:Onna Okinawa Japan Cape-Manzamo-01.jpg (CC BY-SA 3.0, CEphoto, Uwe Aranas)
+  https://commons.wikimedia.org/wiki/File:Onna_Okinawa_Japan_Cape-Manzamo-01.jpg
+
+osaka_umeda.jpg
+  원본 : File:Umeda Sky Building, Osaka, November 2016 -01.jpg (CC BY-SA 4.0, Martin Falbisoner)
+  https://commons.wikimedia.org/wiki/File:Umeda_Sky_Building,_Osaka,_November_2016_-01.jpg
+
+osaka_usj.jpg
+  원본 : File:Universal Studios Japan 2019,08.jpg (CC0, Rebirth10)
+  https://commons.wikimedia.org/wiki/File:Universal_Studios_Japan_2019,08.jpg
+
+tokyo_skytree.jpg
+  원본 : File:Worm's-eye view of Tokyo Skytree with vertical symmetry impression, a sunny day, in Japan.jpg (CC BY-SA 4.0, Basile Morin)
+  https://commons.wikimedia.org/wiki/File:Worm%27s-eye_view_of_Tokyo_Skytree_with_vertical_symmetry_impression,_a_sunny_day,_in_Japan.jpg
+
+okinawa_kokusai.jpg
+  원본 : File:Naha Kokusai Street 1.jpg (CC BY 4.0, Zairon)
+  https://commons.wikimedia.org/wiki/File:Naha_Kokusai_Street_1.jpg
+
+fukuoka_momochi.jpg
+  원본 : File:Seaside Momochi Seaside Park Fukuoka Tower and Marizon at sunset Sawara-ku Fukuoka 20240116.jpg (CC BY-SA 4.0, Hirho)
+  https://commons.wikimedia.org/wiki/File:Seaside_Momochi_Seaside_Park_Fukuoka_Tower_and_Marizon_at_sunset_Sawara-ku_Fukuoka_20240116.jpg
