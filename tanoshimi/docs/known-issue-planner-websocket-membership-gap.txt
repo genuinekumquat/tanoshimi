@@ -4,7 +4,8 @@
            연동 점검) 작업 중, 채팅 쪽에는 있는 "URL만 알고 들어온 비파티원 방어선"
            (PartyService.assertMember / ChatService.assertMember)이 계획표 쪽에는
            하나도 없다는 걸 코드 점검 중 발견함.
-상태: 해결됨. feature/TNSM-21-role-integration-check 브랜치에 반영, PR 대기 중.
+상태: 해결됨. feature/TNSM-21-role-integration-check 브랜치에 반영, PR #56으로 main 머지 완료
+      (기동 실패 핫픽스 PR #57 포함).
 
 ===============================================================
 점검 대상 정정 - "결제-플래너 연동"

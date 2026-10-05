@@ -1,7 +1,9 @@
 유저 차단 기능(TNSM-96) 설계 결정 사항
 작성일: 2026-09-01
 결정자: 허수연(팀장), 오채원
-관련 파일: user_blocks_schema_draft.txt (프로젝트 루트, 스키마 초안)
+관련 파일: src/main/resources/db/schema.sql 의 user_blocks (21번 섹션) — 초안 파일
+          user_blocks_schema_draft.txt 는 schema.sql 반영 후 저장소에서 빠졌다.
+상태: 구현·머지 완료 (TNSM-96)
 
 ===============================================================
 결정 1. 차단 시 팔로우 관계 자동 해제
