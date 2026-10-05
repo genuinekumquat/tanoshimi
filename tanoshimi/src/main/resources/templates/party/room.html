@@ -35,6 +35,8 @@
   .ul-users .info { flex:1; }
   .ul-users .name { font-weight:700; font-size:15px; margin:0; color:var(--ink); }
   .ul-users .msg { font-size:13px; color:var(--ink-soft); margin:4px 0 0; }
+  .ul-users a.member-link { color:inherit; text-decoration:none; }
+  .ul-users a.member-link:hover .member-name, .ul-users a.member-link:focus-visible .member-name { text-decoration:underline; }
   
   .btn-sm-ok { background:var(--forest); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-weight:700; cursor:pointer; font-size:13px; }
   .btn-sm-no { background:var(--sash); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-weight:700; cursor:pointer; font-size:13px; }
@@ -128,11 +130,14 @@
       <h2 class="sec-title">파티 멤버 <span style="font-size:14px; color:var(--forest);" th:text="${members.size() + '/' + party.capacity + '명'}"></span></h2>
       <ul class="ul-users">
         <li th:each="m : ${members}">
-          <img th:if="${m.user.profileImageUrl != null}" class="pf" th:src="${m.user.profileImageUrl}" style="border-radius:50%; object-fit:cover;">
-          <div th:if="${m.user.profileImageUrl == null}" class="pf" th:text="${#strings.substring(m.user.name,0,1)}"></div>
+          <!-- 이름·사진을 누르면 공개 프로필(/users/{id})로. username 이 비어 있는 계정(v20 백필 전 DB)도 있어 id 경로를 쓴다. -->
+          <a class="member-link" th:href="@{/users/{id}(id=${m.user.id})}" th:title="${m.user.name + ' 프로필 보기'}" tabindex="-1" aria-hidden="true">
+            <img th:if="${m.user.profileImageUrl != null}" class="pf" th:src="${m.user.profileImageUrl}" th:alt="${m.user.name}" style="border-radius:50%; object-fit:cover;">
+            <div th:if="${m.user.profileImageUrl == null}" class="pf" th:text="${#strings.substring(m.user.name,0,1)}"></div>
+          </a>
           <div class="info">
             <p class="name">
-              <span th:text="${m.user.name}"></span>
+              <a class="member-link" th:href="@{/users/{id}(id=${m.user.id})}" th:title="${m.user.name + ' 프로필 보기'}"><span class="member-name" th:text="${m.user.name}"></span></a>
               <span th:if="${m.role.name() == 'owner'}" style="color:var(--sash); font-size:12px; margin-left:4px;">(방장)</span>
               <th:block th:with="t=${memberTitles.get(m.user.id)}">
                 <span th:if="${t != null}" class="title-badge"
