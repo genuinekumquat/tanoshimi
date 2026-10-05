@@ -61,8 +61,11 @@
         };
     </script>
     <script th:src="@{/js/report.js}" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <!-- 실시간 알림용 웹소켓 라이브러리 - 외부 CDN 대신 저장소에 둔 사본(static/vendor, CDN 과 같은
+         sockjs-client 1.6.1 / stomp.js 2.3.3)을 쓴다. CDN 이 오염되면 변조된 스크립트가 모든 화면에서
+         실행될 수 있어서(CodeQL js/functionality-from-untrusted-source). -->
+    <script th:src="@{/vendor/sockjs.min.js}"></script>
+    <script th:src="@{/vendor/stomp.min.js}"></script>
     <script th:src="@{/js/notifications.js}" defer></script>
 </head>
 
