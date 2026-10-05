@@ -615,22 +615,34 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
             cContainer.innerHTML = '<div style="color:var(--danger);font-size:13px;">댓글을 불러오는데 실패했습니다.</div>';
         }
     }
-    
+
+    // 사진 주소는 이미지 src 와 다운로드 링크 href 에 들어간다 - javascript: 같은 주소가 섞여 있어도
+    // 실행되지 않게, 같은 출처 경로(/...)나 http(s) 주소만 쓴다(서버 ThumbnailUrlPolicy 와 이중 방어).
+    function safeImageUrl(url) {
+        if (!url) return '';
+        try {
+            const parsed = new URL(url, location.origin);
+            return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed.href : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
     document.querySelectorAll('.photo-card').forEach(card => {
         card.addEventListener('click', () => {
             const postId = card.getAttribute('data-id');
             currentViewPostId = postId;
             
             const title = card.getAttribute('data-title');
-            const img = card.getAttribute('data-img');
+            const img = safeImageUrl(card.getAttribute('data-img'));
             const content = card.getAttribute('data-content');
-            
+
             document.getElementById('v-title').textContent = title || '추억 사진';
             document.getElementById('v-content').textContent = content || '';
             document.getElementById('v-img').src = img;
-            
+
             const dlBtn = document.getElementById('v-download');
-            dlBtn.href = img;
+            dlBtn.href = img || '#';
             
             let filename = img.substring(img.lastIndexOf('/')+1);
             if(!filename || filename.length < 3) filename = 'photo.jpg';
