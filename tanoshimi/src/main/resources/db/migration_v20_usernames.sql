@@ -69,8 +69,11 @@ CALL _v20_add_username_column();
 DROP PROCEDURE _v20_add_username_column;
 
 -- 2. 백필 - base 를 먼저 그대로 시도하고, 충돌할 때만 숫자를 늘려간다(idempotent).
---    대상: username 이 NULL 이거나, "base+id" 형태(예전 버전이 무조건 붙였던 패턴)라서
---    아직 사람이 직접 고른 값이 아니라고 볼 수 있는 행.
+--    대상: username 이 NULL 이거나 빈 문자열이거나, "base+id" 형태(예전 버전이 무조건 붙였던
+--    패턴)라서 아직 사람이 직접 고른 값이 아니라고 볼 수 있는 행.
+--    [v20-5 패치] 이 스크립트보다 앱(Hibernate ddl-auto)이 먼저 username 컬럼을 NOT NULL 로
+--    추가한 DB 는 기존 회원 값이 NULL 이 아니라 '' 로 채워져 있다. NULL 만 보던 예전 조건은
+--    이 행들을 건너뛰어 프로필 링크(/{username})가 "/" 로 깨졌다 - '' 도 백필 대상에 넣는다.
 DROP PROCEDURE IF EXISTS _v20_backfill_usernames;
 DELIMITER $$
 CREATE PROCEDURE _v20_backfill_usernames()
@@ -98,6 +101,7 @@ BEGIN
              END AS base_raw
         FROM users
        WHERE username IS NULL
+          OR username = ''
           OR username = CONCAT(  -- (email 파생값이라 이미 같은 콜레이션 - 그래도 안전하게 아래서 한 번 더 고정)
                  LEFT(
                      CASE
