@@ -1,0 +1,63 @@
+# CodeQL 코드 스캐닝 (GitHub "Advanced setup")
+#
+# PR 과 main 푸시 때마다 Java(Spring)·JavaScript(static/js) 코드를 CodeQL 로 점검한다.
+# 결과는 저장소 Security 탭 → Code scanning 에 쌓이고, PR 에는 새로 생긴 경고가 표시된다.
+# 공개 저장소라 무료. API 키·Secrets 불필요.
+#
+# 주의: 저장소 설정(Settings → Code security)에서 CodeQL "Default setup" 을 켜면 이 워크플로와
+# 충돌한다(advanced 결과 업로드가 거부됨). 둘 중 하나만 쓸 것.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 18 * * 0" # 매주 월요일 03:00 KST - 코드 변경이 없어도 새 규칙으로 재점검
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write # 결과 업로드
+      contents: read
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # build-mode none: Gradle 빌드 없이 소스만으로 분석(프로젝트가 tanoshimi/ 하위라 autobuild 경로 문제도 피함)
+          - language: java-kotlin
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # security-extended: 기본 규칙 + 보안 규칙 추가(오탐이 조금 늘 수 있음)
+          queries: security-extended
+          config: |
+            paths:
+              - tanoshimi/src/main
+            paths-ignore:
+              # 외부 라이브러리 압축본 - 우리 코드가 아니라 점검 대상에서 제외
+              - tanoshimi/src/main/resources/static/vendor
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
