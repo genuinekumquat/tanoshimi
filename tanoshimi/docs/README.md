@@ -14,7 +14,7 @@
 ## 문서 작성 기준
 
 - 2026-10-05 시점의 `main`(e5b2eae, PR #81까지) 소스 기준. 진행 중 기능은 각 문서에 표기.
-- 스키마 원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) + `migration_v16_*` ~ `migration_v24_*`.
+- 스키마 원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) + `migration_v16_*` ~ `migration_v25_*`.
 - DB 세팅 순서 원본: [`src/main/resources/db/README.md`](../src/main/resources/db/README.md).
 - `*.docx` / `*.xlsx` 는 2026-09-09 제출본이라 md 문서보다 오래됐다. 최신 내용은 md 기준.
 - 라우팅 원본: `src/main/java/net/datasa/tanoshimi/controller/`.
@@ -34,7 +34,7 @@ mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migrati
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v19_my_trips.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v19_temporary_password.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v20_usernames.sql
-#   v21(결제·예약 제거)·v22(자동 로그인)·v23(칭호 장착)·v24(추천 좋아요)는 갱신된 schema.sql 에
+#   v21(결제·예약 제거)·v22(자동 로그인)·v23(칭호 장착)·v24(추천 좋아요)·v25(스냅샷 ai_valid)는 갱신된 schema.sql 에
 #   이미 들어 있어 새 DB 는 불필요. 예전 DB 에만 한 번 실행.
 #   시연용 데모 데이터(유자차 마이페이지·마감 임박 파티·관광지 사진)는 05-시연-가이드.md 2-1 참고.
 

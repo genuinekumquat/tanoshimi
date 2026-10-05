@@ -1,6 +1,6 @@
 # 🗄️ ERD & 테이블 설계서
 
-원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) (2026-08-22 통합본, 이후 v18~v24 내용 반영) + `migration_v16_*` ~ `migration_v24_*`. 문서 기준일 2026-10-05.
+원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) (2026-08-22 통합본, 이후 v18~v24 내용 반영) + `migration_v16_*` ~ `migration_v25_*`. 문서 기준일 2026-10-05.
 DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 스키마 운영: `schema.sql` 단일 원본 + 번호 마이그레이션. JPA `ddl-auto: update`는 보조.
 > v21에서 결제·예약 3테이블(`reservations`, `reservation_payments`, `trip_schedule_payments`)과 `trip_schedules.reservation_id`를 **제거 완료**. 아래 목록·ERD는 제거 후 기준.
@@ -261,7 +261,7 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 |---|---|---|
 | `schedule_id` | BIGINT | FK |
 | `snapshot_data` | JSON | 저장 시점 전체 `trip_schedule_items` 스냅샷 |
-| `trigger_type` | ENUM(`auto`,`manual`) | 자동(20분 주기)/수동. ⚠️ 코드(`SnapshotTrigger`)는 `ai_valid`(AI 검증 전 임시저장)도 쓰는데 `schema.sql` ENUM에는 없다 — Hibernate가 만든 기존 로컬 DB는 `ai_valid`가 있지만, `schema.sql`로 새로 만든 DB에서는 AI 검증 시 저장 실패 가능 |
+| `trigger_type` | ENUM(`auto`,`manual`,`ai_valid`) | 자동(20분 주기) / 수동 / AI 검증 직전 임시저장. `ai_valid` 는 v25에서 추가 — 이전 `schema.sql` 로 만든 DB 는 `migration_v25_snapshot_trigger_ai_valid.sql` 을 실행해야 AI 검증 시 저장 실패(`Data truncated`)가 안 난다 |
 | `created_by` | BIGINT | FK `users` |
 | 인덱스 | `idx_snapshot_schedule(schedule_id, created_at)` | |
 
@@ -370,5 +370,6 @@ Spring Security `JdbcTokenRepositoryImpl` 표준 스키마: `username`(= `users.
 | `migration_v22_remember_me.sql` | `persistent_logins` (자동 로그인). 신규 DB는 `schema.sql`에 포함 |
 | `migration_v23_title_equip.sql` | `user_titles.equipped` (대표 칭호). 신규 DB는 `schema.sql`에 포함 |
 | `migration_v24_recommendation_likes.sql` | `recommendation_likes`. 신규 DB는 `schema.sql`에 포함 |
+| `migration_v25_snapshot_trigger_ai_valid.sql` | `trip_schedule_snapshots.trigger_type` 에 `ai_valid` 추가. 신규 DB는 `schema.sql`에 포함 |
 
 > 실행 순서는 [`db/README.md`](../src/main/resources/db/README.md) "처음 로컬 DB 세팅하는 순서"가 원본.
