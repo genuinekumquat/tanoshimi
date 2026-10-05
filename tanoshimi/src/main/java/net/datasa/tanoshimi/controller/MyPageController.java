@@ -402,6 +402,7 @@ public class MyPageController {
         if (!privateAndNotOwner) {
             // 비공개 프로필에는 테마도 입히지 않는다 - 스켈레톤+자물쇠 화면은 기본 배경 그대로.
             model.addAttribute("profileTheme", userProfileThemeService.currentTheme(target));
+            model.addAttribute("profileTitle", titleService.latestTitle(target));
             model.addAttribute("followerCount", followService.followerCount(target));
             model.addAttribute("followingCount", followService.followingCount(target));
             if (principal != null) {

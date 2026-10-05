@@ -134,6 +134,10 @@
             <p class="name">
               <span th:text="${m.user.name}"></span>
               <span th:if="${m.role.name() == 'owner'}" style="color:var(--sash); font-size:12px; margin-left:4px;">(방장)</span>
+              <th:block th:with="t=${memberTitles.get(m.user.id)}">
+                <span th:if="${t != null}" class="title-badge"
+                      th:title="${t.conditionDesc}" th:text="${(t.iconKey != null ? t.iconKey + ' ' : '') + t.name}">🧭 탐험가</span>
+              </th:block>
             </p>
           </div>
           <button type="button" class="btn-kick" th:if="${isOwner and m.role.name() != 'owner'}"
