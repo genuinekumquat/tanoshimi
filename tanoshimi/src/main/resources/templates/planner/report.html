@@ -12,22 +12,26 @@
             background-color: #ffffff;
             margin: 0;
             padding: 40px;
-            line-height: 1.6;
+            line-height: 1.5;
             max-width: 900px;
             margin: 0 auto;
+            font-size: 15px;
         }
         h1, h2, h3, h4, h5 {
             font-family: var(--font-display), 'Gowun Dodum', sans-serif;
             color: var(--forest);
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            margin: 15px 0;
+            font-size: 0.9em;
         }
         th, td {
             border: 1px solid var(--line);
-            padding: 12px;
+            padding: 8px 10px;
             text-align: left;
         }
         th {
@@ -42,10 +46,10 @@
         }
         ul, ol {
             padding-left: 20px;
-            margin: 10px 0;
+            margin: 8px 0;
         }
         li {
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
         b, strong {
             color: #c8a94b;
@@ -53,16 +57,34 @@
         .header {
             text-align: center;
             border-bottom: 2px solid var(--forest);
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
         }
         @media print {
+            @page {
+                size: A4;
+                margin: 20mm;
+            }
             body {
                 padding: 0;
             }
             .ai-report-content {
                 border: none;
                 background-color: transparent;
+                padding: 0;
+            }
+            table {
+                page-break-inside: auto;
+            }
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            h1, h2, h3, h4, h5 {
+                page-break-after: avoid;
+            }
+            .header {
+                margin-top: 0;
             }
         }
     </style>
@@ -84,6 +106,5 @@
             }, 800);
         };
     </script>
-<footer th:replace="~{fragments/layout :: footer}"></footer>
 </body>
 </html>

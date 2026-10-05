@@ -454,7 +454,7 @@ CREATE TABLE IF NOT EXISTS trip_schedule_snapshots (
     id            BIGINT   NOT NULL AUTO_INCREMENT,
     schedule_id   BIGINT   NOT NULL,
     snapshot_data JSON     NOT NULL COMMENT '저장 시점의 전체 trip_schedule_items 스냅샷',
-    trigger_type  ENUM('auto','manual','ai_valid') NOT NULL COMMENT '자동저장(20분 주기) / 수동저장 / AI 검증 직전 임시저장(ai_valid) 구분',
+    trigger_type  ENUM('auto','manual','ai_valid','ai_apply') NOT NULL COMMENT '자동저장(20분 주기) / 수동저장 / AI 검증 직전 임시저장(ai_valid) / AI 추천 반영 직후 저장(ai_apply) 구분',
     created_by    BIGINT   NOT NULL,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
