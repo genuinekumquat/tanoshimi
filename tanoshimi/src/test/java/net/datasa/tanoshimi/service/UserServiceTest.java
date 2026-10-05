@@ -296,12 +296,53 @@ class UserServiceTest {
     }
 
     @Test
-    void issueTemporaryPassword_존재하는_로컬계정이면_임시비밀번호를_즉시_반영하고_메일을_보낸다() {
+    void sendPasswordResetCode_로컬계정이면_find_password_용도로_인증번호를_보낸다() {
+        when(userRepository.findByEmail("user@test.com")).thenReturn(java.util.Optional.of(localUser("user@test.com", RAW_PASSWORD)));
+
+        userService.sendPasswordResetCode(" User@Test.com ");
+
+        verify(emailVerificationService).sendCode("user@test.com", VerificationPurpose.find_password);
+    }
+
+    @Test
+    void sendPasswordResetCode_가입되지_않은_이메일이면_인증번호를_보내지_않는다() {
+        when(userRepository.findByEmail(anyString())).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> userService.sendPasswordResetCode("nobody@test.com"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.USER_NOT_FOUND);
+
+        verify(emailVerificationService, never()).sendCode(anyString(), any());
+    }
+
+    @Test
+    void issueTemporaryPassword_인증번호가_틀리면_비밀번호를_바꾸지_않는다() {
+        UserEntity user = localUser("user@test.com", RAW_PASSWORD);
+        String before = user.getPassword();
+        when(userRepository.findByEmail("user@test.com")).thenReturn(java.util.Optional.of(user));
+        doThrow(new BusinessException(ErrorCode.VERIFICATION_CODE_MISMATCH))
+                .when(emailVerificationService).confirmCode("user@test.com", "000000", VerificationPurpose.find_password);
+
+        assertThatThrownBy(() -> userService.issueTemporaryPassword("user@test.com", "000000"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.VERIFICATION_CODE_MISMATCH);
+
+        assertThat(user.getPassword()).isEqualTo(before);
+        assertThat(user.isMustChangePassword()).isFalse();
+        verify(emailSender, never()).sendTemporaryPassword(anyString(), anyString());
+    }
+
+    @Test
+    void issueTemporaryPassword_인증번호가_맞으면_임시비밀번호를_즉시_반영하고_메일을_보낸다() {
         UserEntity user = localUser("user@test.com", RAW_PASSWORD);
         when(userRepository.findByEmail("user@test.com")).thenReturn(java.util.Optional.of(user));
 
-        userService.issueTemporaryPassword(" User@Test.com ");
+        userService.issueTemporaryPassword(" User@Test.com ", "123456");
 
+        verify(emailVerificationService).confirmCode("user@test.com", "123456", VerificationPurpose.find_password);
+        verify(emailVerificationService).consumeVerified("user@test.com", VerificationPurpose.find_password);
         assertThat(user.isMustChangePassword()).isTrue();
         // 발급된 임시 비밀번호로 로그인할 수 있어야 하고(=인코딩된 해시가 실제로 바뀌었어야 하고),
         // 예전 비밀번호로는 더 이상 로그인할 수 없어야 한다.
@@ -317,7 +358,7 @@ class UserServiceTest {
     void issueTemporaryPassword_가입되지_않은_이메일이면_USER_NOT_FOUND_예외() {
         when(userRepository.findByEmail(anyString())).thenReturn(java.util.Optional.empty());
 
-        assertThatThrownBy(() -> userService.issueTemporaryPassword("nobody@test.com"))
+        assertThatThrownBy(() -> userService.issueTemporaryPassword("nobody@test.com", "123456"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.USER_NOT_FOUND);
@@ -332,7 +373,7 @@ class UserServiceTest {
                 net.datasa.tanoshimi.domain.entity.Nationality.KR, "google", "social-id-1");
         when(userRepository.findByEmail("user@test.com")).thenReturn(java.util.Optional.of(social));
 
-        assertThatThrownBy(() -> userService.issueTemporaryPassword("user@test.com"))
+        assertThatThrownBy(() -> userService.issueTemporaryPassword("user@test.com", "123456"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.SOCIAL_ACCOUNT_NO_PASSWORD);

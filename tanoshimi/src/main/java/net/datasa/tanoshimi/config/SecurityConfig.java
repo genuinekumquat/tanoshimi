@@ -133,7 +133,8 @@ public class  SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/assets/**", "/vendor/**", "/favicon.ico", "/uploads/**", "/model/**").permitAll()
-                        .requestMatchers("/api/companion/chat").permitAll()
+                        // /api/companion/chat(타미 챗봇)은 호출마다 외부 AI 요금이 나가서 비로그인 허용을 없앴다
+                        // (anyRequest().authenticated() 로 떨어짐) - CompanionChatController 참고.
                         .requestMatchers("/", "/login", "/logout", "/signup", "/signup/**", "/find-password",
                                 "/api/auth/**", "/api/verification/**",
                                 "/oauth2/**", "/login/oauth2/**", "/error", "/error/**").permitAll()

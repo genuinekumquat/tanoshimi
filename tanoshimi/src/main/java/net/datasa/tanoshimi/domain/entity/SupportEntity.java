@@ -32,6 +32,7 @@ public class SupportEntity {
     @Column(name = "guest_id", nullable = false, length = 50)
     private String guestId;
 
+    /** BCrypt 해시. 이 변경 이전에 쓴 글은 평문일 수 있다 - SupportService.verifyGuest 가 확인 성공 시 해시로 바꾼다. */
     @Column(name = "guest_password", nullable = false, length = 100)
     private String guestPassword;
 
@@ -45,5 +46,10 @@ public class SupportEntity {
         this.content = content;
         this.guestId = guestId;
         this.guestPassword = guestPassword;
+    }
+
+    /** 평문으로 저장돼 있던 예전 글의 비밀번호를 해시로 교체한다. */
+    public void replacePasswordHash(String encodedPassword) {
+        this.guestPassword = encodedPassword;
     }
 }

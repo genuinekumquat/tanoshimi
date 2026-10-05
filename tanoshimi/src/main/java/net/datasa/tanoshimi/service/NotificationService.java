@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.domain.dto.NotificationView;
 import net.datasa.tanoshimi.domain.entity.NotificationEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
+import net.datasa.tanoshimi.exception.BusinessException;
+import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.NotificationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,9 +62,13 @@ public class NotificationService {
      * Hibernate 가 변경을 감지 못 해 저장이 안 되는 문제가 있었다(PostService.toggleLike 와 동일한 버그).
      */
     @Transactional
-    public void markRead(Long notificationId) {
+    public void markRead(Long notificationId, Long requesterId) {
         NotificationEntity notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("알림을 찾을 수 없습니다. id=" + notificationId));
+        // 본인 알림만 읽음 처리 - 예전엔 id 만 바꿔서 남의 알림도 읽음으로 만들 수 있었다.
+        if (!notification.getUser().getId().equals(requesterId)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
         notification.markRead();
     }
 }

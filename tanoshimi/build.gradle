@@ -47,6 +47,8 @@ dependencies {
 	implementation 'com.drewnoakes:metadata-extractor:2.18.0'
 	// WebP 이미지 변환 처리기
 	implementation 'org.sejda.imageio:webp-imageio:0.1.6'
+	// AI 가 만든 HTML(계획표 리포트)을 허용 태그만 남기고 정화 - script/on* 속성 제거(XSS 방지)
+	implementation 'org.jsoup:jsoup:1.21.1'
 
 	// 6. AWS 인프라 (S3, Pre-signed URL, AI 이미지 분석)
 	implementation platform('software.amazon.awssdk:bom:2.25.11')

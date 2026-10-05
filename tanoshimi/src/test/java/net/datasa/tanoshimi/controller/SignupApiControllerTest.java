@@ -122,9 +122,16 @@ class SignupApiControllerTest {
     // ------------------------------------------------------------ findPassword
 
     @Test
-    void findPassword_이메일을_대소문자_공백_정규화해서_서비스에_넘긴다() {
-        controller.findPassword(new SignupApiController.FindPasswordRequest("  User@Test.com "));
+    void sendFindPasswordCode_이메일을_대소문자_공백_정규화해서_서비스에_넘긴다() {
+        controller.sendFindPasswordCode(new SignupApiController.FindPasswordCodeRequest("  User@Test.com "));
 
-        verify(userService).issueTemporaryPassword("user@test.com");
+        verify(userService).sendPasswordResetCode("user@test.com");
+    }
+
+    @Test
+    void findPassword_정규화한_이메일과_인증번호를_서비스에_넘긴다() {
+        controller.findPassword(new SignupApiController.FindPasswordRequest("  User@Test.com ", "123456"));
+
+        verify(userService).issueTemporaryPassword("user@test.com", "123456");
     }
 }

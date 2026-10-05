@@ -55,6 +55,10 @@ public enum ErrorCode {
 
     // [v16 신규] AI 크레딧
     AI_CREDIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "오늘의 AI 추천 크레딧을 모두 사용했어요. 내일 다시 시도해 주세요."),
+    COMPANION_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "타미가 잠깐 숨 고르는 중이에요. 잠시 후에 다시 말 걸어 주세요."),
+
+    // 고객지원 비회원 문의 본인 확인
+    SUPPORT_AUTH_LOCKED(HttpStatus.TOO_MANY_REQUESTS, "비밀번호를 여러 번 틀렸어요. 10분 뒤에 다시 시도해 주세요."),
 
     // [v16 신규] 유저 차단 (TNSM-96)
     BLOCKED_USER(HttpStatus.FORBIDDEN, "차단 관계인 상대에게는 메시지를 보낼 수 없습니다."),

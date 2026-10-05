@@ -35,8 +35,8 @@ public class NotificationController {
     }
 
     @PostMapping("/{id}/read")
-    public ApiResponse<Void> markRead(@PathVariable Long id) {
-        notificationService.markRead(id);
+    public ApiResponse<Void> markRead(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal) {
+        notificationService.markRead(id, principal.getId());
         return ApiResponse.okMessage("확인했습니다.");
     }
 }

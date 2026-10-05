@@ -51,6 +51,7 @@ public class WebSocketSubscriptionInterceptor implements ChannelInterceptor {
 
     private static final Pattern CHAT_TOPIC = Pattern.compile("^/topic/chat/(\\d+)$");
     private static final Pattern PLANNER_TOPIC = Pattern.compile("^/topic/planner/(\\d+)$");
+    private static final Pattern NOTIFICATION_TOPIC = Pattern.compile("^/topic/user\\.(\\d+)\\.notifications$");
 
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
@@ -93,7 +94,17 @@ public class WebSocketSubscriptionInterceptor implements ChannelInterceptor {
             return message;
         }
 
-        return message;
+        // 개인 알림 채널은 본인만 구독할 수 있다 - 예전엔 검사가 없어 남의 알림(댓글 내용 등)을 엿볼 수 있었다.
+        Matcher notificationMatcher = NOTIFICATION_TOPIC.matcher(destination);
+        if (notificationMatcher.matches()) {
+            if (!resolveUser(accessor).getId().equals(Long.valueOf(notificationMatcher.group(1)))) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+            return message;
+        }
+
+        // 위 세 채널 말고는 구독할 일이 없다 - 새 채널이 생기면 여기에 검사를 추가할 것(기본 거부).
+        throw new BusinessException(ErrorCode.ACCESS_DENIED);
     }
 
     /** ChatWebSocketController.send() 와 같은 방식으로 STOMP 세션의 Principal 에서 유저를 찾는다. */

@@ -14,6 +14,7 @@ import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.UserRepository;
 import net.datasa.tanoshimi.service.*;
+import net.datasa.tanoshimi.util.AiHtmlSanitizer;
 import net.datasa.tanoshimi.util.GeminiClient;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -420,7 +421,8 @@ public class PlannerController {
             }
         }
 
-        model.addAttribute("reportHtml", aiHtml);
+        // 일정 제목(사용자 입력)이 AI 입력에 들어가므로 출력 HTML 을 그대로 믿지 않는다 - 허용 태그만 남긴다.
+        model.addAttribute("reportHtml", AiHtmlSanitizer.sanitize(aiHtml));
         return "planner/report";
     }
 
