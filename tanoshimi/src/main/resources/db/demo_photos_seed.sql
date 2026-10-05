@@ -104,8 +104,25 @@ SET p.thumbnail_url = CONCAT('/uploads/demo_', r.file);
 
 DROP TABLE demo_region_photo, demo_title_photo, demo_post_target, demo_region_rank;
 
+-- ---------------------------------------------------------------- 액티비티: 사진과 안 맞던 이름 정리 (2026-10-05)
+-- 같은 장소 사진이 없어 비슷한 사진을 대신 붙였던 8곳을, 반대로 "사진 속 장소"로 이름·설명·좌표를 바꾼다.
+-- data.sql 도 같은 값으로 바뀌었고, 이 블록은 예전 이름이 남아 있는 DB 를 위한 것(예전 이름일 때만 바뀌므로 재실행 안전).
+UPDATE activities a
+JOIN (
+    SELECT '도쿄 디즈니씨 야간 불꽃쇼' AS old_title, '도쿄 스카이트리 전망대' AS new_title, 'indoor' AS venue, '명소' AS style, 90 AS dur, 28000 AS krw, 3100 AS jpy, '높이 634m, 일본에서 가장 높은 전파탑 전망대.' AS descr, 35.7101 AS lat, 139.8107 AS lng
+    UNION ALL SELECT '오다이바 야경', '도쿄타워 전망대', 'indoor', '명소', 60, 11000, 1200, '도쿄 도심을 내려다보는 붉은 전파탑.', 35.6586, 139.7454
+    UNION ALL SELECT '스미요시타이샤 하츠모데', '신세카이 츠텐카쿠 거리', 'outdoor', '먹거리', 90, 0, 0, '츠텐카쿠 타워 아래 쿠시카츠 골목과 레트로 간판 거리.', 34.6525, 135.5063
+    UNION ALL SELECT '체험 다이빙', '만좌모 해안 절벽', 'outdoor', '명소', 60, 1000, 100, '코끼리 코 모양 바위로 유명한 해안 절벽 전망지.', 26.5048, 127.8504
+    UNION ALL SELECT '미이바루 비치 스노클링', '아메리칸 빌리지 관람차 야경', 'outdoor', '명소', 90, 0, 0, '미하마 아메리칸 빌리지의 대관람차와 바닷가 야경.', 26.3164, 127.7574
+    UNION ALL SELECT '니세코 스키 체험', '후라노 꽃밭 산책', 'outdoor', '힐링', 90, 0, 0, '여름 라벤더와 색색의 꽃이 줄지어 핀 언덕.', 43.4183, 142.4278
+    UNION ALL SELECT '하카타 라멘 스트리트', '나카스 강변 야타이', 'mixed', '먹거리', 90, 15000, 1500, '나카가와 강변 포장마차에서 즐기는 돈코츠 라멘과 꼬치.', 33.5925, 130.4044
+    UNION ALL SELECT '야나가와 뱃놀이', '캐널시티 하카타', 'indoor', '명소', 120, 0, 0, '건물 사이로 운하가 흐르는 대형 복합 쇼핑몰.', 33.5897, 130.4108
+) m ON m.old_title = a.title COLLATE utf8mb4_unicode_ci
+SET a.title = m.new_title, a.venue_type = m.venue, a.style_tag = m.style, a.duration_min = m.dur,
+    a.price_krw = m.krw, a.price_jpy = m.jpy, a.description = m.descr, a.latitude = m.lat, a.longitude = m.lng;
+
 -- ---------------------------------------------------------------- 액티비티: 제목 기준 1:1 매칭
--- 같은 장소 사진이 없는 항목(디즈니씨/하라주쿠/니세코/다이빙 등)은 같은 지역의 가장 비슷한 사진으로 대체.
+-- 하라주쿠 편집숍 투어는 파일명이 sensoji 지만 실제 사진은 하라주쿠 거리다.
 UPDATE activities a
 JOIN (
     SELECT '기요미즈데라' AS title, 'kyoto_kiyomizu.jpg' AS file
@@ -113,24 +130,24 @@ JOIN (
     UNION ALL SELECT '아라시야마 대나무숲',        'kyoto_arashiyama.jpg'
     UNION ALL SELECT '기온 마치야 카페',           'kyoto_gion.jpg'
     UNION ALL SELECT '시부야 스크램블 교차로',     'tokyo_shibuya.jpg'
-    UNION ALL SELECT '도쿄 디즈니씨 야간 불꽃쇼',  'tokyo_skytree.jpg'
+    UNION ALL SELECT '도쿄 스카이트리 전망대',  'tokyo_skytree.jpg'
     UNION ALL SELECT '하라주쿠 편집숍 투어',       'tokyo_sensoji.jpg'
-    UNION ALL SELECT '오다이바 야경',              'tokyo_tower.jpg'
-    UNION ALL SELECT '스미요시타이샤 하츠모데',    'osaka_shinsekai.jpg'
+    UNION ALL SELECT '도쿄타워 전망대',              'tokyo_tower.jpg'
+    UNION ALL SELECT '신세카이 츠텐카쿠 거리',    'osaka_shinsekai.jpg'
     UNION ALL SELECT '도톤보리 야경 산책',         'osaka_dotonbori.jpg'
     UNION ALL SELECT '우메다 공중정원 전망대',     'osaka_umeda.jpg'
     UNION ALL SELECT '쿠로몬 시장 먹거리 투어',    'osaka_kuromon.jpg'
     UNION ALL SELECT '유니버설 스튜디오 재팬',     'osaka_usj.jpg'
     UNION ALL SELECT '츄라우미 수족관',            'okinawa_churaumi.jpg'
-    UNION ALL SELECT '체험 다이빙',                'okinawa_manzamo.jpg'
-    UNION ALL SELECT '미이바루 비치 스노클링',     'okinawa_american.jpg'
+    UNION ALL SELECT '만좌모 해안 절벽',                'okinawa_manzamo.jpg'
+    UNION ALL SELECT '아메리칸 빌리지 관람차 야경',     'okinawa_american.jpg'
     UNION ALL SELECT '국제거리 쇼핑',              'okinawa_kokusai.jpg'
-    UNION ALL SELECT '니세코 스키 체험',           'hokkaido_furano.jpg'
+    UNION ALL SELECT '후라노 꽃밭 산책',           'hokkaido_furano.jpg'
     UNION ALL SELECT '노보리베츠 온천',            'hokkaido_noboribetsu.jpg'
     UNION ALL SELECT '오타루 운하 야경',           'hokkaido_otaru.jpg'
-    UNION ALL SELECT '하카타 라멘 스트리트',       'fukuoka_nakasu.jpg'
+    UNION ALL SELECT '나카스 강변 야타이',       'fukuoka_nakasu.jpg'
     UNION ALL SELECT '다자이후 텐만구',            'fukuoka_dazaifu.jpg'
-    UNION ALL SELECT '야나가와 뱃놀이',            'fukuoka_canalcity.jpg'
+    UNION ALL SELECT '캐널시티 하카타',            'fukuoka_canalcity.jpg'
 ) m ON m.title = a.title COLLATE utf8mb4_unicode_ci
 SET a.thumbnail_url = CONCAT('/uploads/demo_', m.file)
 WHERE a.thumbnail_url IS NULL OR a.thumbnail_url IN ('', 'ph1', 'ph2', 'ph3', 'ph4')

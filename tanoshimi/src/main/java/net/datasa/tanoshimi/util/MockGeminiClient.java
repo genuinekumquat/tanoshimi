@@ -28,7 +28,7 @@ public class MockGeminiClient implements GeminiClient {
 		//    DB 목록에서 ID 몇 개를 뽑아 kind=recommend로, 하나는 kind=custom(가짜 신규 발굴)으로 섞어서 응답
 		else if (prompt.contains("Return a JSON array of exactly 5 recommended schedule items")) {
 			return "[" +
-					"{\"kind\":\"recommend\",\"activityId\":1,\"title\":\"스미요시타이샤 하츠모데\",\"durationMin\":90}," +
+					"{\"kind\":\"recommend\",\"activityId\":1,\"title\":\"신세카이 츠텐카쿠 거리\",\"durationMin\":90}," +
 					"{\"kind\":\"recommend\",\"activityId\":3,\"title\":\"우메다 공중정원 전망대\",\"durationMin\":60}," +
 					"{\"kind\":\"custom\",\"activityId\":null,\"title\":\"[MOCK] 로컬 사진 명소\",\"durationMin\":45}," +
 					"{\"kind\":\"recommend\",\"activityId\":2,\"title\":\"도톤보리 야경 산책\",\"durationMin\":60}," +
