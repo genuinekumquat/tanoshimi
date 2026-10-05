@@ -149,7 +149,7 @@
                 <span class="brand-word">Tanoshimi</span>
             </a>
             <nav class="gnb-main hide-mobile">
-                <a th:href="@{/recommendations}">관광지 추천</a>
+                <a th:href="@{/recommendations}">관광지 둘러보기</a>
                 <a th:href="@{/party-board}">파티 찾기</a>
                 <a th:href="@{/board}">여행 스냅</a>
                 <a th:href="@{/my-parties}" sec:authorize="isAuthenticated()">내 파티</a>
@@ -249,7 +249,7 @@
         </div>
         <ul class="side-nav">
             <li sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin}" class="danger">👑 관리자 메뉴</a></li>
-            <li><a th:href="@{/recommendations}">⛩️ 관광지 추천</a></li>
+            <li><a th:href="@{/recommendations}">⛩️ 관광지 둘러보기</a></li>
             <li><a th:href="@{/party-board}">👫 파티 찾기</a></li>
             <li><a th:href="@{/board}">📸 여행 스냅</a></li>
             <li sec:authorize="isAuthenticated()"><a th:href="@{/my-parties}">🧳 내 파티</a></li>
@@ -316,7 +316,7 @@
             <div class="footer-col">
                 <h4>둘러보기</h4>
                 <a th:href="@{/party-board}">파티 찾기</a>
-                <a th:href="@{/recommendations}">관광지 추천</a>
+                <a th:href="@{/recommendations}">관광지 둘러보기</a>
                 <a th:href="@{/board}">여행 스냅</a>
                 <a th:href="@{/planner}">여행 플래너</a>
             </div>
