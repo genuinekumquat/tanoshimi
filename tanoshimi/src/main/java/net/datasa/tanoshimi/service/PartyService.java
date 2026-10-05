@@ -243,6 +243,22 @@ public class PartyService {
         return tripScheduleRepository.findByParty(party)
                 .orElseGet(() -> tripScheduleRepository.save(new TripScheduleEntity(party)));
     }
+
+    /**
+     * 헤더/푸터 "여행 플래너" 메뉴(/planner)용 - 아직 진행 중인(모집중·모집마감) 파티 중 가장 최근에
+     * 참여한 파티의 계획표, 없으면 가장 최근에 참여한 파티의 계획표. 참여한 파티가 없으면 empty.
+     */
+    @Transactional
+    public java.util.Optional<TripScheduleEntity> latestScheduleFor(UserEntity user) {
+        List<PartyEntity> parties = partyMemberRepository.findByUserOrderByJoinedAtDesc(user).stream()
+                .map(PartyMemberEntity::getParty)
+                .toList();
+        return parties.stream()
+                .filter(p -> p.getStatus() == PartyStatus.recruiting || p.getStatus() == PartyStatus.full)
+                .findFirst()
+                .or(() -> parties.stream().findFirst())
+                .map(this::ensureSchedule);
+    }
     
     @Transactional
     public void updateParty(Long partyId, UserEntity owner, PartyCreateRequest req) {
