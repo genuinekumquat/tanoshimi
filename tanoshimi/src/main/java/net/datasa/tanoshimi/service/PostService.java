@@ -7,6 +7,7 @@ import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.*;
+import net.datasa.tanoshimi.util.ThumbnailUrlPolicy;
 import org.springframework.data.domain.Page;
 import java.util.ArrayList;
 import java.util.List;
@@ -219,6 +220,7 @@ public class PostService {
             }
         }
 
+        ThumbnailUrlPolicy.validate(req.thumbnailUrl());
         PostEntity post = PostEntity.builder()
                 .user(author).party(party).trip(trip)
                 .title(req.title()).content(req.content())
@@ -236,6 +238,7 @@ public class PostService {
         if (!post.getUser().getId().equals(requester.getId()) && !requester.isAdmin()) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED);
         }
+        ThumbnailUrlPolicy.validate(req.thumbnailUrl());
         post.edit(req.title(), req.content(), req.region(), req.thumbnailUrl());
         fileStorageService.markActive(req.thumbnailUrl());
     }

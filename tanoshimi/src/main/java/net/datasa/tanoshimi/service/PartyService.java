@@ -7,6 +7,7 @@ import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.*;
+import net.datasa.tanoshimi.util.ThumbnailUrlPolicy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -202,7 +203,7 @@ public class PartyService {
     @Transactional
     public Long createParty(UserEntity owner, PartyCreateRequest req) {
         TourEntity tour = req.tourId() == null ? null : tourRepository.findById(req.tourId()).orElse(null);
-        
+        ThumbnailUrlPolicy.validate(req.thumbnailUrl());
         PartyEntity party = PartyEntity.builder()
                 .owner(owner)
                 .tour(tour)
@@ -284,6 +285,7 @@ public class PartyService {
                 NationalityRestriction.valueOf(req.nationalityRestriction())
         );
         if (req.thumbnailUrl() != null && !req.thumbnailUrl().isBlank()) {
+            ThumbnailUrlPolicy.validate(req.thumbnailUrl());
             party.changeThumbnail(req.thumbnailUrl());
             fileStorageService.markActive(req.thumbnailUrl());
         }
