@@ -52,7 +52,7 @@ cp src/main/resources/application-local.yml.example src/main/resources/applicati
 
 회원가입 본인인증은 v18부터 **휴대폰 SMS가 아니라 이메일 인증번호**다(알리고 SMS는 사업자등록번호
 없이 실사용이 어려워 전환. `phone_verifications`/`PhoneVerificationService`는 남아 있지만 미사용).
-비밀번호 찾기(`/find-password`)는 이메일로 임시 비밀번호를 보내고, 그걸로 로그인하면 비밀번호
+비밀번호 찾기(`/find-password`)는 이메일로 받은 인증번호를 확인한 뒤 임시 비밀번호를 보내고, 그걸로 로그인하면 비밀번호
 변경 모달이 강제로 뜬다(`users.must_change_password`, v19).
 
 로컬 기본값은 **실제 메일을 보내지 않습니다.** `app.email.provider` 기본값이 `log`라

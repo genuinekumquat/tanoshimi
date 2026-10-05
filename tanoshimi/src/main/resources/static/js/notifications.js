@@ -15,7 +15,8 @@
     function showToast(title, message, linkUrl) {
         const toast = document.createElement('div');
         toast.style.cssText = 'background:#fff; border-left:4px solid var(--forest,#2e7d32); box-shadow:0 10px 30px rgba(0,0,0,0.1); border-radius:8px; padding:16px 20px; width:300px; transform:translateX(120%); transition:transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor:pointer;';
-        toast.innerHTML = `<div style="font-size:14px; font-weight:bold; margin-bottom:4px; color:#333;">${title}</div><div style="font-size:13px; color:#666; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${message}</div>`;
+        // title/message 에는 댓글 본문·파티 제목 같은 사용자 입력이 들어간다 - 반드시 이스케이프.
+        toast.innerHTML = `<div style="font-size:14px; font-weight:bold; margin-bottom:4px; color:#333;">${escapeHtml(title)}</div><div style="font-size:13px; color:#666; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(message)}</div>`;
         
         toast.onclick = () => { if(linkUrl) location.href = linkUrl; };
         toastContainer.appendChild(toast);
@@ -28,11 +29,11 @@
         }, 5000);
     }
 
-    if (!bell) return;
-
     function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
+
+    if (!bell) return;
 
     async function refreshBadge() {
         const result = await window.api.get('/api/notifications/unread-count');

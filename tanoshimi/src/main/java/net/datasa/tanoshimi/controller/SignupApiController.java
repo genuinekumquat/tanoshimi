@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.auth.SessionLoginHelper;
@@ -61,13 +62,26 @@ public class SignupApiController {
         return ApiResponse.okMessage("가입이 완료되었습니다.");
     }
 
-    public record FindPasswordRequest(@NotBlank @Email String email) {
+    public record FindPasswordCodeRequest(@NotBlank @Email String email) {
         String normalizedEmail() { return email.trim().toLowerCase(); }
     }
 
+    public record FindPasswordRequest(@NotBlank @Email String email,
+                                      @NotBlank @Pattern(regexp = "^[0-9]{6}$") String code) {
+        String normalizedEmail() { return email.trim().toLowerCase(); }
+    }
+
+    /** 비밀번호 재발급 1단계 - 그 이메일로 인증번호를 보낸다(메일함 소유 확인용). */
+    @PostMapping("/find-password/send")
+    public ApiResponse<Void> sendFindPasswordCode(@Valid @RequestBody FindPasswordCodeRequest request) {
+        userService.sendPasswordResetCode(request.normalizedEmail());
+        return ApiResponse.okMessage("인증번호를 이메일로 보냈어요. 5분 안에 입력해 주세요.");
+    }
+
+    /** 비밀번호 재발급 2단계 - 인증번호가 맞을 때만 임시 비밀번호를 발급한다. */
     @PostMapping("/find-password")
     public ApiResponse<Void> findPassword(@Valid @RequestBody FindPasswordRequest request) {
-        userService.issueTemporaryPassword(request.normalizedEmail());
+        userService.issueTemporaryPassword(request.normalizedEmail(), request.code());
         return ApiResponse.okMessage("임시 비밀번호를 이메일로 보내드렸어요. 로그인 후 꼭 비밀번호를 변경해 주세요.");
     }
 }

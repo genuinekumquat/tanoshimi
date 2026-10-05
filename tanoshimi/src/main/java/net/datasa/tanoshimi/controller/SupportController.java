@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.entity.SupportEntity;
+import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.service.SupportService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -61,7 +62,15 @@ public class SupportController {
                             @RequestParam String guestPassword,
                             HttpSession session,
                             RedirectAttributes rttr) {
-        if (supportService.verifyGuest(id, guestId, guestPassword)) {
+        boolean verified;
+        try {
+            verified = supportService.verifyGuest(id, guestId, guestPassword);
+        } catch (BusinessException e) {
+            // 연속 실패로 잠긴 경우 - 확인 화면에 안내만 띄운다
+            rttr.addFlashAttribute("error", e.getMessage());
+            return "redirect:/support/" + id;
+        }
+        if (verified) {
             session.setAttribute("support_auth_" + id, true);
             return "redirect:/support/" + id + "/view";
         }

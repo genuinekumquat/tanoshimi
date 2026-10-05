@@ -145,22 +145,46 @@ public class UserService {
     }
 
     /**
-     * 비밀번호 재발급 - 이메일 입력 -> 임시 비밀번호를 생성해 즉시 password 에 반영하고
+     * 비밀번호 재발급 1단계 - 재발급 대상(가입된 일반 계정)인지 확인하고 그 이메일로 인증번호를 보낸다.
+     */
+    @Transactional
+    public void sendPasswordResetCode(String rawEmail) {
+        String email = normalizeEmail(rawEmail);
+        findPasswordResettableUser(email);
+        emailVerificationService.sendCode(email, VerificationPurpose.find_password);
+    }
+
+    /**
+     * 비밀번호 재발급 2단계 - 인증번호를 확인한 뒤 임시 비밀번호를 생성해 즉시 password 에 반영하고
      * 이메일로 보낸다(팀 논의로 확정한 워크플로우: 발급 즉시 기존 비밀번호를 무효화).
      * 다음 로그인 때 강제로 비밀번호를 바꾸게 만든다. 소셜 전용 계정은 애초에 로그인
      * 불가능한 랜덤 해시만 갖고 있어 이 절차 대상이 아니다.
+     *
+     * <p>예전엔 이메일만 입력하면 바로 재발급돼서, 남의 이메일만 알아도 그 사람 비밀번호를 계속
+     * 무효화할 수 있었다. 이제 그 메일함에서 받은 인증번호를 맞혀야 재발급된다.
      */
     @Transactional
-    public void issueTemporaryPassword(String rawEmail) {
-        String email = rawEmail == null ? null : rawEmail.trim().toLowerCase();
-        UserEntity user = userRepository.findByEmail(email).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        if (user.isSocialAccount()) {
-            throw new BusinessException(ErrorCode.SOCIAL_ACCOUNT_NO_PASSWORD);
-        }
+    public void issueTemporaryPassword(String rawEmail, String code) {
+        String email = normalizeEmail(rawEmail);
+        UserEntity user = findPasswordResettableUser(email);
+        emailVerificationService.confirmCode(email, code, VerificationPurpose.find_password);
+        emailVerificationService.consumeVerified(email, VerificationPurpose.find_password);
 
         String tempPassword = generateTemporaryPassword();
         user.issueTemporaryPassword(passwordEncoder.encode(tempPassword));
         emailSender.sendTemporaryPassword(email, tempPassword);
+    }
+
+    private UserEntity findPasswordResettableUser(String email) {
+        UserEntity user = userRepository.findByEmail(email).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (user.isSocialAccount()) {
+            throw new BusinessException(ErrorCode.SOCIAL_ACCOUNT_NO_PASSWORD);
+        }
+        return user;
+    }
+
+    private static String normalizeEmail(String rawEmail) {
+        return rawEmail == null ? null : rawEmail.trim().toLowerCase();
     }
 
     /** 현재 비밀번호 확인 후 새 비밀번호로 교체한다. 자발적 변경과 강제 변경(임시 비밀번호 이후) 공용. */
