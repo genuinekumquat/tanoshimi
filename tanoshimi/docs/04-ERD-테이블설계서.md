@@ -1,6 +1,6 @@
 # 🗄️ ERD & 테이블 설계서
 
-원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) (2026-08-22 통합본) + `migration_v16_*` ~ `migration_v21_*`.
+원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) (2026-08-22 통합본, 이후 v18~v24 내용 반영) + `migration_v16_*` ~ `migration_v25_*`. 문서 기준일 2026-10-05.
 DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 스키마 운영: `schema.sql` 단일 원본 + 번호 마이그레이션. JPA `ddl-auto: update`는 보조.
 > v21에서 결제·예약 3테이블(`reservations`, `reservation_payments`, `trip_schedule_payments`)과 `trip_schedules.reservation_id`를 **제거 완료**. 아래 목록·ERD는 제거 후 기준.
@@ -10,8 +10,9 @@ DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 | # | 테이블 | 도메인 | 비고 |
 |---|---|---|---|
 | 1 | `users` | 회원 | 거의 모든 테이블의 참조 중심 |
-| 2 | `phone_verifications` | 인증 | 휴대폰 SMS 인증(알리고) |
-| 3 | `titles` / `user_titles` | 마이페이지 | 칭호 카탈로그 / 보유 칭호. v17에서 38종 개편 |
+| 2 | `phone_verifications` | 인증 | 휴대폰 SMS 인증(알리고). **v18 이후 가입 흐름에선 미사용**(번호 변경용으로 보존) |
+| 2-1 | `email_verifications` | 인증 | v18 신규. 회원가입 이메일 본인인증 |
+| 3 | `titles` / `user_titles` | 마이페이지 | 칭호 카탈로그 / 보유 칭호. v17 38종 개편 → v18 40종. v23: `user_titles.equipped` |
 | 4 | `tours` | 상품 | 항공+숙박+교통 패키지(더미 고정가) |
 | 5 | `activities` | 상품 | 계획표에 넣는 개별 액티비티. v16: `venue_type` NULL 허용 + 장소검색 캐싱 컬럼 |
 | 6 | `parties` | 파티 | 번개모임 |
@@ -20,7 +21,8 @@ DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 | 9 | `trip_schedules` | 플래너 | 파티당 1개. v16: `locked_by_user_id`, `last_saved_at`. v21: `reservation_id` 제거 |
 | 10 | `trip_schedule_items` | 플래너 | 일정 블록(분 단위). v16: `is_fixed` |
 | 11 | `trip_schedule_votes` | 플래너 | 계획표 찬반 투표 |
-| 12 | `posts` / `post_likes` / `post_comments` | 커뮤니티 | 여행 게시판 |
+| 11-1 | `my_trips` | 마이페이지 | v19 신규. "내 여행" — 칭호·히트맵 집계의 단일 근거 |
+| 12 | `posts` / `post_likes` / `post_comments` | 커뮤니티 | 여행 게시판(스냅). v19: `posts.trip_id` |
 | 13 | `follows` | 커뮤니티 | 팔로우 |
 | 14 | `chat_rooms` / `chat_room_members` / `chat_messages` | 커뮤니티 | 파티 채팅 + DM 공용 |
 | 15 | `notifications` | 알림 | 인앱 알림 |
@@ -29,6 +31,10 @@ DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 | 18 | `manner_temp_logs` | 마이페이지 | v16 신규. 매너온도 가감 이력 |
 | 19 | `ai_credit_usage` | AI | v16 신규. 사용자별 일일 AI 크레딧 |
 | 20 | `user_profile_theme` | 마이페이지 | v16 신규. 프로필 배경 테마 |
+| 21 | `user_blocks` | 커뮤니티 | v16 신규(TNSM-96). 유저 차단 |
+| 22 | `user_notification_settings` | 마이페이지 | 계정 설정 — 알림 설정(1인 1행) |
+| 23 | `persistent_logins` | 인증 | v22. 자동 로그인 토큰(Spring Security 표준 스키마, JPA 엔티티 없음) |
+| 24 | `recommendation_likes` | 커뮤니티 | v24. 관광지 추천 좋아요 1인 1회 |
 
 > **v21 제거**: `reservations`, `reservation_payments`, `trip_schedule_payments` (구 9·10·13번).
 
@@ -36,6 +42,8 @@ DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 
 엔티티(`@Table`)는 있으나 `schema.sql` 본문에 없는 것 — 후속 마이그레이션/`ddl-auto`로 생성:
 `banners`, `support` / `support_comment`, `recommendation`, `tour_reviews`, `file_meta`
+
+> `persistent_logins`는 반대로 엔티티가 없어 `ddl-auto`로 안 생긴다 — `schema.sql`(또는 기존 DB는 v22)로 반드시 만들어야 하고, 없으면 로그아웃 시 500.
 
 ### ✅ 결제/예약 제거 완료 (`migration_v21_remove_reservation_payment.sql`)
 
@@ -91,6 +99,13 @@ erDiagram
     users ||--o{ manner_temp_logs : "대상"
     users ||--o{ ai_credit_usage : "일일 사용량"
     users ||--o| user_profile_theme : "1:1"
+
+    users ||--o{ my_trips : "내 여행"
+    parties ||--o{ my_trips : "source=PARTY"
+    my_trips ||--o{ posts : "trip_id (nullable)"
+    users ||--o{ user_blocks : "blocker/blocked"
+    users ||--o| user_notification_settings : "1:1"
+    users ||--o{ recommendation_likes : ""
 ```
 
 ## 3. 관계 요약
@@ -109,6 +124,9 @@ erDiagram
 | `titles` | `user_titles` | 1:N | `uk_user_title(user_id, title_id)` |
 | `posts` | `post_likes` / `post_comments` | 1:N | `uk_like_post_user` |
 | `chat_rooms` | `chat_room_members` / `chat_messages` | 1:N | `uk_room_user`, `idx_room_created` |
+| `users` | `my_trips` | 1:N | `uq_my_trips_user_party(user_id, party_id)` — 같은 파티 중복 등록 방지 |
+| `my_trips` | `posts` | 0..1:N | `fk_post_trip` (`posts.trip_id`) |
+| `users` | `user_blocks` | 1:N | `uk_block_pair(blocker_id, blocked_id)`, `ck_block_not_self` |
 
 **다형(polymorphic) 참조 — FK 없음**
 - `reports.target_type` + `target_id` → `post` / `party` / `user`. 신고 시점 라벨을 `target_label`에 스냅샷.
@@ -124,10 +142,12 @@ erDiagram
 |---|---|---|---|
 | `id` | BIGINT | PK, AI | |
 | `email` | VARCHAR(255) | NOT NULL, `uk_users_email` | 로그인 ID |
+| `username` | VARCHAR(30) | NOT NULL, `uk_users_username` | **v20**. 프로필 URL `/{username}` 아이디. 항상 소문자(`UsernamePolicy`), 콜레이션 `utf8mb4_unicode_ci` 고정 |
 | `password` | VARCHAR(255) | NOT NULL | BCrypt 해시. 소셜 전용은 랜덤 해시 |
 | `name` | VARCHAR(50) | NOT NULL | |
 | `phone` | VARCHAR(20) | NOT NULL, `uk_users_phone` | |
 | `phone_verified` | BOOLEAN | DEFAULT FALSE | |
+| `must_change_password` | BOOLEAN | DEFAULT FALSE | **v19**. 임시 비밀번호 로그인 시 강제 변경 |
 | `gender` | ENUM(`male`,`female`) | NOT NULL | 파티 성별 제한 매칭 |
 | `birth_date` | DATE | NOT NULL | 성인 인증 + 연령 제한 |
 | `nationality` | ENUM(`KR`,`JP`) | NOT NULL | 국적 제한 필터 |
@@ -138,7 +158,8 @@ erDiagram
 | `status` | ENUM(`active`,`suspended`) | DEFAULT `active` | 관리자 정지 |
 | `profile_image_url` | VARCHAR(500) | NULL | |
 | `intro` | VARCHAR(300) | NULL | 자기소개 |
-| `social_provider` / `social_id` | VARCHAR | NULL, `uk_users_social(provider,id)` | google / naver (로컬 가입 NULL) |
+| `social_provider` / `social_id` | VARCHAR | NULL, `uk_users_social(provider,id)` | google / naver / line (로컬 가입 NULL) |
+| `is_private` | BOOLEAN | DEFAULT FALSE | 계정 공개범위. TRUE면 타인이 프로필 열람 불가 |
 
 ### 4.2 `phone_verifications` — 휴대폰 인증
 
@@ -152,11 +173,17 @@ erDiagram
 | `verified_at` / `used_at` | DATETIME NULL | 인증 완료 / 소비 시각 |
 | 인덱스 | `idx_pv_phone_purpose(phone, purpose, created_at)` | |
 
+> v18부터 회원가입은 `email_verifications`를 쓴다. 이 테이블은 휴대폰 번호 변경 등을 위해 남겨 둔 것(현재 미사용).
+
+### 4.2-1 `email_verifications` — 이메일 인증 (v18 신규)
+
+`phone_verifications`와 같은 구조에서 `phone` 대신 `email` VARCHAR(255). `purpose`, `code_hash`, `expires_at`, `attempt_count`, `verified_at`/`used_at`. 인덱스 `idx_ev_email_purpose(email, purpose, created_at)`.
+
 ### 4.3 `titles` / `user_titles` — 칭호
 
 `titles`: `code`(유니크, 접두사가 카테고리), `name`, `category`(표시용, **NULL 허용** — 코드에서 널 처리 주의), `condition_desc`, `icon_key`(이모지).
-`user_titles`: `user_id` + `title_id` (`uk_user_title` 유니크), `earned_at`. FK 양쪽.
-v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M / 일본권역 J / 매너온도 MAN / 파티활동 P / 여행거리 D / 액티비티 A) 총 38종으로 개편.
+`user_titles`: `user_id` + `title_id` (`uk_user_title` 유니크), `equipped` BOOLEAN(**v23**, 대표 칭호. 1인 1개는 `TitleService.equipTitle`에서 보장), `earned_at`. FK 양쪽. `idx_ut_user_equipped(user_id, equipped)`.
+v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M / 일본권역 J / 매너온도 MAN / 파티활동 P / 여행거리 D / 액티비티 A) 총 38종으로 개편. v18: 여행거리 상위 2종(지구 반바퀴/한바퀴) 추가로 **총 40종**(판정 로직 없는 12종 포함).
 
 ### 4.4 `tours` — 패키지 상품 (더미 고정가)
 
@@ -234,13 +261,13 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 |---|---|---|
 | `schedule_id` | BIGINT | FK |
 | `snapshot_data` | JSON | 저장 시점 전체 `trip_schedule_items` 스냅샷 |
-| `trigger_type` | ENUM(`auto`,`manual`) | 자동(주기)/수동. *(코드에서 `ai_valid` 추가 예정 — feature/planner)* |
+| `trigger_type` | ENUM(`auto`,`manual`,`ai_valid`) | 자동(20분 주기) / 수동 / AI 검증 직전 임시저장. `ai_valid` 는 v25에서 추가 — 이전 `schema.sql` 로 만든 DB 는 `migration_v25_snapshot_trigger_ai_valid.sql` 을 실행해야 AI 검증 시 저장 실패(`Data truncated`)가 안 난다 |
 | `created_by` | BIGINT | FK `users` |
 | 인덱스 | `idx_snapshot_schedule(schedule_id, created_at)` | |
 
 ### 4.12 `posts` / `post_likes` / `post_comments`
 
-- `posts`: `user_id`, `party_id`(NULL 가능), `title`, `content` TEXT, `region`, `thumbnail_url`, `like_count`(비정규화 카운트).
+- `posts`: `user_id`, `party_id`(NULL 가능), `trip_id`(**v19**, NULL 가능, FK `my_trips`), `title`, `content` TEXT, `region`, `thumbnail_url`, `like_count`(비정규화 카운트).
 - `post_likes`: `uk_like_post_user(post_id,user_id)`.
 - `post_comments`: `content` VARCHAR(300).
 
@@ -282,15 +309,44 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 
 ### 4.20 `user_profile_theme` — 프로필 배경 (v16 신규)
 
-`user_id` (`uk_upt_user` 유니크 = 1:1), `theme_key` VARCHAR(50)(사전 정의 스킨 키), `updated_at`.
+`user_id` (`uk_upt_user` 유니크 = 1:1), `theme_key` VARCHAR(50)(사전 정의 스킨 키 6종), `updated_at`.
+
+### 4.21 `my_trips` — 내 여행 (v19 신규)
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| `user_id` | BIGINT | FK `users` |
+| `source` | ENUM(`SOLO`,`PARTY`) | PARTY = 파티 완료 시 자동 생성(수정·삭제 불가, `MyTripService.syncFromCompletedParties` 멱등), SOLO = 사용자 직접 등록 |
+| `party_id` | BIGINT NULL | `source=PARTY`일 때만. FK `parties`. `uq_my_trips_user_party(user_id, party_id)` |
+| `title` / `destination` | VARCHAR | 여행지는 자유 입력 |
+| `start_date` / `end_date` | DATE | |
+| `memo` | VARCHAR(500) NULL | |
+
+`TitleService`·`TravelHeatmapService`는 parties/posts를 직접 스캔하지 않고 이 테이블만 본다. 파티 여행은 연결된 스냅(`posts.trip_id`)이 1장 이상 있어야 집계에 반영.
+
+### 4.22 `user_blocks` — 유저 차단 (v16 신규, TNSM-96)
+
+`blocker_id`, `blocked_id`(FK `users`), `created_at`. `uk_block_pair(blocker_id, blocked_id)`, `idx_block_blocked`, `ck_block_not_self`. 차단 여부는 조회 시점 EXISTS로 판단(`user_blocks_design_decisions.txt`).
+
+### 4.23 `user_notification_settings` — 알림 설정
+
+`user_id`(`uk_uns_user` = 1:1), `push_enabled`, `email_enabled`, `focus_mode_enabled`, `notify_*` 7종(new_follower / new_comment / party_application / party_approved / party_rejected / party_kicked / trip_reminder). 현재는 저장만 하고 실제 발송 여부를 좌우하지 않는다.
+
+### 4.24 `persistent_logins` — 자동 로그인 (v22)
+
+Spring Security `JdbcTokenRepositoryImpl` 표준 스키마: `username`(= `users.email`), `series`(PK), `token`, `last_used`. 컬럼명을 바꾸면 라이브러리 쿼리가 깨진다.
+
+### 4.25 `recommendation_likes` — 관광지 추천 좋아요 (v24)
+
+`recommendation_id`, `user_id`(FK `users`), `created_at`. `uk_rl_rec_user(recommendation_id, user_id)`. `recommendation`은 JPA가 만드는 테이블이라 그쪽 FK는 Hibernate가 채운다. 기존 `recommendation.like_count`는 그대로 둠.
 
 ## 5. 인덱스 / 제약 요약
 
 | 종류 | 목록 |
 |---|---|
-| 유니크 | `users`(email, phone, social), `user_titles`, `titles.code`, `activities.external_place_id`, `party_members`, `party_applications`, `trip_schedules`(party), `trip_schedule_votes`, `post_likes`, `follows`, `chat_room_members`, `ai_credit_usage`, `user_profile_theme` |
-| CHECK | `tours`(가격>0), `trip_schedule_items`(start 0~1439, duration≥1), `follows`(자기 팔로우 금지) |
-| 조회 인덱스 | `phone_verifications`, `chat_messages`(room+created), `notifications`(user+read+created), `reports`(status+created), `trip_schedule_snapshots`(schedule+created), `manner_temp_logs`(user+created) |
+| 유니크 | `users`(email, username, phone, social), `user_titles`, `titles.code`, `activities.external_place_id`, `party_members`, `party_applications`, `trip_schedules`(party), `trip_schedule_votes`, `my_trips`(user+party), `post_likes`, `follows`, `chat_room_members`, `ai_credit_usage`, `user_profile_theme`, `user_blocks`, `user_notification_settings`, `recommendation_likes` |
+| CHECK | `tours`(가격>0), `trip_schedule_items`(start 0~1439, duration≥1), `follows`(자기 팔로우 금지), `user_blocks`(자기 차단 금지) |
+| 조회 인덱스 | `phone_verifications`, `email_verifications`, `user_titles`(user+equipped), `chat_messages`(room+created), `notifications`(user+read+created), `reports`(status+created), `trip_schedule_snapshots`(schedule+created), `manner_temp_logs`(user+created) |
 | 비정규화 | `posts.like_count` (좋아요 수 캐시) |
 
 ## 6. 시드 / 마이그레이션 파일
@@ -298,9 +354,22 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 | 파일 | 내용 |
 |---|---|
 | `schema.sql` | 전체 스키마(통합본) |
-| `data.sql` | 데모 데이터. **모든 계정 비밀번호 `Test1234!`** (BCrypt). 관리자 1 + 한국인 4 + 일본인 3 |
-| `demo_heatmap_data.sql` | 히트맵 데모용 여행/파티 데이터 |
+| `data.sql` | 데모 데이터. 계정 비밀번호 `Test1234!` (BCrypt) — 단 `adminlegacy` 계정은 예외, 시연은 `admin@tanoshimi.local`. 계정 목록은 `05-시연-가이드.md` |
+| `demo_mypage_seed.sql` | 유자차 계정 마이페이지 데모(내 여행·스냅·히트맵·칭호). 2단계 실행(파일 상단 주석) |
+| `demo_urgent_parties_seed.sql` | 메인 "모집 마감 임박" 파티. 출발일이 실행일 기준이라 발표 직전 재실행 |
+| `demo_photos_seed.sql` + `apply_demo_photos.sh` | 게시물·액티비티·투어 썸네일을 실제 관광지 사진으로 교체(멱등) |
 | `migration_v16_planner_manner_ai.sql` | 플래너 편집권/자동저장/롤백, 매너온도 이력, AI 크레딧, 장소검색 캐싱, 프로필 꾸미기, 파티 완료 처리 |
 | `migration_v16_mypage_titles.sql` | 칭호 조건을 예약 기준 → 완료 파티 기준으로 교체 |
 | `migration_v17_titles_catalog.sql` | 칭호 38종 / 8카테고리 개편 |
+| `migration_v18_email_verification.sql` | `email_verifications` 신규 — 회원가입 인증 SMS → 이메일 |
+| `migration_v18_titles_distance_tiers.sql` | 여행 거리 칭호 2종 추가 → 총 40종 |
+| `migration_v19_my_trips.sql` | `my_trips` 신규 + `posts.trip_id` |
+| `migration_v19_temporary_password.sql` | `users.must_change_password` (임시 비밀번호) |
+| `migration_v20_usernames.sql` | `users.username` 추가 + 기존 회원 백필(재실행 안전) |
 | `migration_v21_remove_reservation_payment.sql` | ✅ 결제·예약 3테이블 + `trip_schedules.reservation_id` 제거. 기존 DB만 실행(신규 DB는 갱신된 `schema.sql`) |
+| `migration_v22_remember_me.sql` | `persistent_logins` (자동 로그인). 신규 DB는 `schema.sql`에 포함 |
+| `migration_v23_title_equip.sql` | `user_titles.equipped` (대표 칭호). 신규 DB는 `schema.sql`에 포함 |
+| `migration_v24_recommendation_likes.sql` | `recommendation_likes`. 신규 DB는 `schema.sql`에 포함 |
+| `migration_v25_snapshot_trigger_ai_valid.sql` | `trip_schedule_snapshots.trigger_type` 에 `ai_valid` 추가. 신규 DB는 `schema.sql`에 포함 |
+
+> 실행 순서는 [`db/README.md`](../src/main/resources/db/README.md) "처음 로컬 DB 세팅하는 순서"가 원본.
