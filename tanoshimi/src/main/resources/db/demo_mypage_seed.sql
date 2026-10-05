@@ -99,6 +99,17 @@ SELECT * FROM (VALUES
 ) AS v(owner_user_id, tour_id, title, region, departure_date, duration_days, capacity, style_tag, status)
 WHERE NOT @demo_parties_exist;
 
+-- 방장을 파티원(owner)으로도 등록 - 앱에서 파티를 만들 때(PartyService)와 같은 상태로 맞춘다.
+-- "내 여행" 동기화(MyTripService.syncFromCompletedParties)는 party_members 기준으로 완료 파티를
+-- 찾기 때문에, 이 행이 없으면 두 번 실행해도 파티 여행 29건이 하나도 안 생긴다.
+-- 이미 [demo] 파티가 있던 DB 에도 빠진 행만 채운다(재실행 안전).
+INSERT INTO party_members (party_id, user_id, role)
+SELECT p.id, p.owner_user_id, 'owner'
+  FROM parties p
+ WHERE p.title LIKE '[demo]%'
+   AND NOT EXISTS (SELECT 1 FROM party_members pm
+                    WHERE pm.party_id = p.id AND pm.user_id = p.owner_user_id);
+
 -- ---------------------------------------------------------------------
 -- PART 2. 지역 태그 스냅 21건 (지도 호버 시 사진 표시용 - PostService.regionTaggedPosts 근거,
 --   trip 연결/여행 횟수 집계와는 무관한 순수 장식용 데이터)
