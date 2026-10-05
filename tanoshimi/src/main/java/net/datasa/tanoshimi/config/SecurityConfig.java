@@ -145,6 +145,8 @@ public class  SecurityConfig {
                         // 클라이언트에서 fetch 하는 댓글 조회 API도 같이 공개해야 한다.
                         // 댓글 작성/삭제(POST/DELETE)는 이 규칙에 안 걸리므로 계속 인증이 필요하다.
                         .requestMatchers(HttpMethod.GET, "/api/posts/*/comments").permitAll()
+                        // 관광지 둘러보기 목록만 공개. 글쓰기(/recommendations/write)·좋아요는 계속 인증 필요.
+                        .requestMatchers(HttpMethod.GET, "/recommendations").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/ws/**").authenticated()
                         .anyRequest().authenticated()

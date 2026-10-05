@@ -1,51 +1,51 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
-    <meta th:replace="~{fragments/layout :: head('관광지 추천')}">
+    <meta th:replace="~{fragments/layout :: head('관광지 둘러보기')}">
     <style>
-        .rec-wrap {
-            max-width: 1200px; padding: 40px 20px; margin: 0 auto;
+        .rec-wrap { max-width: 1200px; padding: 40px 20px; margin: 0 auto; }
+        .rec-header { margin-bottom: 20px; }
+        .rec-header h1 { font-size: 28px; font-weight: 900; color: var(--forest); margin: 0 0 6px; }
+        .rec-header p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+
+        /* 지역 칩 - 가로 스크롤(모바일에서 줄바꿈 대신 밀어서 보기) */
+        .region-chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 12px; margin-bottom: 12px; }
+        .region-chip {
+            flex: 0 0 auto; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line);
+            background: #fff; color: var(--ink); font-weight: 700; font-size: 14px; text-decoration: none; transition: 0.15s;
         }
-        .rec-header {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;
+        .region-chip:hover { border-color: var(--forest); color: var(--forest); }
+        .region-chip.on { background: var(--forest); border-color: var(--forest); color: #fff; }
+
+        .region-sec { margin-top: 28px; }
+        .region-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .region-head h2 { margin: 0; font-size: 22px; font-weight: 900; color: var(--ink); }
+        .region-head h2 small { font-size: 14px; font-weight: 700; color: var(--ink-faint); margin-left: 6px; }
+        .party-cta {
+            display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px;
+            background: var(--sash); color: #fff; font-weight: 800; font-size: 14px; text-decoration: none; transition: 0.15s;
         }
-        .rec-header h1 {
-            font-size: 28px; font-weight: 900; color: var(--forest); margin: 0;
-        }
-        .btn-write {
-            background: var(--forest); color: #fff; padding: 10px 20px; border-radius: 8px; font-weight: 700; text-decoration: none; transition: 0.2s;
-        }
-        .btn-write:hover { background: var(--forest-deep); }
-        
-        .rec-grid {
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
-        }
+        .party-cta:hover { background: var(--sash-deep); }
+        .party-cta.empty { background: #fff; color: var(--forest); border: 1px solid var(--forest); }
+        .party-cta.empty:hover { background: var(--forest); color: #fff; }
+
+        .rec-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
         @media(max-width: 900px) { .rec-grid { grid-template-columns: repeat(3, 1fr); } }
-        @media(max-width: 600px) { .rec-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media(max-width: 640px) { .rec-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
         @media(max-width: 400px) { .rec-grid { grid-template-columns: 1fr; } }
-        
-        .rec-card {
-            background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: translateY(-4px) 0.3s;
-        }
-        .rec-card:hover { box-shadow: 0 12px 24px rgba(0,0,0,0.1); transform: translateY(-8px); }
-        .rec-img-wrap {
-            width: 100%; aspect-ratio: 4/3; background: #dfe4ec; position: relative;
-        }
-        .rec-img-wrap img {
-            width: 100%; height: 100%; object-fit: cover;
-        }
-        .rec-info { padding: 16px; }
-        .rec-region { font-size: 13px; font-weight: 800; color: var(--sash); margin-bottom: 6px; }
-        .rec-title { font-size: 18px; font-weight: 800; color: var(--ink); margin: 0 0 10px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .rec-content { font-size: 14px; color: var(--ink-soft); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 12px;}
-        .rec-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #dfe4ec; padding-top: 12px; font-size: 13px; color: #98a1b4; }
-        
-        .like-btn {
-            background: none; border: 1px solid #dfe4ec; border-radius: 20px; padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600; color: var(--ink-soft); transition: 0.2s;
-        }
-        .like-btn:hover { background: #fdf1f1; color: var(--sash); border-color: var(--sash); }
-        .like-btn.liked { background: #fdf1f1; color: var(--sash); border-color: var(--sash); }
-        .like-btn:disabled { cursor: wait; }
+
+        .rec-card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; }
+        .rec-card:hover { box-shadow: 0 12px 24px rgba(0,0,0,0.1); transform: translateY(-4px); }
+        .rec-img-wrap { width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, var(--sky), var(--parchment-deep)); position: relative; }
+        .rec-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .rec-badges { position: absolute; left: 10px; top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .rec-badge { background: rgba(255,255,255,0.92); color: var(--ink); font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 999px; }
+        .rec-info { padding: 14px 16px 16px; display: flex; flex-direction: column; flex: 1; }
+        .rec-title { font-size: 17px; font-weight: 800; color: var(--ink); margin: 0 0 6px; line-height: 1.4; }
+        .rec-content { font-size: 14px; color: var(--ink-soft); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0 0 10px; }
+        .rec-meta { margin-top: auto; display: flex; gap: 12px; font-size: 13px; font-weight: 700; color: var(--ink-faint); }
+
+        .rec-empty { text-align: center; padding: 60px 20px; color: var(--ink-faint); font-weight: 600; font-size: 16px; }
     </style>
 </head>
 <body style="background:var(--parchment); font-family:'Pretendard', sans-serif;">
@@ -53,58 +53,57 @@
 
 <div class="rec-wrap">
     <div class="rec-header">
-        <h1>📸 관광지 추천</h1>
-        <a sec:authorize="isAuthenticated()" th:href="@{/recommendations/write}" class="btn-write">추천 글쓰기</a>
+        <h1>⛩️ 관광지 둘러보기</h1>
+        <p th:text="${'계획표에 바로 넣을 수 있는 일본 명소 ' + totalPlaces + '곳. 마음에 드는 지역이 있으면 함께 갈 파티를 찾아보세요.'}">
+            계획표에 바로 넣을 수 있는 일본 명소</p>
     </div>
 
-    <div class="rec-grid">
-        <div th:each="rec : ${recommendations}" class="rec-card">
-            <div class="rec-img-wrap">
-                <img th:src="${rec.imageUrl}" alt="명소 사진" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'400\' height=\'400\'><rect width=\'100%\' height=\'100%\' fill=\'#dfe4ec\'/><text x=\'50%\' y=\'50%\' fill=\'#aaa\' font-family=\'sans-serif\' font-size=\'20\' text-anchor=\'middle\' dy=\'.3em\'>No Image</text></svg>';">
-            </div>
-            <div class="rec-info">
-                <div class="rec-region" th:text="${rec.region}">도쿄</div>
-                <h3 class="rec-title" th:text="${rec.title}">추천 장소 이름</h3>
-                <div class="rec-content" th:text="${rec.content}">장소 설명 내용</div>
-                
-                <div class="rec-footer">
-                    <span th:text="${rec.authorId}">작성자</span>
-                    <button class="like-btn" th:classappend="${likedIds.contains(rec.id)} ? 'liked'"
-                            th:attr="onclick='likeRec(this, ' + ${rec.id} + ')',aria-pressed=${likedIds.contains(rec.id)}">
-                        <span class="heart" th:text="${likedIds.contains(rec.id)} ? '❤️' : '🤍'">🤍</span>
-                        <span class="cnt" th:text="${rec.likeCount}">0</span>
-                    </button>
+    <nav class="region-chips" aria-label="지역 선택">
+        <a th:href="@{/recommendations}" class="region-chip" th:classappend="${selectedRegion == null} ? 'on'"
+           th:attr="aria-current=${selectedRegion == null} ? 'page' : null">전체</a>
+        <a th:each="r : ${regions}" th:href="@{/recommendations(region=${r})}" class="region-chip"
+           th:classappend="${r == selectedRegion} ? 'on'" th:attr="aria-current=${r == selectedRegion} ? 'page' : null"
+           th:text="${r}">오사카</a>
+    </nav>
+
+    <section th:each="rv : ${regionViews}" class="region-sec" th:aria-labelledby="${'region-' + rvStat.index}">
+        <div class="region-head">
+            <h2 th:id="${'region-' + rvStat.index}"><span th:text="${rv.region}">오사카</span><small th:text="${rv.places.size() + '곳'}">5곳</small></h2>
+            <a th:if="${rv.openPartyCount > 0}" class="party-cta" th:href="@{/party-board(region=${rv.region})}"
+               th:text="${'👫 ' + rv.region + ' 모집 중인 파티 ' + rv.openPartyCount + '개 보기'}">👫 모집 중인 파티 보기</a>
+            <a th:if="${rv.openPartyCount == 0}" class="party-cta empty" th:href="@{/party-board/create}"
+               th:text="${'✏️ ' + rv.region + ' 파티 직접 만들기'}">✏️ 파티 직접 만들기</a>
+        </div>
+
+        <div class="rec-grid">
+            <article th:each="p : ${rv.places}" class="rec-card">
+                <div class="rec-img-wrap">
+                    <img th:if="${p.thumbnailUrl != null and !#strings.isEmpty(p.thumbnailUrl)}" th:src="${p.thumbnailUrl}" th:alt="${p.title}"
+                         loading="lazy" onerror="this.remove();">
+                    <div class="rec-badges">
+                        <span th:if="${p.styleTag != null}" class="rec-badge" th:text="${p.styleTag}">명소</span>
+                        <span th:if="${p.venueType != null}" class="rec-badge"
+                              th:text="${p.venueType.name() == 'indoor' ? '🏠 실내' : (p.venueType.name() == 'outdoor' ? '🌤 실외' : '🏠🌤 실내·외')}">실외</span>
+                    </div>
                 </div>
-            </div>
+                <div class="rec-info">
+                    <h3 class="rec-title" th:text="${p.title}">관광지 이름</h3>
+                    <p class="rec-content" th:if="${p.description != null and !#strings.isEmpty(p.description)}" th:text="${p.description}">설명</p>
+                    <div class="rec-meta">
+                        <span th:text="${'⏱ ' + (p.durationMin >= 60 ? (p.durationMin / 60) + '시간' + (p.durationMin % 60 > 0 ? ' ' + (p.durationMin % 60) + '분' : '') : p.durationMin + '분')}">⏱ 1시간 30분</span>
+                        <span th:text="${p.priceKrw > 0 ? '₩' + #numbers.formatInteger(p.priceKrw, 0, 'COMMA') : '무료'}">무료</span>
+                    </div>
+                </div>
+            </article>
         </div>
-        
-        <div th:if="${recommendations == null || recommendations.size() == 0}" style="grid-column:1/-1; text-align:center; padding: 60px; color:#98a1b4; font-weight:600; font-size:16px;">
-            아직 추천된 관광지가 없습니다. 첫 추천의 주인공이 되어보세요!
-        </div>
+    </section>
+
+    <div th:if="${regionViews == null || regionViews.isEmpty()}" class="rec-empty">
+        이 지역에는 아직 등록된 관광지가 없어요.
+        <a th:href="@{/recommendations}">전체 지역 보기</a>
     </div>
 </div>
 
-<script>
-    // 좋아요 토글 - 응답이 오기 전 연타로 요청이 겹치지 않게 버튼을 잠깐 잠근다.
-    async function likeRec(btn, id) {
-        if(!window.api || btn.disabled) return;
-        btn.disabled = true;
-        try {
-            const res = await window.api.post(`/recommendations/${id}/like`, {});
-            if(!res.success) {
-                alert(res.message || '좋아요 처리에 실패했어요.');
-                return;
-            }
-            const { liked, likeCount } = res.data;
-            btn.classList.toggle('liked', liked);
-            btn.setAttribute('aria-pressed', liked);
-            btn.querySelector('.heart').innerText = liked ? '❤️' : '🤍';
-            btn.querySelector('.cnt').innerText = likeCount;
-        } finally {
-            btn.disabled = false;
-        }
-    }
-</script>
 <footer th:replace="~{fragments/layout :: footer}"></footer>
 </body>
 </html>
