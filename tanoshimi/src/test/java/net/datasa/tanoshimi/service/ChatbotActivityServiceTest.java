@@ -73,7 +73,7 @@ class ChatbotActivityServiceTest {
         List<ActivityEntity> pool = List.of(activity(1L, "오사카성"), activity(2L, "도톤보리"));
         when(activityRepository.findByRegionAndStatus("오사카", ActiveStatus.active)).thenReturn(pool);
         
-        List<RecommendationDto> result = chatbotActivityService.recommend("오사카", LocalDate.now(), null, "", false);
+        List<RecommendationDto> result = chatbotActivityService.recommend(1L, "오사카", LocalDate.now(), null, "", false).items();
         
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getKind()).isEqualTo("recommend");
@@ -86,7 +86,7 @@ class ChatbotActivityServiceTest {
         when(activityRepository.findByRegionAndStatus("오사카", ActiveStatus.active)).thenReturn(pool);
         when(geminiClient.ask(anyString())).thenReturn("이건 JSON이 아니라 그냥 문장입니다.");
         
-        List<RecommendationDto> result = chatbotActivityService.recommend("오사카", LocalDate.now(), "아무거나 추천해줘", "", false);
+        List<RecommendationDto> result = chatbotActivityService.recommend(1L, "오사카", LocalDate.now(), "아무거나 추천해줘", "", false).items();
         
         assertThat(result).hasSize(2);
         assertThat(result).extracting(RecommendationDto::getTitle).containsExactly("오사카성", "도톤보리");
@@ -99,7 +99,7 @@ class ChatbotActivityServiceTest {
         when(activityRepository.findByRegionAndStatus("오사카", ActiveStatus.active)).thenReturn(pool);
         when(geminiClient.ask(anyString())).thenThrow(new RuntimeException("Gemini 타임아웃"));
         
-        List<RecommendationDto> result = chatbotActivityService.recommend("오사카", LocalDate.now(), "아무거나 추천해줘", "", false);
+        List<RecommendationDto> result = chatbotActivityService.recommend(1L, "오사카", LocalDate.now(), "아무거나 추천해줘", "", false).items();
         
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getTitle()).isEqualTo("오사카성");
@@ -113,7 +113,7 @@ class ChatbotActivityServiceTest {
         when(geminiClient.ask(anyString())).thenReturn("[]");
         
         LocalDate date = LocalDate.of(2026, 9, 20);
-        chatbotActivityService.recommend("오사카", date, "커플 여행 코스 추천", "커플, 액티브", false);
+        chatbotActivityService.recommend(1L, "오사카", date, "커플 여행 코스 추천", "커플, 액티브", false);
         
         ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
         verify(geminiClient).ask(promptCaptor.capture());

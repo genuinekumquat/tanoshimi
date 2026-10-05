@@ -8,17 +8,14 @@ import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.UserRepository;
 import net.datasa.tanoshimi.service.AdminService;
+import net.datasa.tanoshimi.service.AiCallStatsService;
 import net.datasa.tanoshimi.service.BannerService;
 import net.datasa.tanoshimi.service.ReportService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @Controller
@@ -26,11 +23,12 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
-
+    
     private final UserRepository userRepository;
     private final AdminService adminService;
     private final BannerService bannerService;
     private final ReportService reportService;
+    private final AiCallStatsService aiCallStatsService;
 
     @GetMapping
     public String dashboard(@AuthenticationPrincipal CustomUserDetails admin,
@@ -45,7 +43,16 @@ public class AdminController {
         model.addAttribute("pendingReportCount", adminService.pendingReportCount());
         return "admin/users";
     }
-
+    
+    // ============================================
+    // AI 호출 통계 (오늘 하루, 성공/실패 사유별 집계)
+    // ============================================
+    @GetMapping("/ai-stats")
+    @ResponseBody
+    public java.util.Map<String, Integer> aiStats() {
+        return aiCallStatsService.today();
+    }
+    
     @PostMapping("/users/{id}/suspend")
     public String suspend(@PathVariable Long id, @RequestParam int duration, @AuthenticationPrincipal CustomUserDetails admin) {
         adminService.suspendUser(id, duration, admin.getId());

@@ -1,14 +1,15 @@
 package net.datasa.tanoshimi.domain.entity;
 
 import jakarta.persistence.*;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /** 계획표에 드래그해서 넣는 사이트 제공 유료 액티비티. */
 @Entity
@@ -48,8 +49,10 @@ public class ActivityEntity {
 
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
-
+    
+    @Column(precision = 10, scale = 7)
     private BigDecimal latitude;
+    @Column(precision = 10, scale = 7)
     private BigDecimal longitude;
 
     /** [v16 신규] 장소검색 API의 장소 고유 id - 같은 장소를 중복 저장하지 않기 위한 키. */

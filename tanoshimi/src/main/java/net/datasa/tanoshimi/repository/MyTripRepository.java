@@ -3,9 +3,10 @@ package net.datasa.tanoshimi.repository;
 import net.datasa.tanoshimi.domain.entity.MyTripEntity;
 import net.datasa.tanoshimi.domain.entity.PartyEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
 
 /** [⑥ 마이페이지] "내 여행" - v19 신규. MyTripEntity 클래스 주석 참고. */
 public interface MyTripRepository extends JpaRepository<MyTripEntity, Long> {
@@ -16,4 +17,8 @@ public interface MyTripRepository extends JpaRepository<MyTripEntity, Long> {
 
     /** 수정/삭제 전 소유권 확인용. */
     Optional<MyTripEntity> findByIdAndUser(Long id, UserEntity user);
+    
+    
+    /** [TNSM-72] 파티 삭제 시, 그 파티를 가리키는 "내 여행" 기록들을 찾아 party 참조를 끊기 위함. */
+    List<MyTripEntity> findByParty(PartyEntity party);
 }

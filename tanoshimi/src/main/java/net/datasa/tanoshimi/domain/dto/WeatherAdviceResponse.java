@@ -7,7 +7,7 @@ import java.util.List;
 @Data
 @Builder
 public class WeatherAdviceResponse {
-	private boolean isRecommendable;
+	private boolean recommendable;;
 	private String weatherCondition;
 	private String message;
 	private List<ActivityEntity> alternatives;

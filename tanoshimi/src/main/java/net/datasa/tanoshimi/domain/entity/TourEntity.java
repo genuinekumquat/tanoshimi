@@ -1,15 +1,16 @@
 package net.datasa.tanoshimi.domain.entity;
 
 import jakarta.persistence.*;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
  * 항공+숙박+교통 패키지 (고정가 더미데이터).
@@ -84,8 +85,10 @@ public class TourEntity {
 
     @Column(name = "location_address", length = 300)
     private String locationAddress;
-
+    
+    @Column(precision = 10, scale = 7)
     private BigDecimal latitude;
+    @Column(precision = 10, scale = 7)
     private BigDecimal longitude;
 
     @Column(name = "external_flight_url", length = 500)

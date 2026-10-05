@@ -8,7 +8,7 @@
   .page-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
   .page-head h1{ font-size:26px; margin:0; }
   .page-head .sub{ color:var(--ink-soft); font-size:13.5px; margin:4px 0 0; }
-  
+
   .filter-row{ display:flex; gap:8px; margin-bottom:20px; border-bottom:1px solid var(--line); padding-bottom:16px; }
   .filter-row button{
     font-family:inherit; font-size:13px; font-weight:700; color:var(--ink-soft); background:transparent;
@@ -34,20 +34,28 @@
   .thumb .ph2{ background:linear-gradient(135deg,#dbe7f5,var(--parchment-deep)); }
   .thumb .ph3{ background:linear-gradient(135deg,#e4e6f3,#c3c8e4); }
   .thumb .ph4{ background:linear-gradient(135deg,#f0e7e4,#dcc7c0); }
-  
+
   .info{ flex:1; min-width:0; }
   .info h3{ font-size:16px; margin:0 0 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px; }
   .role-tag{ font-size:10px; background:var(--sun); color:#fff; padding:2px 6px; border-radius:4px; font-weight:700; }
   .oneliner{ font-size:12px; color:var(--ink-soft); margin:0 0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  
+
   .specs{ display:flex; gap:12px; font-size:12px; color:var(--ink-soft); }
-  
+
   .status-chip{
     font-size:12px; font-weight:700; padding:6px 14px; border-radius:999px; flex:none;
   }
   .status-upcoming{ background:var(--sky); color:#0f2247; }
   .status-progress{ background:var(--forest); color:#fff; }
   .status-done{ background:#dfe4ec0cf; color:var(--ink-soft); }
+
+  /* [TNSM-72] 내 파티 카드에 삭제(파티장)/나가기(멤버) 버튼 추가 */
+  .card-actions{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex:none; }
+  .leave-btn{
+    font-family:inherit; font-size:11px; font-weight:700; color:var(--ink-soft); background:transparent;
+    border:1px solid var(--line); border-radius:999px; padding:5px 10px; cursor:pointer; white-space:nowrap;
+  }
+  .leave-btn:hover{ color:#c0392b; border-color:#c0392b; background:rgba(192,57,43,.06); }
 
   .empty{ text-align:center; padding:60px 0; color:var(--ink-soft); font-size:14px; }
   .empty .ic{ display:block; font-size:32px; margin-bottom:12px; filter:grayscale(1); opacity:.5; }
@@ -73,10 +81,10 @@
     <!-- list members object mapped to html -->
     <a th:each="m : ${memberships}" th:href="@{'/party-board/' + ${m.party.id} + '/room'}" class="my-party-card"
        th:data-status="${m.party.status.name() == 'recruiting' ? 'upcoming' : (m.party.status.name() == 'full' ? 'progress' : 'done')}">
-      
+
       <div class="thumb" th:classappend="${(m.party.thumbnailUrl == null or !#strings.startsWith(m.party.thumbnailUrl,'/uploads/')) ? (m.party.thumbnailUrl != null ? m.party.thumbnailUrl : 'ph1') : 'ph1'}"
            th:styleappend="${(m.party.thumbnailUrl != null and #strings.startsWith(m.party.thumbnailUrl,'/uploads/')) ? 'background-image:url(' + m.party.thumbnailUrl + ');' : ''}"></div>
-      
+
       <div class="info">
         <h3>
           <span th:text="${m.party.title}">제목</span>
@@ -88,10 +96,17 @@
           <span th:text="'일정: ' + ${m.party.departureDate}"></span>
         </div>
       </div>
-      
-      <span th:class="'status-chip ' + (${m.party.status.name() == 'recruiting'} ? 'status-upcoming' : (${m.party.status.name() == 'full'} ? 'status-progress' : 'status-done'))"
-            th:text="${m.party.status.name() == 'recruiting'} ? '예정' : (${m.party.status.name() == 'full'} ? '진행중' : '종료')">
-      </span>
+
+      <div class="card-actions">
+        <span th:class="'status-chip ' + (${m.party.status.name() == 'recruiting'} ? 'status-upcoming' : (${m.party.status.name() == 'full'} ? 'status-progress' : 'status-done'))"
+              th:text="${m.party.status.name() == 'recruiting'} ? '예정' : (${m.party.status.name() == 'full'} ? '진행중' : '종료')">
+        </span>
+        <button type="button" class="leave-btn"
+                th:attr="data-party-id=${m.party.id},data-owner=${m.role.name() == 'owner'}"
+                th:text="${m.role.name() == 'owner'} ? '🗑 파티 삭제' : '🚪 파티 나가기'"
+                onclick="handlePartyLeave(event, this)">
+        </button>
+      </div>
     </a>
   </div>
 
@@ -102,11 +117,44 @@
   </div>
 </main>
 
+<script th:src="@{/js/csrf.js}"></script>
 <script>
+  /**
+   * [TNSM-72] 카드 전체가 <a> 라서 버튼 클릭 시 파티방으로 이동해버리는 걸 막고,
+   * 파티장이면 삭제(DELETE /api/parties/{id}), 일반 멤버면 나가기(POST /api/parties/{id}/leave) 호출.
+   */
+  async function handlePartyLeave(event, btn) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const partyId = btn.dataset.partyId;
+    const isOwner = btn.dataset.owner === 'true';
+    const confirmMsg = isOwner
+            ? '파티를 삭제하면 되돌릴 수 없습니다. 정말 삭제하시겠어요?'
+            : '정말 이 파티에서 나가시겠어요?';
+    if (!confirm(confirmMsg)) return;
+
+    btn.disabled = true;
+    const res = isOwner
+            ? await window.api.del(`/api/parties/${partyId}`)
+            : await window.api.post(`/api/parties/${partyId}/leave`);
+
+    if (res.success) {
+      const card = btn.closest('.my-party-card');
+      if (card) card.remove();
+      const remaining = document.querySelectorAll('.my-party-card').length;
+      const empty = document.getElementById('empty');
+      if (empty && remaining === 0) empty.style.display = 'block';
+    } else {
+      alert(res.message || '처리 중 문제가 발생했습니다.');
+      btn.disabled = false;
+    }
+  }
+
   const btns = document.querySelectorAll('#filter-row button');
   const cards = document.querySelectorAll('.my-party-card');
   const empty = document.getElementById('empty');
-  
+
   btns.forEach(btn => {
     btn.addEventListener('click', () => {
       btns.forEach(b => b.classList.remove('on'));
@@ -122,7 +170,7 @@
         }
       });
       if(empty) {
-          empty.style.display = count === 0 ? 'block' : 'none';
+        empty.style.display = count === 0 ? 'block' : 'none';
       }
     });
   });

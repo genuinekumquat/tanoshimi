@@ -33,10 +33,10 @@ import static org.mockito.Mockito.*;
  */
 @ExtendWith(MockitoExtension.class)
 class PartyServiceTest {
-
+    
     @Mock
     private PartyRepository partyRepository;
-
+    
     // PartyService 생성자의 나머지 의존성은 listBoard 가 건드리지 않으므로 목만 채워 넣는다.
     @Mock private net.datasa.tanoshimi.repository.UserRepository userRepository;
     @Mock private net.datasa.tanoshimi.repository.PartyMemberRepository partyMemberRepository;
@@ -47,20 +47,31 @@ class PartyServiceTest {
     @Mock private NotificationService notificationService;
     @Mock private MannerTempService mannerTempService;
     @Mock private FileStorageService fileStorageService;
-
+    // [TNSM-72] deleteParty() 가 자식 테이블들을 지우려고 새로 주입받는 의존성들 -
+    // PartyService 생성자 인자가 늘어난 만큼 여기도 Mock을 추가해야 컴파일이 된다.
+    @Mock private net.datasa.tanoshimi.repository.PartyApplicationRepository partyApplicationRepository;
+    @Mock private net.datasa.tanoshimi.repository.TripScheduleItemRepository tripScheduleItemRepository;
+    @Mock private net.datasa.tanoshimi.repository.TripScheduleVoteRepository tripScheduleVoteRepository;
+    @Mock private net.datasa.tanoshimi.repository.TripScheduleSnapshotRepository tripScheduleSnapshotRepository;
+    @Mock private net.datasa.tanoshimi.repository.ChatMessageRepository chatMessageRepository;
+    @Mock private net.datasa.tanoshimi.repository.PostRepository postRepository;
+    @Mock private net.datasa.tanoshimi.repository.MyTripRepository myTripRepository;
+    
     private PartyService partyService() {
         return new PartyService(userRepository, partyRepository, partyMemberRepository, chatRoomRepository,
                 chatRoomMemberRepository, tourRepository, tripScheduleRepository, notificationService,
-                mannerTempService, fileStorageService);
+                mannerTempService, fileStorageService, partyApplicationRepository, tripScheduleItemRepository,
+                tripScheduleVoteRepository, tripScheduleSnapshotRepository, chatMessageRepository,
+                postRepository, myTripRepository);
     }
-
+    
     private final List<PartyEntity> sample = List.of(mock(PartyEntity.class));
-
+    
     private UserEntity owner() {
         return UserEntity.createLocal("o@test.com", "owner", "hash", "오너", "01000000000",
                 Gender.male, LocalDate.of(1990, 1, 1), Nationality.KR);
     }
-
+    
     private PartyEntity party(String title, LocalDate departure, int capacity) {
         return PartyEntity.builder()
                 .owner(owner()).title(title).description("d").region("오사카")
@@ -68,101 +79,101 @@ class PartyServiceTest {
                 .genderRestriction(GenderRestriction.all).nationalityRestriction(NationalityRestriction.all)
                 .build();
     }
-
+    
     @Test
     void 기본_조회는_출발일이_안_지난_모집중_파티만_오늘_기준으로_가져온다() {
         when(partyRepository.findByStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
                 eq(PartyStatus.recruiting), eq(LocalDate.now()))).thenReturn(sample);
-
+        
         List<PartyEntity> result = partyService().listBoard(null, null, false);
-
+        
         assertThat(result).isSameAs(sample);
         verify(partyRepository).findByStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
                 PartyStatus.recruiting, LocalDate.now());
         verify(partyRepository, never()).findByBlindedFalseAndDepartureDateLessThanOrderByDepartureDateDesc(any());
     }
-
+    
     @Test
     void 지역이_주어지면_지역_필터_쿼리를_쓰되_여전히_출발일_이후만() {
         when(partyRepository.findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
                 eq("오사카"), eq(PartyStatus.recruiting), eq(LocalDate.now()))).thenReturn(sample);
-
+        
         List<PartyEntity> result = partyService().listBoard("오사카", null, false);
-
+        
         assertThat(result).isSameAs(sample);
         verify(partyRepository).findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
                 "오사카", PartyStatus.recruiting, LocalDate.now());
     }
-
+    
     @Test
     void 키워드가_주어지면_trim_해서_검색_쿼리를_쓰고_출발일_이후만() {
         when(partyRepository.searchRecruiting(eq(PartyStatus.recruiting), eq("오사카"), eq(LocalDate.now())))
                 .thenReturn(sample);
-
+        
         List<PartyEntity> result = partyService().listBoard(null, "  오사카  ", false);
-
+        
         assertThat(result).isSameAs(sample);
         verify(partyRepository).searchRecruiting(PartyStatus.recruiting, "오사카", LocalDate.now());
     }
-
+    
     @Test
     void past_true_면_출발일이_지난_파티를_상태무관으로_가져온다() {
         when(partyRepository.findByBlindedFalseAndDepartureDateLessThanOrderByDepartureDateDesc(eq(LocalDate.now())))
                 .thenReturn(sample);
-
+        
         List<PartyEntity> result = partyService().listBoard(null, null, true);
-
+        
         assertThat(result).isSameAs(sample);
         verify(partyRepository).findByBlindedFalseAndDepartureDateLessThanOrderByDepartureDateDesc(LocalDate.now());
     }
-
+    
     @Test
     void past_true_면_지역_키워드가_있어도_무시하고_지난_파티_쿼리만_탄다() {
         when(partyRepository.findByBlindedFalseAndDepartureDateLessThanOrderByDepartureDateDesc(any()))
                 .thenReturn(sample);
-
+        
         partyService().listBoard("오사카", "키워드", true);
-
+        
         verify(partyRepository).findByBlindedFalseAndDepartureDateLessThanOrderByDepartureDateDesc(LocalDate.now());
         verify(partyRepository, never()).searchRecruiting(any(), any(), any());
         verify(partyRepository, never())
                 .findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(any(), any(), any());
     }
-
+    
     // ---------------------------------------------------------------- getVisibleParty
-
+    
     @Test
     void getVisibleParty_는_블라인드_파티면_PARTY_NOT_FOUND() {
         PartyEntity blinded = party("가려진 파티", LocalDate.now().plusDays(3), 4);
         blinded.blind();
         when(partyRepository.findById(1L)).thenReturn(java.util.Optional.of(blinded));
-
+        
         assertThatThrownBy(() -> partyService().getVisibleParty(1L))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.PARTY_NOT_FOUND);
     }
-
+    
     @Test
     void getVisibleParty_는_블라인드가_아니면_그대로_반환() {
         PartyEntity normal = party("정상 파티", LocalDate.now().plusDays(3), 4);
         when(partyRepository.findById(1L)).thenReturn(java.util.Optional.of(normal));
-
+        
         assertThat(partyService().getVisibleParty(1L)).isSameAs(normal);
     }
-
+    
     @Test
     void getParty_는_없으면_PARTY_NOT_FOUND() {
         when(partyRepository.findById(9L)).thenReturn(java.util.Optional.empty());
-
+        
         assertThatThrownBy(() -> partyService().getParty(9L))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.PARTY_NOT_FOUND);
     }
-
+    
     // ---------------------------------------------------------------- otherMembers
-
+    
     @Test
     void otherMembers_는_지정한_유저를_뺀_나머지_파티원_유저를_돌려준다() {
         PartyEntity p = mock(PartyEntity.class);
@@ -179,12 +190,12 @@ class PartyServiceTest {
         when(m2.getUser()).thenReturn(me);
         when(m3.getUser()).thenReturn(u3);
         when(partyMemberRepository.findByParty(p)).thenReturn(List.of(m1, m2, m3));
-
+        
         assertThat(partyService().otherMembers(p, 2L)).containsExactly(u1, u3);
     }
-
+    
     // ---------------------------------------------------------------- memberCounts
-
+    
     @Test
     void memberCounts_는_파티id별_인원수를_한번의_쿼리로_모은다() {
         PartyEntity a = party("A", LocalDate.now().plusDays(3), 4);
@@ -192,31 +203,31 @@ class PartyServiceTest {
         List<PartyEntity> parties = List.of(a, b);
         when(partyMemberRepository.countByPartyIn(parties))
                 .thenReturn(List.of(new Object[]{10L, 3L}, new Object[]{11L, 1L}));
-
+        
         assertThat(partyService().memberCounts(parties)).containsExactlyInAnyOrderEntriesOf(Map.of(10L, 3, 11L, 1));
     }
-
+    
     @Test
     void memberCounts_는_빈_목록이면_쿼리없이_빈_맵() {
         assertThat(partyService().memberCounts(List.of())).isEmpty();
         verify(partyMemberRepository, never()).countByPartyIn(any());
     }
-
+    
     // ---------------------------------------------------------------- urgentPartyCards
-
+    
     @Test
     void urgentPartyCards_는_오늘부터_7일_안에_출발하는_파티만_조회한다() {
         LocalDate today = LocalDate.now();
         when(partyRepository.findByStatusAndBlindedFalseAndDepartureDateBetweenOrderByDepartureDateAsc(
                 PartyStatus.recruiting, today, today.plusDays(7)))
                 .thenReturn(List.of());
-
+        
         assertThat(partyService().urgentPartyCards()).isEmpty();
-
+        
         verify(partyRepository).findByStatusAndBlindedFalseAndDepartureDateBetweenOrderByDepartureDateAsc(
                 PartyStatus.recruiting, today, today.plusDays(7));
     }
-
+    
     @Test
     void urgentPartyCards_는_출발일_빠른순_같은날이면_잔여석_적은순으로_정렬한다() {
         LocalDate today = LocalDate.now();
@@ -229,9 +240,9 @@ class PartyServiceTest {
         when(partyMemberRepository.countByParty(a)).thenReturn(3L);
         when(partyMemberRepository.countByParty(b)).thenReturn(1L);
         when(partyMemberRepository.countByParty(c)).thenReturn(3L);
-
+        
         List<PartyCardView> cards = partyService().urgentPartyCards();
-
+        
         // 2일 뒤 출발인 B·C 가 먼저, 그 안에서는 잔여 1인 C 가 잔여 4인 B 보다 앞. 5일 뒤 A 는 맨 뒤.
         assertThat(cards).extracting(PartyCardView::title).containsExactly("C", "B", "A");
     }

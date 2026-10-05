@@ -14,4 +14,8 @@ public class RecommendationDto {
     private int durationMin;
     private int priceKrw; // optional
     private String description;
+    private Double latitude;
+    private Double longitude;
+    private String venueType; // "indoor" | "outdoor" | "mixed", custom일 때만 AI가 채움
 }
+

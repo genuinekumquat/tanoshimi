@@ -1,10 +1,11 @@
 package net.datasa.tanoshimi.domain.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
 
 /**
  * [v16 신규] 사용자별 일일 AI 크레딧 사용량. (user_id, usage_date) 조합당 1행이며,
@@ -38,8 +39,11 @@ public class AiCreditUsageEntity {
         this.usedCount = 0;
         this.dailyLimit = dailyLimit;
     }
-
+    
     public boolean hasRemaining() { return usedCount < dailyLimit; }
     public void consume() { this.usedCount += 1; }
+    // [TNSM-72] AI 호출이 실제로는 실패해서 폴백으로 빠졌을 때 tryConsume()으로 미리 깎인
+    // 크레딧 1개를 되돌려주기 위한 메서드. 0 밑으로는 내려가지 않게 방어한다.
+    public void refund() { if (this.usedCount > 0) this.usedCount -= 1; }
     public int remaining() { return Math.max(0, dailyLimit - usedCount); }
 }
