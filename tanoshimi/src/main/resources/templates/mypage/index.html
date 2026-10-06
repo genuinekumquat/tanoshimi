@@ -618,11 +618,12 @@
       <a th:each="m : ${myParties}" class="card" th:href="@{'/party-board/' + ${m.party.id} + '/room'}"
          style="display:flex; gap:12px; padding:14px; align-items:center; text-decoration:none; color:inherit; transition:transform 0.15s; cursor:pointer;"
          onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-        <div style="position:relative; width:52px; height:52px; border-radius:10px; flex:none; overflow:hidden;">
-          <div th:class="${(m.party.thumbnailUrl != null and #strings.startsWith(m.party.thumbnailUrl,'/uploads/')) ? 'ph1' : (m.party.thumbnailUrl ?: 'ph1')}"
+        <div style="position:relative; width:52px; height:52px; border-radius:10px; flex:none; overflow:hidden;"
+             th:with="thumb=${@regionPhotos.of(m.party)}">
+          <div th:class="${thumb != null ? 'ph1' : (m.party.thumbnailUrl ?: 'ph1')}"
                style="position:absolute; inset:0;"></div>
-          <img th:if="${m.party.thumbnailUrl != null and #strings.startsWith(m.party.thumbnailUrl,'/uploads/')}"
-               th:src="@{${m.party.thumbnailUrl}}" onerror="this.style.display='none';"
+          <img th:if="${thumb != null}"
+               th:src="@{${thumb}}" onerror="this.style.display='none';"
                style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
         </div>
         <span style="font-size:14px; font-weight:700; color:var(--forest-deep);" th:text="${m.party.title}">파티명</span>

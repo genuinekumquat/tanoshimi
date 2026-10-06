@@ -82,8 +82,9 @@
     <a th:each="m : ${memberships}" th:href="@{'/party-board/' + ${m.party.id} + '/room'}" class="my-party-card"
        th:data-status="${m.party.status.name() == 'recruiting' ? 'upcoming' : (m.party.status.name() == 'full' ? 'progress' : 'done')}">
 
-      <div class="thumb" th:classappend="${(m.party.thumbnailUrl == null or !#strings.startsWith(m.party.thumbnailUrl,'/uploads/')) ? (m.party.thumbnailUrl != null ? m.party.thumbnailUrl : 'ph1') : 'ph1'}"
-           th:styleappend="${(m.party.thumbnailUrl != null and #strings.startsWith(m.party.thumbnailUrl,'/uploads/')) ? 'background-image:url(' + m.party.thumbnailUrl + ');' : ''}"></div>
+      <div class="thumb" th:with="thumb=${@regionPhotos.of(m.party)}"
+           th:classappend="${thumb != null ? 'ph1' : (m.party.thumbnailUrl ?: 'ph1')}"
+           th:styleappend="${thumb != null ? 'background-image:url(' + thumb + ');' : ''}"></div>
 
       <div class="info">
         <h3>

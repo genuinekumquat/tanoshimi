@@ -103,11 +103,11 @@
   <!-- 좌측 : 파티 메인 정보 -->
   <div class="main-col">
     <!-- 헤더 -->
-    <section class="p-header">
-      <img th:if="${party.thumbnailUrl != null && !#strings.startsWith(party.thumbnailUrl,'ph')}" th:src="${party.thumbnailUrl}" class="p-thumb" onerror="this.style.display='none'">
+    <section class="p-header" th:with="thumb=${@regionPhotos.of(party)}">
+      <img th:if="${thumb != null}" th:src="${thumb}" class="p-thumb" onerror="this.style.display='none'">
       <!-- 사진이 없으면 게시판 카드와 같은 팔레트(ph1~ph4) 그라데이션 위에 지역명을 얹는다
            (예전엔 "기본 테마 이미지"라는 개발용 문구가 그대로 노출됐다). -->
-      <div th:if="${party.thumbnailUrl == null || #strings.startsWith(party.thumbnailUrl,'ph')}"
+      <div th:if="${thumb == null}"
            th:class="'p-thumb ' + (${party.thumbnailUrl} ?: 'ph1')"
            style="display:flex;align-items:flex-end;justify-content:flex-start;padding:22px 26px;box-sizing:border-box;">
         <span style="font-family:var(--font-display);font-size:30px;color:rgba(255,255,255,.95);text-shadow:0 2px 8px rgba(0,0,0,.18);"

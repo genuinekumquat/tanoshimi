@@ -6,4 +6,9 @@ public record PartyCardView(
         Integer budgetKrw, int capacity, int joinedCount, String thumbnailUrl, String styleTag
 ) {
     public int remaining() { return capacity - joinedCount; }
+
+    /** 썸네일만 바꾼 사본 - 화면에 보여줄 지역 대표 사진을 채울 때 쓴다. */
+    public PartyCardView withThumbnailUrl(String url) {
+        return new PartyCardView(id, title, region, departureDate, budgetKrw, capacity, joinedCount, url, styleTag);
+    }
 }
