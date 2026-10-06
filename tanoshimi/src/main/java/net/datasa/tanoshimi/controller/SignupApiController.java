@@ -40,7 +40,7 @@ public class SignupApiController {
     @GetMapping("/username-check")
     public ApiResponse<Boolean> checkUsername(@RequestParam String username) {
         boolean available = userService.isUsernameAvailable(username);
-        return ApiResponse.ok(available ? "사용할 수 있는 아이디입니다." : "사용할 수 없는 아이디입니다.", available);
+        return ApiResponse.ok(available ? "사용할 수 있는 핸들입니다." : "사용할 수 없는 핸들입니다.", available);
     }
 
     @PostMapping("/signup")
