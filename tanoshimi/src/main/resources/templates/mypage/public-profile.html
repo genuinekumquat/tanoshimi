@@ -2,6 +2,8 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
   <th:block th:replace="~{fragments/layout :: head(${profileUser.name} + ' | 타노시미')}"></th:block>
+  <!-- 여행 지도·칭호·스냅 피드 스타일(마이페이지와 같은 모양) -->
+  <link rel="stylesheet" th:href="@{/css/profile-activity.css}">
   <style>
     /* [account-settings v2] 비공개 계정 블러+자물쇠 오버레이. app.css 에 재사용할 만한
        기존 overlay/blur 패턴이 없어서(notif-empty 는 그냥 회색 텍스트) 이 페이지 전용으로 최소한만
@@ -20,7 +22,7 @@
 <body>
 <header th:replace="~{fragments/layout :: header}"></header>
 
-<main class="wrap" style="max-width:600px;">
+<main class="wrap" style="max-width:860px;">
   <!-- [FR-MYP-08] 프로필 주인이 고른 배경. 비공개라 가려지는 경우엔 profileTheme 이
        모델에 없어서(MyPageController.renderProfile) 기본 카드 그대로 보인다. -->
   <div class="card pp-gate" style="padding:22px;"
@@ -63,6 +65,10 @@
           <span th:text="${followerCount}">0</span>명 팔로워 · <span th:text="${followingCount}">0</span>명 팔로잉
         </div>
         <p style="font-size:12.5px;" th:text="${profileUser.intro}">자기소개</p>
+        <div class="pp-manner">
+          🌡️ 매너온도 <span class="deg" th:text="${#numbers.formatDecimal(profileUser.mannerTemp,1,1)} + '°C'">36.5°C</span>
+          <span class="bar"><i th:style="'width:' + (${profileUser.mannerTemp}/50*100) + '%;'"></i></span>
+        </div>
       </div>
       <div sec:authorize="isAuthenticated()" style="display:flex; flex-direction:column; gap:8px;" th:if="${isSelf == false}">
         <button type="button" id="btn-follow" class="btn btn-primary"
@@ -76,21 +82,94 @@
       </div>
     </div>
   </div>
+
+  <!-- ================= 활동 (지도·칭호·피드) =================
+       비공개 계정이거나 서로 차단한 사이면 showActivity 가 없거나 false 라 통째로 안 그린다
+       (MyPageController.renderProfile 참고). 지도는 마이페이지와 같은 mypage-heatmap.js 가
+       같은 id(#stage, #map ...)로 그린다 - id 를 바꾸면 지도가 안 나온다. -->
+  <th:block th:if="${showActivity == true}">
+    <div class="sec-head">
+      <h2>🗺️ 여행 지도</h2>
+      <span class="note">색이 진할수록 자주 다녀온 지역이에요. 지역에 마우스를 올리면 그곳에서 올린 스냅이 보여요.</span>
+    </div>
+
+    <section class="map-card card" id="stage">
+      <div class="map-toolbar">
+        <div class="map-toggle" id="map-toggle">
+          <span class="toggle-thumb"></span>
+          <button type="button" class="toggle-btn on" id="btn-map-jp" data-map="jp">🇯🇵 일본</button>
+          <button type="button" class="toggle-btn" id="btn-map-kr" data-map="kr">🇰🇷 한국</button>
+        </div>
+        <div class="map-stat" id="map-stat"></div>
+      </div>
+
+      <button type="button" class="map-back" id="map-back" hidden>‹ 전체 지도</button>
+
+      <svg class="map" id="map" role="img" th:attr="aria-label=${profileUser.name} + '님의 여행 지도'">
+        <g id="g-deco"></g><g id="g-paths"></g><g id="g-active"></g><g id="g-labels"></g>
+      </svg>
+
+      <div class="readout" id="readout"></div>
+
+      <div class="legend" id="legend">
+        <span><i class="sw" style="background:var(--tier-0)"></i>아직 안 가봄</span>
+        <span><i class="sw" style="background:var(--tier-1)"></i>가끔</span>
+        <span><i class="sw" style="background:var(--tier-2)"></i>여러 번</span>
+        <span><i class="sw" style="background:var(--tier-3)"></i>자주</span>
+        <span><i class="sw" style="background:var(--tier-4)"></i>단골</span>
+      </div>
+
+      <div id="snaps-data" hidden>
+        <span th:each="p : ${snapPosts}"
+              th:attr="data-id=${p.id},data-region=${p.region},data-thumb=${p.thumbnailUrl},data-title=${p.title}"></span>
+      </div>
+      <div class="snaps" id="snaps"></div>
+    </section>
+
+    <div class="sec-head">
+      <h2>🏅 칭호</h2>
+    </div>
+    <section class="card" style="padding:18px 22px;">
+      <div th:if="${#lists.isEmpty(profileTitles)}" class="pp-empty">아직 획득한 칭호가 없어요.</div>
+      <div class="titles">
+        <span th:each="t : ${profileTitles}" class="tchip" th:title="${t.conditionDesc}">
+          <span th:text="${t.iconKey}">🏷️</span><b th:text="${t.name}">칭호</b>
+        </span>
+      </div>
+    </section>
+
+    <div class="sec-head">
+      <h2>📸 여행 스냅</h2>
+      <span class="note">사진을 누르면 해당 게시글로 이동합니다.</span>
+    </div>
+    <div class="feed-grid">
+      <a th:each="post : ${profilePosts}" class="feed-item" th:href="@{'/board/' + ${post.id}}" aria-label="게시글 열기">
+        <div th:class="${'ph ' + ((post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')) ? 'ph1' : (post.thumbnailUrl ?: 'ph1'))}"></div>
+        <img th:if="${post.thumbnailUrl != null and #strings.startsWith(post.thumbnailUrl,'/uploads/')}"
+             th:src="@{${post.thumbnailUrl}}" class="ph" onerror="this.style.display='none';" style="width:100%; height:100%; object-fit:cover;">
+        <span class="region-tag" th:if="${post.region != null and !post.region.isEmpty()}">📍 <th:block th:text="${post.region}"></th:block></span>
+        <span class="cap" th:text="${post.title}">제목</span>
+      </a>
+      <div th:if="${#lists.isEmpty(profilePosts)}" class="pp-empty card" style="grid-column:1/-1; text-align:center; padding:30px;">
+        아직 올린 스냅이 없어요.
+      </div>
+    </div>
+  </th:block>
 </main>
 
 <script th:inline="javascript">
-document.getElementById('btn-follow')?.addEventListener('click', async function () {
+  document.getElementById('btn-follow')?.addEventListener('click', async function () {
     const targetId = this.dataset.targetId;
     const following = this.dataset.following === 'true';
     const result = following ? await window.api.del(`/api/follow/${targetId}`) : await window.api.post(`/api/follow/${targetId}`, {});
     if (result.success) location.reload();
-});
-document.getElementById('btn-message')?.addEventListener('click', async function () {
+  });
+  document.getElementById('btn-message')?.addEventListener('click', async function () {
     const result = await window.api.post(`/api/dm/${this.dataset.targetId}/room`, {});
     if (result.success) window.location.href = `/messages/${result.data}`;
     else alert(result.message);
-});
-document.getElementById('btn-block')?.addEventListener('click', async function () {
+  });
+  document.getElementById('btn-block')?.addEventListener('click', async function () {
     const targetId = this.dataset.targetId;
     const blocked = this.dataset.blocked === 'true';
     const confirmMsg = blocked ? '차단을 해제하시겠습니까?' : '차단하시겠습니까? 서로의 게시글/댓글이 숨겨지고 메시지를 주고받을 수 없게 됩니다.';
@@ -98,8 +177,19 @@ document.getElementById('btn-block')?.addEventListener('click', async function (
     const result = blocked ? await window.api.del(`/api/block/${targetId}`) : await window.api.post(`/api/block/${targetId}`, {});
     if (result.success) location.reload();
     else alert(result.message);
-});
+  });
 </script>
+
+<!-- 여행 지도 - 서버(TravelHeatmapService)가 계산한 지역별 집계를 넘기고 마이페이지와 같은 스크립트로 그린다. -->
+<th:block th:if="${showActivity == true}">
+  <script th:inline="javascript">
+    window.MYPAGE_HEATMAP = /*[[${heatmap}]]*/ { regions: {}, totalTrips: 0, visitedRegions: 0 };
+    // 남의 지도에서 지역을 눌러도 "내 스냅 모아보기"(/mypage/snaps)로 가지 않게 끈다
+    window.MYPAGE_REGION_SNAPS_URL = null;
+  </script>
+  <!-- (v=2): 지역 클릭 끄기 옵션이 들어간 새 스크립트를 브라우저 캐시 말고 새로 받게 -->
+  <script th:src="@{/js/mypage-heatmap.js(v=2)}"></script>
+</th:block>
 <footer th:replace="~{fragments/layout :: footer}"></footer>
 </body>
 </html>

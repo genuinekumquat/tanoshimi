@@ -1,15 +1,9 @@
 package net.datasa.tanoshimi.service;
 
-import java.time.LocalDate;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.domain.dto.MyTripRequest;
 import net.datasa.tanoshimi.domain.dto.PostSnapView;
-import net.datasa.tanoshimi.domain.entity.MyTripEntity;
-import net.datasa.tanoshimi.domain.entity.PartyEntity;
-import net.datasa.tanoshimi.domain.entity.PartyStatus;
-import net.datasa.tanoshimi.domain.entity.TripSource;
-import net.datasa.tanoshimi.domain.entity.UserEntity;
+import net.datasa.tanoshimi.domain.entity.*;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.MyTripRepository;
@@ -17,6 +11,9 @@ import net.datasa.tanoshimi.repository.PartyMemberRepository;
 import net.datasa.tanoshimi.repository.PostRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * "내 여행" CRUD + 파티 완료 자동 등록. 담당: 김민규(⑥). v19 신규 - MyTripEntity 클래스 주석 참고.
@@ -67,6 +64,14 @@ public class MyTripService {
     public List<MyTripEntity> listMine(UserEntity user) {
         syncFromCompletedParties(user);
         return myTripRepository.findByUserOrderByStartDateDesc(user);
+    }
+    
+    /** [공개 프로필] 남이 볼 때 쓰는 집계용 목록 - 조회만 하고 데이터는 안 바꾼다 */
+    @Transactional(readOnly = true)
+    public List<MyTripEntity> countableTripsOf(UserEntity user) {
+        return myTripRepository.findByUserOrderByStartDateDesc(user).stream()
+                .filter(this::isCountable)
+                .toList();
     }
 
     /**

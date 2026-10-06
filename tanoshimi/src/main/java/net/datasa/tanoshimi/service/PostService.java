@@ -102,7 +102,16 @@ public class PostService {
                 ? postRepository.searchBoard(reg, kw, pageable)
                 : postRepository.searchBoardExcludingUsers(reg, kw, blockedIds, pageable);
     }
-
+    
+    /** [공개 프로필] 남에게 보여줄 스냅 - 최신순 limit개, 블라인드 글 제외 */
+    @Transactional(readOnly = true)
+    public List<PostEntity> publicPostsOf(UserEntity user, int limit) {
+        return postRepository.findByUserOrderByCreatedAtDesc(user, PageRequest.of(0, limit))
+                .getContent().stream()
+                .filter(p -> !p.isBlinded())
+                .toList();
+    }
+    
     @Transactional(readOnly = true)
     public Page<PostEntity> myPosts(UserEntity user, Pageable pageable) {
         return postRepository.findByUserOrderByCreatedAtDesc(user, pageable);
