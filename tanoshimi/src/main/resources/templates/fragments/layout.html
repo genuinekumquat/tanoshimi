@@ -6,6 +6,7 @@
     <meta name="_csrf" th:content="${_csrf.token}" th:if="${_csrf != null}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}" th:if="${_csrf != null}"/>
     <title th:text="${pageTitle != null ? pageTitle + ' - Tanoshimi' : 'Tanoshimi'}">Tanoshimi</title>
+    <th:block th:replace="~{fragments/layout :: i18n}"></th:block>
     <link rel="icon" type="image/svg+xml" th:href="@{/assets/favicon.svg}">
 
     <link rel="stylesheet" th:href="@{/css/app.css}">
@@ -75,7 +76,16 @@
      역할이 불분명하고 버튼을 자주 가려서 뺐다(#60, #66 참고). 다른 화면에 다시 넣으려면
      그 템플릿 끝에 th:replace="~{fragments/layout :: companion}" 한 줄만 추가하면 된다. -->
 <!-- ============================================== -->
-<div th:fragment="companion" id="companion-widget-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none;">
+<!-- 일본어 모드일 때만: 한국어로 박힌 화면 문구를 사전으로 번역 (static/js/i18n-ja.js 참고).
+     번역이 끝날 때까지 본문을 숨겨 한국어가 번쩍 보이지 않게 하고, 스크립트가 실패해도 3초 뒤엔 보이게 한다. -->
+<th:block th:fragment="i18n" th:if="${#locale.language == 'ja'}">
+    <style>html.i18n-pending body{visibility:hidden}</style>
+    <script>document.documentElement.classList.add('i18n-pending');setTimeout(function(){document.documentElement.classList.remove('i18n-pending');},3000);</script>
+    <script defer th:src="@{/js/i18n-ja-dict.js}"></script>
+    <script defer th:src="@{/js/i18n-ja.js}"></script>
+</th:block>
+
+<div th:fragment="companion"id="companion-widget-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none;">
 
     <!-- 1. 채팅 패널 (캐릭터 왼쪽에 표시됨) -->
     <div id="companion-chat-panel" style="display: none; position: fixed; right: 300px; bottom: 20px; width: 450px; height: 600px; background: #f0f2f5; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); flex-direction: column; overflow: hidden; pointer-events: auto;">
