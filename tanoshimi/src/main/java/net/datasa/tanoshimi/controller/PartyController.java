@@ -18,6 +18,7 @@ import net.datasa.tanoshimi.repository.UserRepository;
 import net.datasa.tanoshimi.service.PartyApplicationService;
 import net.datasa.tanoshimi.service.PartyEligibilityService;
 import net.datasa.tanoshimi.service.PartyService;
+import net.datasa.tanoshimi.service.TitleService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -38,6 +39,7 @@ public class PartyController {
     private final PartyEligibilityService eligibilityService;
     private final PartyService partyService;
     private final FileStorageService fileStorageService;
+    private final TitleService titleService;
 
     @GetMapping("/party-board")
     public String board(@RequestParam(required = false) String region,
@@ -66,7 +68,14 @@ public class PartyController {
         PartyEntity party = partyService.getVisibleParty(id);
 
         model.addAttribute("party", party);
-        model.addAttribute("members", partyService.members(party));
+        // 신청 전에 "누구랑 가는지" 볼 수 있게 파티장을 맨 위로 올려서 넘긴다(화면설계서 S-11 "방장 정보").
+        var members = partyService.members(party).stream()
+                .sorted(java.util.Comparator.comparing(m -> m.getRole().name().equals("owner") ? 0 : 1))
+                .toList();
+        model.addAttribute("members", members);
+        // 파티원 이름 옆 대표 칭호 배지 - 파티방(PartyRoomController)과 같은 방식
+        model.addAttribute("memberTitles", titleService.representativeTitles(
+                members.stream().map(m -> m.getUser()).toList()));
 
         // eligible/ineligibleReasonKey/isOwner 는 비로그인 방문자에게도 항상 안전한 기본값이 들어가야 한다.
         // 예전엔 principal != null 일 때만 넣어서, 비로그인 상태로 이 페이지를 보면 이 값들이
