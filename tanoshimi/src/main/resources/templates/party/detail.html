@@ -5,6 +5,16 @@
     <style>
       a.back { display:inline-block; text-decoration:none; color:var(--ink-soft); font-size:14px; transition:color .2s; }
       a.back:hover { color:var(--forest); }
+      .pm-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+      .pm-list li { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; background:#f8f9fb; border:1px solid #dfe4ec; }
+      .pm-list li.is-owner { border-color:var(--sash); background:rgba(224,121,63,.06); }
+      .pm-pf { width:40px; height:40px; flex-shrink:0; border-radius:50%; object-fit:cover; background:#e7edf8; color:#1b4a9c; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; line-height:1; }
+      .pm-info { flex:1; min-width:0; }
+      .pm-name { font-weight:700; font-size:15px; margin:0; color:var(--ink); display:flex; flex-wrap:wrap; align-items:center; gap:2px; }
+      .pm-owner { color:var(--sash); font-size:12px; margin-left:4px; }
+      .pm-meta { font-size:12.5px; color:var(--ink-soft); margin:3px 0 0; }
+      a.pm-link { color:inherit; text-decoration:none; }
+      a.pm-link:hover .pm-name-text, a.pm-link:focus-visible .pm-name-text { text-decoration:underline; }
     </style>
 </head>
 <body>
@@ -78,6 +88,36 @@
       </div>
     </div>
   </div>
+
+  <!-- 파티장·파티원 - 신청 전에 누구와 함께 가는지 확인할 수 있게(화면설계서 S-11 "방장 정보").
+       파티장이 맨 위(PartyController.detail 정렬). 모양은 파티방 멤버 목록과 맞췄다. -->
+  <section class="party-members" style="margin-top:24px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px;">
+    <h2 style="font-size:15px; margin-top:0;">
+      <span>파티 멤버</span>
+      <span style="font-size:13px; color:var(--forest);" th:text="${members.size() + '/' + party.capacity}">2/5</span>
+    </h2>
+    <ul class="pm-list">
+      <li th:each="m : ${members}" th:classappend="${m.role.name() == 'owner'} ? 'is-owner'">
+        <a class="pm-link" th:href="@{/users/{id}(id=${m.user.id})}" tabindex="-1" aria-hidden="true">
+          <img th:if="${m.user.profileImageUrl != null}" class="pm-pf" th:src="${m.user.profileImageUrl}" th:alt="${m.user.name}">
+          <div th:if="${m.user.profileImageUrl == null}" class="pm-pf" th:text="${#strings.substring(m.user.name,0,1)}">유</div>
+        </a>
+        <div class="pm-info">
+          <p class="pm-name">
+            <a class="pm-link" th:href="@{/users/{id}(id=${m.user.id})}" th:title="${m.user.name}"><span class="pm-name-text" th:text="${m.user.name}">이름</span></a>
+            <span th:if="${m.role.name() == 'owner'}" class="pm-owner">(방장)</span>
+            <th:block th:with="t=${memberTitles.get(m.user.id)}">
+              <span th:if="${t != null}" class="title-badge"
+                    th:title="${t.conditionDesc}" th:text="${(t.iconKey != null ? t.iconKey + ' ' : '') + t.name}">🧭 탐험가</span>
+            </th:block>
+          </p>
+          <p class="pm-meta"
+             th:text="${(m.user.nationality != null and m.user.nationality.name() == 'JP' ? '🇯🇵' : '🇰🇷')
+                      + ' · 🌡️ ' + (m.user.mannerTemp != null ? #numbers.formatDecimal(m.user.mannerTemp, 1, 1) : '36.5') + '℃'}">🇰🇷 · 🌡️ 36.5℃</p>
+        </div>
+      </li>
+    </ul>
+  </section>
 
   <div style="margin-top:24px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px;">
     <h2 style="font-size:15px; margin-top:0;">[[#{party.apply}]]</h2>
