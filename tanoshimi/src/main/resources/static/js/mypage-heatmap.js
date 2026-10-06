@@ -48,7 +48,7 @@
     /** 스냅(사진) 하나를 클릭했을 때 열 게시글 주소. PostController 의 GET /board/{id}. */
     var POST_URL = '/board/';
     /** 지역을 클릭했을 때 열 "그 지역 스냅 모아보기" 페이지. MyPageController 의 GET /mypage/snaps. */
-    var REGION_SNAPS_URL = '/mypage/snaps';
+    var REGION_SNAPS_URL = ('MYPAGE_REGION_SNAPS_URL' in window) ? window.MYPAGE_REGION_SNAPS_URL : '/mypage/snaps';
 
     /* ===================== 포커스 홀드존(코리도) =====================
      *
@@ -412,7 +412,7 @@
         // 더 들어갈 데가 있으면 "자세히 보기", 아니면 그 지역 스냅 모아보기 페이지로 간다.
         var sc = snapsFor(r).length;
         var hint = canDrill(r) ? '· 클릭해서 자세히 보기'
-            : (sc > 0 ? '· 클릭해서 스냅 ' + sc + '장 모아보기' : '');
+            : (sc > 0 && REGION_SNAPS_URL ? '· 클릭해서 스냅 ' + sc + '장 모아보기' : '');
         var suffix = hint ? ' <span style="font-size:12px;color:var(--sash-deep);">' + hint + '</span>' : '';
         if (r.trips > 0) {
             var n = Math.max(1, r.days - 1);
@@ -607,7 +607,7 @@
 
     /** 더 들어갈 데가 없는 지역을 클릭했을 때 - 그 지역 스냅만 모아놓은 페이지로. */
     function openRegionSnaps(r) {
-        if (!r) return;
+        if (!r || !REGION_SNAPS_URL) return;
         window.location.href = REGION_SNAPS_URL + '?region=' + encodeURIComponent(r.name);
     }
 

@@ -7,6 +7,7 @@ import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
 import net.datasa.tanoshimi.domain.dto.*;
 import net.datasa.tanoshimi.domain.entity.MyTripEntity;
+import net.datasa.tanoshimi.domain.entity.PostEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
@@ -391,11 +392,24 @@ public class MyPageController {
             model.addAttribute("profileTitle", titleService.latestTitle(target));
             model.addAttribute("followerCount", followService.followerCount(target));
             model.addAttribute("followingCount", followService.followingCount(target));
+            UserEntity me = principal == null ? null : userRepository.findById(principal.getId()).orElse(null);
             if (principal != null) {
-                UserEntity me = userRepository.findById(principal.getId()).orElse(null);
                 model.addAttribute("isFollowing", me != null && followService.isFollowing(me, target));
                 model.addAttribute("isSelf", me != null && me.getId().equals(target.getId()));
                 model.addAttribute("isBlocked", me != null && blockService.isBlockedByMe(me, target));
+            }
+            
+            // [공개 프로필 확장] 서로 차단한 사이면 활동은 안 보여준다
+            boolean blockedEitherWay = me != null && blockService.isBlockedEitherWay(me, target);
+            model.addAttribute("showActivity", !blockedEitherWay);
+            if (!blockedEitherWay) {
+                List<PostEntity> posts = postService.publicPostsOf(target, 60);
+                model.addAttribute("profilePosts", posts.stream().limit(12).toList());
+                model.addAttribute("snapPosts", posts.stream()
+                        .filter(post -> post.getRegion() != null && !post.getRegion().isBlank())
+                        .toList());
+                model.addAttribute("profileTitles", titleService.ownedTitles(target));
+                model.addAttribute("heatmap", travelHeatmapService.summarize(myTripService.countableTripsOf(target)));
             }
         }
         return "mypage/public-profile";

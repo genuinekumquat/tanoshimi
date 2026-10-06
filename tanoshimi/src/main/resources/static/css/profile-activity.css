@@ -1,0 +1,177 @@
+/*
+ * 공개 프로필(/users/{id}) 활동 섹션 - 여행 지도·칭호·스냅 피드.
+ * 마이페이지(mypage/index.html)의 같은 섹션 스타일을 그대로 옮겨왔다. 마이페이지 파일은
+ * 건드리지 않으려고(시연 전 회귀 위험) 공유 CSS 로 빼지 않고 복사했다 - 나중에 마이페이지도
+ * 이 파일을 쓰도록 합치면 중복이 사라진다. 지도는 mypage-heatmap.js 가 같은 id 로 그린다.
+ */
+
+/* ===================== 매너온도 ===================== */
+.pp-manner{ display:inline-flex; align-items:center; gap:7px; font-size:12.5px; margin-top:6px; color:var(--ink-soft); }
+.pp-manner .deg{ color:var(--warm); font-weight:700; }
+.pp-manner .bar{ width:66px; height:6px; background:rgba(0,0,0,.08); border-radius:3px; overflow:hidden; }
+.pp-manner .bar i{ display:block; height:100%; background:var(--warm); }
+
+/* ===================== 칭호 ===================== */
+.sec-head{ display:flex; align-items:baseline; gap:10px; margin:34px 0 12px; flex-wrap:wrap; }
+.sec-head h2{ font-size:18px; }
+.sec-head .note{ font-size:12px; color:var(--ink-soft); }
+
+.titles{ display:flex; flex-wrap:wrap; gap:10px; }
+/* 획득한 칭호는 실선 칩. (미획득은 칭호 관리 뷰의 잠금 카드에서만 보여준다) */
+.tchip{
+    display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:999px;
+    border:1.5px solid var(--sash); background:rgba(224,121,63,.08); font-size:12.5px; color:var(--sash-deep);
+}
+.tchip b{ font-family:var(--font-display); }
+.pp-empty{ color:var(--ink-soft); font-size:13px; }
+
+/* ===================== 지도 섹션 ===================== */
+.map-card{ position:relative; padding:22px 24px; overflow:hidden; user-select:none; -webkit-user-select:none; }
+
+.map-toolbar{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+.map-toggle{
+    position:relative; display:inline-flex; background:var(--parchment-deep);
+    border-radius:999px; padding:4px; gap:2px;
+}
+.map-toggle .toggle-thumb{
+    position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px);
+    background:var(--forest); border-radius:999px; transition:transform .38s cubic-bezier(.22,1,.36,1); z-index:0;
+    box-shadow:0 2px 6px rgba(59,44,20,.25);
+}
+.map-toggle.kr-active .toggle-thumb{ transform:translateX(100%); }
+.toggle-btn{
+    position:relative; z-index:1; border:none; background:none; padding:10px 24px;
+    font-family:'Gowun Dodum',sans-serif; font-weight:700; font-size:13.5px; color:var(--ink-soft);
+    cursor:pointer; border-radius:999px; transition:color .25s; white-space:nowrap;
+}
+.toggle-btn.on{ color:#fff; }
+
+.map-stat{ font-size:12.5px; color:var(--ink-soft); }
+.map-stat b{ color:var(--forest-deep); font-family:var(--font-display); font-size:15px; }
+.map-crumb{ font-size:12.5px; color:var(--ink-soft); }
+.map-crumb b{ color:var(--forest-deep); font-family:var(--font-display); }
+
+.map-back{
+    position:absolute; top:64px; left:26px; z-index:7; font-family:'Gowun Dodum',sans-serif; font-weight:700;
+    font-size:12.5px; color:var(--forest-deep); background:var(--card); border:1.5px solid var(--line);
+    border-radius:999px; padding:7px 14px; cursor:pointer; box-shadow:0 2px 8px rgba(40,30,15,.12);
+    display:inline-flex; align-items:center; gap:5px;
+}
+.map-back:hover{ border-color:var(--sash); color:var(--sash-deep); }
+
+svg.map{
+    width:100%; max-width:840px; height:auto; margin:0 auto; display:block;
+    background:var(--card); border-radius:12px; transition:opacity .2s ease;
+}
+svg.map.swapping{ opacity:0; }
+
+/* 지역(면). 색은 mypage-heatmap.js 가 지수에 따라 fill 로 직접 넣는다. */
+/* ⚠️ 여기서 fill 을 선언하면 안 된다 - mypage-heatmap.js 가 draw() 마다 각 path에
+   fill="var(--tier-N)" 속성(setAttribute)으로 색을 직접 넣는데, SVG presentation
+   attribute는 CSS 캐스케이드에서 가장 낮은 우선순위라 매칭되는 CSS 규칙이 하나라도
+   있으면 항상 그쪽이 이긴다. 예전에 여기 `fill:var(--tier-0);`가 있어서 방문 횟수와
+   무관하게 모든 지역이 항상 미방문 색으로만 보이던 버그가 있었다(원 목업에도 같은
+   버그가 있었음) - Playwright로 getComputedStyle 을 실제로 찍어보고 잡았다. */
+.region{
+    stroke:var(--map-line); stroke-width:.9; cursor:pointer;
+    transform-box:fill-box; transform-origin:center;
+    transition:opacity .4s ease, filter .4s ease, transform .5s cubic-bezier(.3,.85,.35,1); outline:none;
+}
+.region:focus-visible{ stroke:var(--forest-deep); stroke-width:1.8; }
+svg.map.focusing .region{ opacity:.72; }
+/* 포커싱된 지역의 "원래 크기" 원본은 완전히 숨긴다(opacity:0) - 확대된 복제본
+   (.active-clone)이 그 자리를 "대체"하는 것처럼 보이게 하기 위함이다.
+   이게 없으면 확대된 복제본 뒤로 흐릿해진 원본 크기 도형이 계속 비쳐서, 특히
+   오목한 해안선 모양에서 확대본이 원본을 다 못 가려 지저분하게(이중으로) 보였다.
+   인셋(예: 울릉/독도)처럼 active-clone 이 아예 없는 지역은 JS 에서 이 클래스를
+   안 붙이므로 그냥 계속 흐릿하게만 보인다(정상). */
+svg.map.focusing .region.region-hidden{ opacity:0; }
+/* 활성 지역은 최상단 레이어(g-active)의 복제본으로 표시한다. hover 때 appendChild 로
+   맨 위로 올리면 클릭 이벤트가 깨져서, 복제본을 미리 만들어두고 표시만 토글한다. */
+.active-clone{
+    pointer-events:none; opacity:0; transform-box:fill-box; transform-origin:center;
+    transition:opacity .4s ease, transform .5s cubic-bezier(.3,.85,.35,1);
+    stroke:var(--map-line); stroke-width:1.5;
+}
+.active-clone.on{ opacity:1; transform:scale(1.34); }
+.rlabel{
+    font-family:var(--font-display); fill:var(--ink); pointer-events:none; paint-order:stroke;
+    stroke:var(--card); stroke-width:2.8px; stroke-linejoin:round; text-anchor:middle;
+    opacity:0; transition:opacity .4s ease;
+}
+.rlabel.show{ opacity:1; }
+.inset-frame{ fill:none; stroke:var(--line); stroke-width:1.4; stroke-dasharray:5 4; }
+.inset-cap{ font-family:'Gowun Dodum',sans-serif; font-weight:700; fill:var(--ink-soft); text-anchor:middle; }
+
+.readout{ display:flex; align-items:center; gap:10px; min-height:28px; margin:14px 4px 0; font-size:14.5px; color:var(--ink-soft); }
+.readout .pip{ width:12px; height:12px; border-radius:3px; flex:none; border:1px solid rgba(0,0,0,.12); }
+.readout .msg b{ color:var(--forest-deep); font-family:var(--font-display); }
+
+.legend{ display:flex; justify-content:center; gap:14px; flex-wrap:wrap; margin-top:18px; padding-top:16px; border-top:1px dashed var(--line); font-size:11.5px; color:var(--ink-soft); }
+.legend .sw{ width:12px; height:12px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:-2px; border:1px solid rgba(0,0,0,.15); }
+
+/* 스냅 말풍선. mypage-heatmap.js 가 지역에 커서를 올릴 때 그 지역 사진을 뿌린다.
+   바깥 <a.snap-poke> = 위치 + 등장 애니메이션 + 클릭(게시글로 이동),
+   안쪽 <span.snap-in> = 실제로 보이는 사진 타일 + 확대(hover).
+   확대를 안쪽에 거는 이유: 바깥은 pokeIn 애니메이션이 animation-fill-mode:forwards 로
+   transform 을 계속 붙들고 있어서, 같은 요소에 :hover transform 을 걸면 애니메이션이
+   이겨버린다(!important 없이는). 안쪽만 키우면 클릭 영역(바깥 118px)이 그대로라
+   커서가 확대 경계에서 들락날락하며 깜빡이는 문제도 없다. */
+.snaps{ position:absolute; inset:0; pointer-events:none; z-index:6; }
+.snap-poke{
+    position:absolute; display:block; width:118px; height:118px;
+    opacity:0; transform:scale(.4); visibility:hidden; z-index:1;
+}
+/* pointer-events 는 .show 일 때만 켠다 - 숨겨진 스냅이 지도 클릭을 가로채지 않게. */
+.snaps.show .snap-poke{
+    animation:pokeIn .42s cubic-bezier(.34,1.56,.64,1) forwards;
+    pointer-events:auto; cursor:pointer;
+}
+/* 커서를 올린 스냅만 다른 스냅 위로 올라온다(겹쳐도 안 가려지게). */
+.snaps.show .snap-poke:hover,
+.snaps.show .snap-poke:focus-visible{ z-index:9; outline:none; }
+/* visibility 를 키프레임에서 켜는 이유: animation-delay(순차 등장) 동안에는 어떤
+   키프레임도 적용되지 않으므로, 아직 안 보이는 스냅이 클릭 영역만 차지하는 걸 막는다. */
+@keyframes pokeIn{
+    from{ visibility:visible; opacity:0; transform:scale(.4); }
+    to{ visibility:visible; opacity:1; transform:scale(1); }
+}
+.snap-in{
+    position:absolute; inset:0; border-radius:14px; border:4px solid var(--card);
+    box-shadow:0 8px 20px rgba(40,30,15,.24); background-size:cover; background-position:center;
+    transition:transform .18s cubic-bezier(.34,1.4,.64,1), box-shadow .18s ease, border-color .18s ease;
+}
+.snap-poke:hover .snap-in,
+.snap-poke:focus-visible .snap-in{
+    transform:scale(1.16); box-shadow:0 15px 32px rgba(40,30,15,.36); border-color:var(--gold);
+}
+.snap-in.s1{ background-color:#cfe0f3; background-image:linear-gradient(135deg,var(--sky),#cfe0f3); }
+.snap-in.s2{ background-color:var(--parchment-deep); background-image:linear-gradient(135deg,#dbe7f5,var(--parchment-deep)); }
+.snap-in.s3{ background-color:#c3c8e4; background-image:linear-gradient(135deg,#e4e6f3,#c3c8e4); }
+.snap-in.s4{ background-color:#dcc7c0; background-image:linear-gradient(135deg,#f0e7e4,#dcc7c0); }
+
+/* ===================== 피드 섹션 ===================== */
+.feed-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.feed-item{
+    position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; display:block; cursor:pointer;
+    border:1px solid var(--line);
+}
+.feed-item .ph{ position:absolute; inset:0; }
+.ph.ph1{ background:linear-gradient(135deg,var(--sky),#cfe0f3); }
+.ph.ph2{ background:linear-gradient(135deg,#dbe7f5,var(--parchment-deep)); }
+.ph.ph3{ background:linear-gradient(135deg,#e4e6f3,#c3c8e4); }
+.ph.ph4{ background:linear-gradient(135deg,#f0e7e4,#dcc7c0); }
+.feed-item .cap{
+    position:absolute; left:0; right:0; bottom:0; padding:8px 9px 7px; font-size:11px; color:#fff;
+    background:linear-gradient(to top, rgba(30,22,14,.78), transparent);
+}
+.feed-item .region-tag{
+    position:absolute; top:7px; left:7px; font-size:10px; font-weight:700; color:#fff;
+    background:rgba(30,22,14,.55); border-radius:999px; padding:2px 8px;
+}
+.feed-item:hover .ph{ filter:brightness(.85); }
+
+@media (max-width:640px){
+    .feed-grid{ grid-template-columns:repeat(2,1fr); }
+    .map-back{ top:110px; left:20px; }
+}
