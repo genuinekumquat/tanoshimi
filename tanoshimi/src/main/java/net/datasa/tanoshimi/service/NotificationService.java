@@ -1,7 +1,5 @@
 package net.datasa.tanoshimi.service;
 
-import java.time.format.DateTimeFormatter;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.domain.dto.NotificationView;
 import net.datasa.tanoshimi.domain.entity.NotificationEntity;
@@ -9,9 +7,12 @@ import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.NotificationRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /** 인앱 알림함(종 아이콘). 팔로우·댓글·파티 신청/승인/거절/강퇴 등 이벤트가 이 서비스를 통해 발행된다. */
 @Service
@@ -35,6 +36,18 @@ public class NotificationService {
         } catch(Exception e) {
             // Ignore messaging errors
         }
+    }
+    
+    /**
+     * [DM 알림] 같은 DM 방의 안 읽은 알림이 이미 있으면 새로 만들지 않는다.
+     * 상대가 알림을 눌러 확인한 뒤에 오는 새 메시지부터 다시 알림이 간다.
+     */
+    @Transactional
+    public void notifyIfNoUnread(UserEntity user, String type, String title, String message, String linkUrl) {
+        if (notificationRepository.existsByUserAndTypeAndLinkUrlAndReadFalse(user, type, linkUrl)) {
+            return;
+        }
+        notify(user, type, title, message, linkUrl);
     }
 
     /**
