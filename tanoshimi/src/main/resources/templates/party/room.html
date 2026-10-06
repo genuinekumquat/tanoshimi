@@ -57,7 +57,7 @@
   
   .chat-box { flex:1; min-height:400px; display:flex; flex-direction:column; background:var(--card); border-radius:24px; border:1px solid var(--line); overflow:hidden; }
   .chat-head { padding:16px 20px; background:var(--forest); color:#fff; font-weight:800; font-size:16px; display:flex; justify-content:space-between; align-items:center; }
-  .chat-msg-area { flex:1; padding:20px; overflow-y:auto; background:#f8f9fb; display:flex; flex-direction:column; gap:12px; height: 400px; }
+  .chat-msg-area { flex:none; padding:20px; overflow-y:auto; background:#f8f9fb; display:flex; flex-direction:column; gap:12px; height: 400px; }
   .chat-ctrl { padding:16px; border-top:1px solid var(--line); display:flex; gap:8px; background:#fff; }
   .chat-ctrl input { flex:1; padding:12px 16px; border-radius:999px; border:1px solid var(--line); font-size:14px; }
   .chat-ctrl input:focus { outline:none; border-color:var(--forest); }
@@ -304,9 +304,6 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
         
         stompClient.connect({}, function(frame) {
             connected = true;
-            if(Array.isArray(INITIAL_CHAT_HISTORY)){
-                INITIAL_CHAT_HISTORY.forEach(msg => appendMessage(msg));
-            }
             stompClient.subscribe(`/topic/chat/${ROOM_ID}`, (message) => {
                 try {
                     const payload = JSON.parse(message.body);
@@ -338,8 +335,11 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
             
             const contEl = document.createElement('div');
             contEl.className = 'msg-bubble';
-            contEl.textContent = msg.content;
-            
+            // 텍스트는 별도 span 에 - contEl.textContent 를 바꾸면 안에 든 버튼까지 지워진다.
+            const textEl = document.createElement('span');
+            textEl.textContent = msg.content;
+            contEl.appendChild(textEl);
+
             const trBtn = document.createElement('button');
             trBtn.type = 'button';
             trBtn.textContent = '번역';
@@ -350,34 +350,29 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
             trBtn.style.background = '#f2f6fc';
             trBtn.style.cursor = 'pointer';
             
+            // 번역 <-> 원문 토글. 번역 결과는 한 번 받으면 재사용(다시 눌러도 API 재호출 X).
+            let translated = null;
             trBtn.addEventListener('click', async () => {
-                trBtn.style.display = 'none';
+                if (trBtn.textContent === '원문') {
+                    textEl.textContent = msg.content;
+                    trBtn.textContent = '번역';
+                    return;
+                }
+                trBtn.disabled = true;
                 try {
-                    const targetLang = (docLang === 'ja' ? 'JA' : 'KO');
-                    const res = await window.api.post('/api/chat/translate', { text: msg.content, targetLang: targetLang });
-                    if (res.success && res.data) {
-                        contEl.textContent = res.data;
-                        
-                        const origBtn = document.createElement('button');
-                        origBtn.type = 'button';
-                        origBtn.textContent = '원문';
-                        origBtn.style.fontSize = '10px';
-                        origBtn.style.marginLeft = '6px';
-                        origBtn.style.padding = '2px 4px';
-                        origBtn.style.border = '1px solid var(--line)';
-                        origBtn.style.background = '#f2f6fc';
-                        origBtn.style.cursor = 'pointer';
-                        origBtn.addEventListener('click', () => {
-                            contEl.textContent = msg.content;
-                            origBtn.remove();
-                            trBtn.style.display = 'inline-block';
-                        });
-                        contEl.appendChild(origBtn);
-                    } else {
-                        trBtn.style.display = 'inline-block';
+                    if (translated === null) {
+                        const targetLang = (docLang === 'ja' ? 'JA' : 'KO');
+                        const res = await window.api.post('/api/chat/translate', { text: msg.content, targetLang: targetLang });
+                        if (res.success && res.data) translated = res.data;
+                    }
+                    if (translated !== null) {
+                        textEl.textContent = translated;
+                        trBtn.textContent = '원문';
                     }
                 } catch(e) {
-                    trBtn.style.display = 'inline-block';
+                    console.error('번역 실패:', e);
+                } finally {
+                    trBtn.disabled = false;
                 }
             });
             contEl.appendChild(trBtn);
@@ -408,6 +403,8 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
         inp.addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
     }
 
+    // 저장된 기록은 소켓 연결과 무관하게 바로 그린다 - 연결이 실패/지연돼도 기존 채팅은 보이게.
+    if (Array.isArray(INITIAL_CHAT_HISTORY)) INITIAL_CHAT_HISTORY.forEach(msg => appendMessage(msg));
     setTimeout(connect, 300);
 
     // [2] 신청 관리
