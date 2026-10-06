@@ -214,7 +214,7 @@ public class UserService {
             return userRepository.saveAndFlush(user).getId();
         } catch (DataIntegrityViolationException e) {
             log.warn("가입 중 UNIQUE 충돌: {}", e.getMessage());
-            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL, "이미 가입된 이메일, 아이디 또는 휴대폰 번호입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL, "이미 가입된 이메일, 핸들 또는 휴대폰 번호입니다.");
         }
     }
 

@@ -27,7 +27,7 @@ public record SocialSignupRequest(
         @NotNull String nationality,
         boolean termsAgreed
 ) {
-    @AssertTrue(message = "아이디는 영문 소문자로 시작하는 3~20자의 소문자/숫자/밑줄만 쓸 수 있어요.")
+    @AssertTrue(message = "핸들은 영문 소문자로 시작하는 3~20자의 소문자/숫자/밑줄만 쓸 수 있어요.")
     public boolean isUsernameFormatValid() { return UsernamePolicy.isValidFormat(UsernamePolicy.normalize(username)); }
 
     @AssertTrue(message = "이용약관에 동의해야 가입할 수 있습니다.")
