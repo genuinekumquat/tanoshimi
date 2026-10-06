@@ -150,6 +150,11 @@
           <option value="후쿠오카" th:selected="${region == '후쿠오카'}">후쿠오카</option>
           <option value="홋카이도" th:selected="${region == '홋카이도'}">홋카이도</option>
           <option value="오키나와" th:selected="${region == '오키나와'}">오키나와</option>
+          <!-- 메인 권역 카드(간토·간사이·규슈)로 들어온 경우 - 목록에 없는 값이라 "전체 지역"으로
+               보이면 다른 필터를 바꿀 때 지역 조건이 풀려 버린다. 그 값을 그대로 붙잡아 둔다. -->
+          <option th:if="${region != null and !region.isEmpty()
+                          and !#lists.contains({'오사카','도쿄','교토','후쿠오카','홋카이도','오키나와'}, region)}"
+                  th:value="${region}" th:text="${region} + ' 전체'" selected>권역 전체</option>
         </select>
 
         <label class="filter-label">[[#{party.gender}]]</label>

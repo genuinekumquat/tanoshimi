@@ -15,8 +15,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 파티 만들기.
@@ -49,7 +51,9 @@ public class PartyService {
     private final ChatMessageRepository chatMessageRepository;
     private final PostRepository postRepository;
     private final MyTripRepository myTripRepository;
-    
+    // 메인 권역 카드(간토·간사이…) → 소속 지역으로 펼치는 용도 (listBoard 참고)
+    private final RegionCatalog regionCatalog;
+
     /** 메인 페이지 "모집 마감 임박" 카드의 출발일 표기 포맷. */
     private static final DateTimeFormatter URGENT_CARD_DATE_FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
     
@@ -187,6 +191,27 @@ public class PartyService {
     @Transactional(readOnly = true)
     public List<PartyEntity> listBoard(String region, String keyword, boolean includePast,
                                        GenderRestriction gender, NationalityRestriction nationality, Integer age) {
+        // 메인 "이번 주 사람들이 모이는 곳" 카드는 권역 이름(간토·간사이·규슈)으로 들어오는데,
+        // 파티는 말단 지역 이름("도쿄", "오사카")으로 저장된다(RegionCatalog 참고). 권역이면
+        // 권역 자신 + 소속 지역으로 펼쳐 각각 조회한 뒤 합친다 - 지역 조건은 정확히 일치 비교라
+        // 그대로 넘기면 항상 0건이다. 키워드 검색은 지역을 무시하므로 같은 파티가 여러 번
+        // 나올 수 있어 distinct 로 거른다(같은 트랜잭션이라 같은 인스턴스).
+        List<String> places = includePast ? List.of() : regionCatalog.placesOf(region);
+        if (!places.isEmpty()) {
+            Set<String> regions = new LinkedHashSet<>();
+            regions.add(region.trim());
+            regions.addAll(places);
+            return regions.stream()
+                    .flatMap(r -> listBoardExact(r, keyword, false, gender, nationality, age).stream())
+                    .distinct()
+                    .sorted(Comparator.comparing(PartyEntity::getDepartureDate))
+                    .toList();
+        }
+        return listBoardExact(region, keyword, includePast, gender, nationality, age);
+    }
+
+    private List<PartyEntity> listBoardExact(String region, String keyword, boolean includePast,
+                                             GenderRestriction gender, NationalityRestriction nationality, Integer age) {
         if (gender == null && nationality == null && age == null) {
             return listBoard(region, keyword, includePast);
         }

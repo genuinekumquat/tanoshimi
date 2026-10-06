@@ -56,13 +56,15 @@ class PartyServiceTest {
     @Mock private net.datasa.tanoshimi.repository.ChatMessageRepository chatMessageRepository;
     @Mock private net.datasa.tanoshimi.repository.PostRepository postRepository;
     @Mock private net.datasa.tanoshimi.repository.MyTripRepository myTripRepository;
+    // 실제 region-tree.json 을 읽는다 - 권역 → 지역 펼치기를 진짜 표로 검증하려고 목 대신 실물을 쓴다.
+    private final RegionCatalog regionCatalog = new RegionCatalog(new com.fasterxml.jackson.databind.ObjectMapper());
     
     private PartyService partyService() {
         return new PartyService(userRepository, partyRepository, partyMemberRepository, chatRoomRepository,
                 chatRoomMemberRepository, tourRepository, tripScheduleRepository, notificationService,
                 mannerTempService, fileStorageService, partyApplicationRepository, tripScheduleItemRepository,
                 tripScheduleVoteRepository, tripScheduleSnapshotRepository, chatMessageRepository,
-                postRepository, myTripRepository);
+                postRepository, myTripRepository, regionCatalog);
     }
     
     private final List<PartyEntity> sample = List.of(mock(PartyEntity.class));
@@ -139,7 +141,49 @@ class PartyServiceTest {
         verify(partyRepository, never())
                 .findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(any(), any(), any());
     }
-    
+
+    @Test
+    void 권역_이름이면_소속_지역으로_펼쳐서_합치고_출발일순으로_정렬한다() {
+        PartyEntity kyoto = party("교토", LocalDate.now().plusDays(5), 4);
+        PartyEntity osaka = party("오사카", LocalDate.now().plusDays(2), 4);
+        when(partyRepository.findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
+                any(), eq(PartyStatus.recruiting), eq(LocalDate.now()))).thenReturn(List.of());
+        when(partyRepository.findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
+                eq("교토"), eq(PartyStatus.recruiting), eq(LocalDate.now()))).thenReturn(List.of(kyoto));
+        when(partyRepository.findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
+                eq("오사카"), eq(PartyStatus.recruiting), eq(LocalDate.now()))).thenReturn(List.of(osaka));
+
+        List<PartyEntity> result = partyService().listBoard("간사이", null, false, null, null, null);
+
+        assertThat(result).containsExactly(osaka, kyoto);
+        verify(partyRepository).findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
+                "간사이", PartyStatus.recruiting, LocalDate.now());
+    }
+
+    @Test
+    void 권역_펼치기와_키워드가_겹쳐도_같은_파티는_한_번만_나온다() {
+        PartyEntity tokyo = party("도쿄", LocalDate.now().plusDays(3), 4);
+        // 키워드 검색은 지역을 무시하므로 펼친 지역마다 같은 결과가 돌아온다.
+        when(partyRepository.searchRecruiting(eq(PartyStatus.recruiting), eq("카페"), eq(LocalDate.now())))
+                .thenReturn(List.of(tokyo));
+
+        List<PartyEntity> result = partyService().listBoard("간토", "카페", false, null, null, null);
+
+        assertThat(result).containsExactly(tokyo);
+    }
+
+    @Test
+    void 말단_지역_이름은_펼치지_않고_그대로_조회한다() {
+        when(partyRepository.findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(
+                eq("도쿄"), eq(PartyStatus.recruiting), eq(LocalDate.now()))).thenReturn(sample);
+
+        List<PartyEntity> result = partyService().listBoard("도쿄", null, false, null, null, null);
+
+        assertThat(result).isSameAs(sample);
+        verify(partyRepository, times(1))
+                .findByRegionAndStatusAndBlindedFalseAndDepartureDateGreaterThanEqualOrderByDepartureDateAsc(any(), any(), any());
+    }
+
     // ---------------------------------------------------------------- getVisibleParty
     
     @Test
