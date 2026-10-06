@@ -128,11 +128,15 @@
             <button class="opt-route" data-day="${d.key}">🧭 동선</button>
           </div>`).join('');
 
-        gridHead.querySelectorAll('.add').forEach(btn =>
-          btn.addEventListener('click', async () => {
-              await addBlank(btn.dataset.day);
-          })
-        );
+        gridHead.querySelectorAll('.add').forEach(btn => {
+            if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) {
+                btn.title = '편집권이 있는 사람만 추가할 수 있어요';
+            }
+            btn.addEventListener('click', async () => {
+                if (!canEditNow()) return;
+                await addBlank(btn.dataset.day);
+            });
+        });
 
         gridHead.querySelectorAll('.opt-route').forEach(btn =>
           btn.addEventListener('click', async () => {
@@ -415,6 +419,12 @@
         return Math.min(start, END_HOUR * 60 - Math.max(durationMinute, SLOT_MIN));
     }
 
+    // 편집권이 없으면 추가 버튼을 눌러도 조용히 실패하지 말고 이유를 알려준다
+    function canEditNow() {
+        if (typeof IS_LOCK_HOLDER === 'undefined' || IS_LOCK_HOLDER) return true;
+        alert('지금은 편집권이 있는 사람만 일정을 추가할 수 있어요. 방장에게 편집권을 요청해보세요.');
+        return false;
+    }
     async function addBlank(dayKey) {
         const title = prompt('항목 이름을 입력하세요', '새로운 일정');
         if (!title) return;
@@ -479,7 +489,7 @@
         list.forEach(item => {
             const card = document.createElement('div');
             card.className = 'rec-card';
-            card.draggable = true;
+            card.draggable = (typeof IS_LOCK_HOLDER === 'undefined' || IS_LOCK_HOLDER);
             card.dataset.payload = JSON.stringify({
                 kind: item.kind || 'recommend',
                 activityId: item.activityId || null,
@@ -503,6 +513,7 @@
                 e.dataTransfer.setData('text/plain', card.dataset.payload);
             });
             card.querySelector('.put').addEventListener('click', async () => {
+                if (!canEditNow()) return;
                 if (!(await confirmWeatherOk({ activityId: item.activityId, latitude: item.latitude, longitude: item.longitude, venueType: item.venueType }, 1))) return;
                 const finalDuration = (!isNaN(parseInt(item.durationMin)) && parseInt(item.durationMin) > 0) ? parseInt(item.durationMin) : 60;
                   const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {

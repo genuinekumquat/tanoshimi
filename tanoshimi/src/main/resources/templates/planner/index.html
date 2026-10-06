@@ -225,9 +225,23 @@
   @media (prefers-reduced-motion:reduce){
     *{ animation:none !important; transition:none !important; }
   }
+  /* 편집권 표시: 있는 사람은 추가 버튼이 컬러, 없는 사람은 흑백 + 금지 커서 */
+  .can-edit .day-head .add{ background:var(--sash); color:#fff; border:1px solid var(--sash); font-weight:700; }
+  .can-edit .day-head .add:hover{ background:var(--sash-deep); border-color:var(--sash-deep); color:#fff; }
+  .can-edit .rec-card .put{ background:var(--sash); color:#fff; border-color:var(--sash); }
+
+  .edit-locked .day-head .add,
+  .edit-locked .day-head .opt-route,
+  .edit-locked .rec-card .put,
+  .edit-locked #btn-add,
+  .edit-locked #btn-clear{ filter:grayscale(1); opacity:.45; cursor:not-allowed; }
+  .edit-locked .day-head .add:hover{ border-color:var(--rope); color:var(--ink-soft); }
+  .edit-locked .day-head .opt-route:hover{ border-color:var(--line); color:var(--forest-deep); }
+  .edit-locked .rec-card .put:hover{ background:var(--parchment); color:var(--forest-deep); border-color:var(--line); }
+  .edit-locked .rec-card{ cursor:default; }
 </style>
 </head>
-<body>
+<body th:classappend="${isLockHolder} ? 'can-edit' : 'edit-locked'">
 <header th:replace="~{fragments/layout :: header}"></header>
 
 <div class="wrap">
@@ -389,7 +403,7 @@ const IS_LOCK_HOLDER = /*[[${isLockHolder}]]*/ false;
 /*]]>*/
 </script>
 
-<script th:src="@{/js/planner.js?v=100}" defer></script>
+<script th:src="@{/js/planner.js?v=101}" defer></script>
 <script th:src="@{/js/planner-owner.js}" defer></script>
 <footer th:replace="~{fragments/layout :: footer}"></footer>
 <div th:replace="~{fragments/layout :: companion}"></div>

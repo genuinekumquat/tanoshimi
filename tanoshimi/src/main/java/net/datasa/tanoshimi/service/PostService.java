@@ -9,12 +9,13 @@ import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.*;
 import net.datasa.tanoshimi.util.ThumbnailUrlPolicy;
 import org.springframework.data.domain.Page;
-import java.util.ArrayList;
-import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -282,12 +283,18 @@ public class PostService {
     
     @Transactional
     public void delete(PostEntity post, UserEntity requester) {
-        if (!post.getUser().getId().equals(requester.getId()) && !requester.isAdmin()) {
+        // 컨트롤러가 넘긴 post 는 다른 트랜잭션에서 읽은 것이라 party·owner 를 펼칠 수 없다 - 여기서 다시 읽는다
+        PostEntity target = getPost(post.getId());
+        boolean isAuthor = target.getUser().getId().equals(requester.getId());
+        // 파티 사진첩 사진은 방장도 지울 수 있다(부적절한 사진 정리용). 수정은 작성자 본인만.
+        boolean isPartyOwner = target.getParty() != null
+                && target.getParty().getOwner().getId().equals(requester.getId());
+        if (!isAuthor && !isPartyOwner && !requester.isAdmin()) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED);
         }
-        postLikeRepository.deleteByPost(post);
-        postCommentRepository.deleteByPost(post);
-        postRepository.delete(post);
+        postLikeRepository.deleteByPost(target);
+        postCommentRepository.deleteByPost(target);
+        postRepository.delete(target);
     }
 
     @Transactional

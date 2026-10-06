@@ -3,21 +3,19 @@ package net.datasa.tanoshimi.controller;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
 import net.datasa.tanoshimi.domain.dto.ApiResponse;
-import net.datasa.tanoshimi.domain.dto.ApplicantSummaryDTO;
-import net.datasa.tanoshimi.domain.entity.*;
+import net.datasa.tanoshimi.domain.entity.PartyEntity;
+import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.UserRepository;
-import net.datasa.tanoshimi.service.ChatService;
-import net.datasa.tanoshimi.service.PartyApplicationService;
-import net.datasa.tanoshimi.service.PartyService;
-import net.datasa.tanoshimi.service.PostService;
-import net.datasa.tanoshimi.service.TitleService;
-import net.datasa.tanoshimi.service.TripScheduleVoteService;
+import net.datasa.tanoshimi.service.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
  * 파티원만 볼 수 있는 파티 전용 페이지.
@@ -49,6 +47,7 @@ public class PartyRoomController {
 
         model.addAttribute("party", party);
         model.addAttribute("isOwner", party.getOwner().getId().equals(me.getId()));
+        model.addAttribute("isAdmin", me.isAdmin());
         var members = partyService.members(party);
         model.addAttribute("members", members);
         // 파티원 이름 옆 대표 칭호 배지 (user id → 칭호, 없는 사람은 빠짐)
