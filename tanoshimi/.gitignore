@@ -9,3 +9,4 @@ Thumbs.db
 boot.log
 *.py
 .playwright-mcp/
+__pycache__/
