@@ -1,32 +1,17 @@
 package net.datasa.tanoshimi.controller;
 
+import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.auth.CustomUserDetails;
-import java.util.List;
-import net.datasa.tanoshimi.domain.dto.ApiResponse;
-import net.datasa.tanoshimi.domain.dto.ChangePasswordRequest;
-import net.datasa.tanoshimi.domain.dto.IntroUpdateRequest;
-import net.datasa.tanoshimi.domain.dto.MyTripView;
-import net.datasa.tanoshimi.domain.dto.ThemeUpdateRequest;
-import net.datasa.tanoshimi.domain.dto.TitleEquipRequest;
-import net.datasa.tanoshimi.domain.dto.TravelHeatmapView;
+import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
+import net.datasa.tanoshimi.domain.dto.*;
 import net.datasa.tanoshimi.domain.entity.MyTripEntity;
 import net.datasa.tanoshimi.domain.entity.UserEntity;
 import net.datasa.tanoshimi.exception.BusinessException;
 import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.UserRepository;
-import jakarta.servlet.http.HttpSession;
-import net.datasa.tanoshimi.auth.oauth.CustomOAuth2UserService;
-import net.datasa.tanoshimi.service.UserNotificationSettingsService;
-import net.datasa.tanoshimi.service.FileStorageService;
-import net.datasa.tanoshimi.service.FollowService;
-import net.datasa.tanoshimi.service.MyTripService;
-import net.datasa.tanoshimi.service.PostService;
-import net.datasa.tanoshimi.service.TitleService;
-import net.datasa.tanoshimi.service.TravelHeatmapService;
-import net.datasa.tanoshimi.service.UserProfileThemeService;
-import net.datasa.tanoshimi.service.UserService;
-import jakarta.validation.Valid;
+import net.datasa.tanoshimi.service.*;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -35,13 +20,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 /** 마이페이지 · 공개 프로필. 담당: 김민규(⑥). */
 @Controller
@@ -367,9 +349,13 @@ public class MyPageController {
 
         return ApiResponse.okMessage("비밀번호가 변경되었습니다.");
     }
-
+    
     @GetMapping("/users/{id}")
     public String publicProfile(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal, Model model) {
+        // 내 프로필이면 /{username} 과 똑같이 마이페이지(지도·피드·수정 메뉴)로 보낸다 - ProfileController 참고
+        if (principal != null && principal.getId().equals(id)) {
+            return "redirect:/mypage";
+        }
         return renderProfile(userService.getById(id), principal, model);
     }
 
