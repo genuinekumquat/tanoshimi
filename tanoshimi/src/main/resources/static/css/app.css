@@ -76,7 +76,7 @@
   --cat-move:#0e9aac;      /* 이동   浅葱 */
   --cat-rest:#7d80b5;      /* 휴식   藤 */
   --cat-blank:#c2c8d4;     /* 빈칸 */
-  --slot-h:110px;
+  --slot-h:50px;
 
   /* ---- 형태 ---- */
   --r-xs:4px; --r-sm:8px; --r-md:12px; --r-lg:18px; --r-xl:26px; --r-pill:999px;

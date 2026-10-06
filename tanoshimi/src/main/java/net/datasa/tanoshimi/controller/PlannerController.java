@@ -250,11 +250,17 @@ public class PlannerController {
                                           @AuthenticationPrincipal CustomUserDetails principal) {
         TripScheduleEntity schedule = getScheduleWithContext(scheduleId);
         UserEntity user = requireMember(schedule, principal);
+        // AI 추천 일정을 실제로 반영하려면 편집권이 필요하다 - 크레딧 쓰기 전에 먼저 막는다.
+        lockService.assertCanEdit(schedule, user.getId());
         if (!aiCreditService.tryConsume(user)) {
             throw new BusinessException(ErrorCode.AI_CREDIT_EXCEEDED);
         }
 
         List<ScheduleItemView> items = plannerService.getItems(schedule);
+        TourEntity tour = schedule.getParty() != null ? schedule.getParty().getTour() : null;
+        int totalDays = schedule.getDurationDays() != null ? schedule.getDurationDays()
+                : (schedule.getParty() != null ? schedule.getParty().getDurationDays()
+                : (tour != null ? tour.getDurationNights() + 1 : 3));
         
         if (items.isEmpty()) {
             return ApiResponse.ok(java.util.Map.of("briefing", "일정이 비어 있습니다. 항목을 추가한 후 검증해 주세요."));
@@ -272,7 +278,9 @@ public class PlannerController {
         prompt.append("추가로, 일정 중간에 활동이 없는 빈 시간이 길게 비어있다면, 그 시간대와 동선을 고려해 짧게 즐길 수 있는 추천 활동(유명 카페, 간식, 산책로 등)을 검색하여 일정 브리핑에 꼭 포함해주세요.\n\n");
         prompt.append("결과물은 반드시 Markdown을 포함하지 않은 순수 JSON 포맷으로 작성해주세요.\n");
         prompt.append("{\"briefing\": \"브리핑 내용\", \"newSchedule\": [{\"dayIndex\": 1, \"startMinute\": 720, \"durationMinute\": 60, \"title\": \"...\", \"source\": \"...\", \"activityId\": null}, ...]}\n");
-        prompt.append("newSchedule 배열은 기존 일정을 대체할 새로운 추천 일정 전체 리스트입니다. 주의사항: JSON의 키 값이나 구조를 절대 바꾸지 마세요.\n\n");
+        prompt.append("newSchedule 배열은 기존 일정을 대체할 새로운 추천 일정 전체 리스트입니다. 주의사항: JSON의 키 값이나 구조를 절대 바꾸지 마세요.\n");
+        prompt.append("- dayIndex 는 1부터 ").append(totalDays).append(" 사이, startMinute 는 자정부터 센 분(예: 09:30 → 570), 시작+소요가 1440 을 넘으면 안 됩니다.\n");
+        prompt.append("- 기존 항목을 유지·이동할 때는 source 를 그대로 두고 activityId 에 그 항목의 id 를 넣으세요. 새로 추가하는 항목은 source 'custom', activityId null 입니다.\n\n");
         prompt.append("【일정표 데이터】\n");
         
         for (ScheduleItemView item : items) {
@@ -298,7 +306,9 @@ public class PlannerController {
         if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
             responseText = responseText.substring(startIndex, endIndex + 1);
         }
-        
+
+        String briefing;
+        List<ScheduleItemRequest> newItems = new java.util.ArrayList<>();
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             // Strip markdown tags if Gemini generated them
@@ -315,15 +325,21 @@ public class PlannerController {
             }
             responseText = responseText.trim();
             com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(responseText);
-            String briefing = root.path("briefing").asText();
+            briefing = root.path("briefing").asText();
             com.fasterxml.jackson.databind.JsonNode newSched = root.path("newSchedule");
-            
+
             List<TripScheduleItemEntity> allItems = plannerService.rawItems(schedule);
-            plannerService.clearNonFixedItems(schedule);
-            
-            if (newSched != null && newSched.isArray()) {
+            if (newSched.isArray()) {
                 for (com.fasterxml.jackson.databind.JsonNode node : newSched) {
                     if ("package_default".equals(node.path("source").asText())) {
+                        continue;
+                    }
+                    int day = node.path("dayIndex").asInt();
+                    int start = node.path("startMinute").asInt(-1);
+                    int dur = node.path("durationMinute").asInt();
+                    // 범위 밖 항목(0일차, 음수 시각, 자정 넘김 등)은 화면에 안 보이거나 저장이 깨지므로 버린다.
+                    if (day < 1 || day > totalDays || start < 0 || dur < 1 || start + dur > 24 * 60) {
+                        log.info("AI 추천 항목 범위 밖이라 제외: {}", node);
                         continue;
                     }
                     String nodeSource = node.path("source").asText("custom");
@@ -331,6 +347,7 @@ public class PlannerController {
                     if ("custom".equals(nodeSource)) {
                         aid = null;
                     } else if (aid != null) {
+                        // 프롬프트엔 일정 항목 id 를 줬으므로, 그 항목에 연결된 실제 activity id 로 바꾼다.
                         Long mappedAid = null;
                         for (TripScheduleItemEntity it : allItems) {
                             if (it.getId().equals(aid) && it.getActivity() != null) {
@@ -341,24 +358,29 @@ public class PlannerController {
                         aid = mappedAid;
                     }
 
-                    ScheduleItemRequest req = new ScheduleItemRequest(
-                            node.path("dayIndex").asInt(),
-                            node.path("startMinute").asInt(),
-                            node.path("durationMinute").asInt(),
+                    newItems.add(new ScheduleItemRequest(
+                            day, start, dur,
                             aid,
                             node.path("title").asText(),
                             node.path("memo").isNull() ? null : node.path("memo").asText(), node.path("color").isNull() ? null : node.path("color").asText()
-                    );
-                    plannerService.addItem(scheduleId, user, req);
+                    ));
                 }
             }
-            
-            broadcast(scheduleId);
-            return ApiResponse.ok(java.util.Map.of("briefing", briefing));
         } catch (Exception e) {
             log.warn("AI 검증 응답 파싱 실패 (원본: {})", responseText, e);
             return ApiResponse.ok(java.util.Map.of("briefing", "AI 응답을 처리하지 못했어요. 잠시 후 다시 시도해 주세요."));
         }
+
+        // newSchedule 이 비어 있으면(Gemini 실패 안내 JSON 포함) 일정은 그대로 두고 브리핑만 보여준다 -
+        // 예전엔 이 경우에도 고정 아닌 항목을 전부 지워버렸다.
+        if (newItems.isEmpty()) {
+            return ApiResponse.ok(java.util.Map.of("briefing", briefing, "applied", 0));
+        }
+        plannerService.replaceNonFixedItems(schedule, user, newItems);
+        // 반영 결과를 "AI 추천 반영"(ai_apply) 시점으로 자동 저장 - 반영 전 상태는 위의 ai_valid 스냅샷.
+        lockService.save(scheduleId, user, SnapshotTrigger.ai_apply);
+        broadcast(scheduleId);
+        return ApiResponse.ok(java.util.Map.of("briefing", briefing, "applied", newItems.size()));
     }
 
 

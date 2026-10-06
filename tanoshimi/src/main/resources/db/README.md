@@ -28,6 +28,8 @@ mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migrati
 - `migration_v21_remove_reservation_payment.sql` 도 마찬가지로 기존 DB 전용이다(아래 참고).
 - `migration_v25_snapshot_trigger_ai_valid.sql` 도 기존 DB 전용이다. `schema.sql` 로 만든 DB 에서
   계획표 "AI 검증"이 `Data truncated for column 'trigger_type'` 로 실패하면 이걸 한 번 실행한다.
+- `migration_v26_snapshot_trigger_ai_apply.sql` 도 기존 DB 전용이다. AI 검증 후 "AI 추천 반영" 저장이
+  `Data truncated for column 'trigger_type'` 로 실패하면 이걸 한 번 실행한다(v25 내용 포함).
 
 ## (선택) 마이페이지 데모 데이터 채우기
 

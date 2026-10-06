@@ -84,7 +84,7 @@
     }
 (function () {
     const SLOT_MIN = 30;         // 30 min slots
-    const SLOT_H = 110;           // px per slot
+    const SLOT_H = 50;           // px per slot
 
     // DAYS and SLOTS depend on schedule
     const START_HOUR = 6;
@@ -719,6 +719,9 @@
             }
             const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/ai-validate?mode=${encodeURIComponent(mode)}`, {});
             if (res.success) {
+                if (res.data.applied > 0) {
+                    res.data.briefing += `\n\n✅ 추천 일정 ${res.data.applied}개를 계획표에 반영하고 'AI 추천 반영'으로 저장했어요.`;
+                }
                 // [TNSM-70] 말풍선은 몇 초 뒤 사라지고 기록이 안 남아서 가독성이 떨어진다는
                 // 피드백 반영 - 타미 채팅 기록(💬 대화하기 패널, 로컬스토리지 저장)에도 남긴다.
                 if (window.companionAddBotMessage) {
