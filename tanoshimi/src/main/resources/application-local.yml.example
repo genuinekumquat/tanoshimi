@@ -37,8 +37,8 @@ app:
     provider: mock     # 실제 키 생기면 kma 또는 openweather 로 변경
     api-key: 날씨_API_KEY
   translation:
-    provider: mock      # 실제 키 생기면 papago 또는 deepl 로 변경
-    api-key: 번역_API_KEY
+    provider: mock      # 실제 키 생기면 deepl 또는 gemini 로 변경
+    api-key: 번역_API_KEY  # gemini 면 Gemini API 키
   companion:
     provider: gemini    # 실제 AI 연동 시: anthropic 또는 gemini
     api-key: Gemini_API_KEY
