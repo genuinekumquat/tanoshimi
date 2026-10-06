@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -71,6 +72,16 @@ public class  SecurityConfig {
     public PersistentTokenRepository persistentTokenRepository() {
         JdbcTokenRepositoryImpl repository = new JdbcTokenRepositoryImpl();
         repository.setDataSource(dataSource);
+        // JPA 엔티티가 없어 ddl-auto 로는 안 만들어지고, schema.sql/마이그레이션을 안 돌린 DB 에서는
+        // 로그아웃·자동 로그인 시 "bad SQL grammar" 500 이 난다 - 없으면 시작 시 만든다(있으면 no-op).
+        new JdbcTemplate(dataSource).execute(
+                "CREATE TABLE IF NOT EXISTS persistent_logins ("
+                        + "username VARCHAR(255) NOT NULL, "
+                        + "series VARCHAR(64) NOT NULL, "
+                        + "token VARCHAR(64) NOT NULL, "
+                        + "last_used TIMESTAMP NOT NULL, "
+                        + "PRIMARY KEY (series)"
+                        + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         return repository;
     }
 
