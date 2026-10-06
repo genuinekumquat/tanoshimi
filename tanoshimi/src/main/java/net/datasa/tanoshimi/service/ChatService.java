@@ -1,7 +1,5 @@
 package net.datasa.tanoshimi.service;
 
-import java.time.format.DateTimeFormatter;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import net.datasa.tanoshimi.domain.dto.ChatMessageView;
 import net.datasa.tanoshimi.domain.entity.ChatMessageEntity;
@@ -14,6 +12,9 @@ import net.datasa.tanoshimi.repository.ChatMessageRepository;
 import net.datasa.tanoshimi.repository.ChatRoomMemberRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * 파티 채팅 / 개인간(DM) 채팅 공용 서비스.
@@ -29,6 +30,7 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final BlockService blockService;
+    private final NotificationService notificationService;
 
     /** 이 방의 멤버가 맞는지 확인 - 파티 전용 채팅방에 아무나 못 들어오게 막는 최종 방어선. */
     @Transactional(readOnly = true)
@@ -44,16 +46,25 @@ public class ChatService {
 
         // dm(1:1) 방은 상대방과 차단 관계면 전송을 막는다 - TNSM-96, 조회 시점 판단(플래그 미사용).
         // party(그룹) 방은 멤버가 여럿이라 방 전체를 막을 수 없으므로 대상에서 제외(별도 과제).
+        UserEntity dmReceiver = null;
         if (room.getType() == ChatRoomType.dm) {
-            chatRoomMemberRepository.findOtherMember(room, sender).ifPresent(other -> {
-                if (blockService.isBlockedEitherWay(sender, other.getUser())) {
-                    throw new BusinessException(ErrorCode.BLOCKED_USER);
-                }
-            });
+            dmReceiver = chatRoomMemberRepository.findOtherMember(room, sender)
+                    .map(other -> other.getUser()).orElse(null);
+            if (dmReceiver != null && blockService.isBlockedEitherWay(sender, dmReceiver)) {
+                throw new BusinessException(ErrorCode.BLOCKED_USER);
+            }
         }
-
+        
         ChatMessageEntity saved = chatMessageRepository.save(
                 new ChatMessageEntity(room, sender, content, sender.getPreferredLang()));
+        
+        // [DM 알림] 받는 사람 종 아이콘 + 토스트. 같은 방의 안 읽은 알림이 있으면 쌓지 않는다.
+        if (dmReceiver != null) {
+            notificationService.notifyIfNoUnread(dmReceiver, "new_dm",
+                    sender.getName() + "님이 메시지를 보냈어요",
+                    content.length() > 40 ? content.substring(0, 40) + "..." : content,
+                    "/messages/" + room.getId());
+        }
         return toView(saved);
     }
 
