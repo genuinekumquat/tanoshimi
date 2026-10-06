@@ -18,15 +18,15 @@
 
             let avatarHtml = `<div class="ava">${escapeHtml((c.authorName || '?')[0])}</div>`;
             if (c.authorImage) {
-                avatarHtml = `<img class="ava" src="${c.authorImage}" style="object-fit:cover;">`;
+                avatarHtml = `<img class="ava" src="${escapeHtml(c.authorImage)}" style="object-fit:cover;">`;
             }
             const canDelete = myId != null && myId === c.authorId;
 
             div.innerHTML = `
               ${depth > 0 ? '<div style="color:#ccc;font-size:15px;">↳</div>' : ''}
-              ${avatarHtml}
+                            <a href="/users/${encodeURIComponent(c.authorId)}" style="flex:none;">${avatarHtml}</a>
               <div class="body">
-                <span class="name">${escapeHtml(c.authorName)}</span><span class="txt">${escapeHtml(c.content)}</span>
+                                <a class="name" href="/users/${encodeURIComponent(c.authorId)}" style="color:inherit; text-decoration:none;">${escapeHtml(c.authorName)}</a><span class="txt">${escapeHtml(c.content)}</span>
                 <div class="time">
                   ${c.createdAt}
                   <button type="button" class="reply-btn" data-id="${c.id}" style="margin-left:8px; background:none; border:none; color:var(--forest); font-weight:700; cursor:pointer;">답글</button>

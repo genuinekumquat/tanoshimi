@@ -91,6 +91,8 @@
   .modal-box .actions button { padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; border:none; }
   .btn-modal-x { background:#dfe4ec; color:var(--ink-soft); }
   .btn-modal-ok { background:var(--forest); color:#fff; }
+  #v-comments a.comment-author { font-weight:700; color:var(--ink); text-decoration:none; }
+  #v-comments a.comment-author:hover { text-decoration:underline; }
 </style>
 <!-- 사내 벤더 스크립트 -->
 <script src="/vendor/sockjs.min.js"></script>
@@ -183,7 +185,7 @@
       <h2 class="sec-title">추억 사진첩 <button class="btn-write" id="btn-write">+ 사진 올리기</button></h2>
       <p th:if="${partyPosts == null || partyPosts.isEmpty()}" style="color:#98a1b4;font-size:14px;">아직 공유된 사진이 없습니다.</p>
       <div class="grid-photos" th:if="${partyPosts != null && !partyPosts.isEmpty()}">
-        <div class="photo-card" th:each="p : ${partyPosts}" th:attr="data-id=${p.id}, data-img=${p.thumbnailUrl}, data-title=${p.title}, data-content=${p.content}">
+        <div class="photo-card" th:each="p : ${partyPosts}" th:attr="data-id=${p.id}, data-img=${p.thumbnailUrl}, data-title=${p.title}, data-content=${p.content}, data-author-id=${p.user.id}, data-region=${p.region}">
           <img th:src="${p.thumbnailUrl}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'100%\' height=\'100%\' fill=\'#dfe4ec\'/></svg>'">
           <div class="photo-overlay"><span th:text="${p.title}"></span></div>
         </div>
@@ -254,7 +256,11 @@
 
     <div class="actions" style="justify-content:space-between; width:100%; margin-top:24px;">
       <a id="v-download" href="" download class="btn-write" style="text-decoration:none; display:inline-block; text-align:center;">📥 다운로드</a>
-      <button class="btn-modal-x" id="btn-view-close">닫기</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-modal-x" id="btn-view-edit" style="display:none;">수정</button>
+        <button class="btn-modal-x" id="btn-view-delete" style="display:none; color:var(--danger);">삭제</button>
+        <button class="btn-modal-x" id="btn-view-close">닫기</button>
+      </div>
     </div>
   </div>
 </div>
@@ -262,12 +268,12 @@
 <!-- 사진 올리기 모달 -->
 <div class="modal-overlay" id="write-modal">
   <div class="modal-box">
-    <h3>사진 공유하기</h3>
+    <h3 id="w-modal-title">사진 공유하기</h3>
     <input type="text" id="w-title" placeholder="제목을 입력하세요">
     <textarea id="w-content" placeholder="내용이나 소감을 적어보세요"></textarea>
     
     <label style="background:#f2f6fc; border:1px dashed #dfe4ec; padding:20px; text-align:center; border-radius:8px; cursor:pointer;" id="w-file-label">
-      📷 사진 첨부 (클릭)
+      <span id="w-file-text">📷 사진 첨부 (클릭)</span>
       <input type="file" id="w-file" accept="image/*" style="display:none;">
     </label>
     <div id="w-filename" style="font-size:12px; color:var(--forest); font-weight:700; text-align:center;"></div>
@@ -284,6 +290,9 @@
 const ROOM_ID = /*[[${roomId}]]*/ null;
 const PARTY_ID = /*[[${party.id}]]*/ null;
 const MY_NAME = /*[[${#authentication.principal.displayName}]]*/ '나';
+const MY_ID = /*[[${#authentication.principal.id}]]*/ null;
+const IS_PARTY_OWNER = /*[[${isOwner}]]*/ false;
+const IS_ADMIN = /*[[${isAdmin}]]*/ false;
 const SCHEDULE_ID = /*[[${scheduleId}]]*/ null;
 const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/ [];
 /*]]>*/
@@ -461,62 +470,91 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
         }
     });
 
-    // [5] 사진 올리기 (모달)
-    const writeModal = document.getElementById('write-modal');
-    const wFile = document.getElementById('w-file');
-    const wName = document.getElementById('w-filename');
-    
-    document.getElementById('btn-write')?.addEventListener('click', () => {
-        writeModal.style.display = 'flex';
-    });
-    document.getElementById('btn-cancel')?.addEventListener('click', () => {
-        writeModal.style.display = 'none';
-        document.getElementById('w-title').value = '';
-        document.getElementById('w-content').value = '';
-        wFile.value = '';
-        wName.textContent = '';
-    });
-    
-    wFile?.addEventListener('change', e => {
-        if (e.target.files.length > 0) {
-            wName.textContent = e.target.files[0].name;
-        }
-    });
-    
-    document.getElementById('btn-save')?.addEventListener('click', async () => {
-        const title = document.getElementById('w-title').value.trim();
-        const content = document.getElementById('w-content').value.trim();
-        const file = wFile.files[0];
+  // [5] 사진 올리기 / 수정 (같은 모달을 같이 쓴다 - editingCard 가 있으면 수정 모드)
+  const writeModal = document.getElementById('write-modal');
+  const wFile = document.getElementById('w-file');
+  const wName = document.getElementById('w-filename');
+  let editingCard = null;
 
-        if (!title) return alert('제목을 입력하세요');
-        if (!content) return alert('내용을 입력하세요');
-        if (!file) return alert('사진을 꼭 첨부해주세요.');
+  function resetWriteModal() {
+    editingCard = null;
+    document.getElementById('w-modal-title').textContent = '사진 공유하기';
+    document.getElementById('w-file-text').textContent = '📷 사진 첨부 (클릭)';
+    document.getElementById('btn-save').textContent = '올리기';
+    document.getElementById('w-title').value = '';
+    document.getElementById('w-content').value = '';
+    wFile.value = '';
+    wName.textContent = '';
+  }
 
-        let csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
-        let csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
-        try {
-            const fd = new FormData();
-            fd.append('file', file);
-            const uploadRes = await fetch('/api/uploads/image', {
-                method: 'POST',
-                headers: csrfToken ? {[csrfHeader]: csrfToken} : {},
-                body: fd
-            });
-            const uploadJson = await uploadRes.json();
-            if (!uploadJson.success) { alert(uploadJson.message || '사진 업로드에 실패했습니다.'); return; }
+  // 사진 상세보기에서 "수정"을 누르면 호출된다
+  function openEditModal(card) {
+    resetWriteModal();
+    editingCard = card;
+    document.getElementById('w-modal-title').textContent = '사진 수정하기';
+    document.getElementById('w-file-text').textContent = '📷 사진 바꾸기 (선택 - 안 고르면 그대로)';
+    document.getElementById('btn-save').textContent = '수정하기';
+    document.getElementById('w-title').value = card.getAttribute('data-title') || '';
+    document.getElementById('w-content').value = card.getAttribute('data-content') || '';
+    writeModal.style.display = 'flex';
+  }
 
-            const r = await fetch('/api/posts', {
-                method: 'POST',
-                headers: Object.assign({'Content-Type': 'application/json'}, csrfToken ? {[csrfHeader]: csrfToken} : {}),
-                body: JSON.stringify({ title, content, region: null, thumbnailUrl: uploadJson.data, partyId: PARTY_ID })
-            });
-            const res = await r.json();
-            if(res.success) location.reload();
-            else alert(res.message || MSG_ERROR);
-        } catch(err) {
-            alert(MSG_ERROR);
-        }
-    });
+  document.getElementById('btn-write')?.addEventListener('click', () => {
+    resetWriteModal();
+    writeModal.style.display = 'flex';
+  });
+  document.getElementById('btn-cancel')?.addEventListener('click', () => {
+    writeModal.style.display = 'none';
+    resetWriteModal();
+  });
+
+  wFile?.addEventListener('change', e => {
+    if (e.target.files.length > 0) {
+      wName.textContent = e.target.files[0].name;
+    }
+  });
+
+  document.getElementById('btn-save')?.addEventListener('click', async () => {
+    const title = document.getElementById('w-title').value.trim();
+    const content = document.getElementById('w-content').value.trim();
+    const file = wFile.files[0];
+
+    if (!title) return alert('제목을 입력하세요');
+    if (!content) return alert('내용을 입력하세요');
+    if (!file && !editingCard) return alert('사진을 꼭 첨부해주세요.');
+
+    let csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
+    let csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+    try {
+      // 새 사진을 골랐을 때만 업로드한다 - 수정에서 사진을 안 바꾸면 기존 주소를 그대로 쓴다
+      let thumbnailUrl = editingCard ? editingCard.getAttribute('data-img') : null;
+      if (file) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const uploadRes = await fetch('/api/uploads/image', {
+          method: 'POST',
+          headers: csrfToken ? {[csrfHeader]: csrfToken} : {},
+          body: fd
+        });
+        const uploadJson = await uploadRes.json();
+        if (!uploadJson.success) { alert(uploadJson.message || '사진 업로드에 실패했습니다.'); return; }
+        thumbnailUrl = uploadJson.data;
+      }
+
+      let res;
+      if (editingCard) {
+        res = await window.api.put(`/api/posts/${editingCard.getAttribute('data-id')}`, {
+          title, content, region: editingCard.getAttribute('data-region'), thumbnailUrl, partyId: PARTY_ID
+        });
+      } else {
+        res = await window.api.post('/api/posts', { title, content, region: null, thumbnailUrl, partyId: PARTY_ID });
+      }
+      if (res.success) location.reload();
+      else alert(res.message || MSG_ERROR);
+    } catch(err) {
+      alert(MSG_ERROR);
+    }
+  });
     
     // [6] 일정 확정 투표
     const btnAgree = document.getElementById('btn-vote-agree');
@@ -535,8 +573,13 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
 
     // [7] 사진 상세보기 및 댓글 (모달)
     let currentViewPostId = null;
+    let currentViewCard = null;
     const vModal = document.getElementById('view-modal');
-    
+
+    // 댓글 작성자 이름·내용은 사용자가 입력한 값이라, HTML 로 해석되지 않게 바꿔서 넣는다 (XSS 방지)
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
     async function loadComments(postId) {
         const cContainer = document.getElementById('v-comments');
         if (!cContainer) return;
@@ -573,25 +616,28 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
                     div.style.fontSize = '13px';
                     div.style.display = 'flex';
                     div.style.gap = '8px';
-                    
-                    let avatarHtml = `<div class="pf" style="width:30px;height:30px;border-radius:50%;background:#e7edf8;color:#1b4a9c;display:flex;align-items:center;justify-content:center;font-weight:700;">${c.authorName[0]}</div>`;
-                    if (c.authorImage) {
-                        avatarHtml = `<img src="${c.authorImage}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">`;
-                    }
-                    
-                    div.innerHTML = `
+
+                  // 작성자 이름·사진을 누르면 공개 프로필(/users/{id})로 - 파티원 목록과 같은 경로
+                  const profileUrl = `/users/${encodeURIComponent(c.authorId)}`;
+                  const name = escapeHtml(c.authorName || '?');
+                  let avatarHtml = `<div class="pf" style="width:30px;height:30px;border-radius:50%;background:#e7edf8;color:#1b4a9c;display:flex;align-items:center;justify-content:center;font-weight:700;">${escapeHtml((c.authorName || '?')[0])}</div>`;
+                  if (c.authorImage) {
+                    avatarHtml = `<img src="${escapeHtml(c.authorImage)}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">`;
+                  }
+
+                  div.innerHTML = `
                       ${depth > 0 ? '<div style="color:#dfe4ec; font-size:18px;">↳</div>' : ''}
-                      ${avatarHtml}
+                      <a href="${profileUrl}" title="${name} 프로필 보기" style="flex:none;">${avatarHtml}</a>
                       <div style="flex:1;">
                           <div style="display:flex; gap:6px; align-items:center;">
-                              <span style="font-weight:700; color:var(--ink);">${c.authorName}</span>
-                              <span style="color:#aaa; font-size:11px;">${c.createdAt}</span>
+                              <a href="${profileUrl}" class="comment-author">${name}</a>
+                              <span style="color:#aaa; font-size:11px;">${escapeHtml(c.createdAt)}</span>
                           </div>
-                          <div style="margin-top:2px; color:var(--ink); line-height:1.4; word-break:break-all;">${c.content}</div>
+                          <div style="margin-top:2px; color:var(--ink); line-height:1.4; word-break:break-all;">${escapeHtml(c.content)}</div>
                           <button class="reply-btn" data-id="${c.id}" style="background:none;border:none;color:var(--forest);font-size:11.5px;padding:0;margin-top:4px;cursor:pointer;font-weight:700;">답글 쓰기</button>
                       </div>
                     `;
-                    cContainer.appendChild(div);
+                  cContainer.appendChild(div);
                     
                     if (c.children.length > 0) {
                         c.children.forEach(child => renderComment(child, depth + 1));
@@ -632,6 +678,12 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
         card.addEventListener('click', () => {
             const postId = card.getAttribute('data-id');
             currentViewPostId = postId;
+          currentViewCard = card;
+
+          // 수정은 올린 사람만, 삭제는 올린 사람·방장·관리자
+          const isAuthor = MY_ID != null && Number(card.getAttribute('data-author-id')) === MY_ID;
+          document.getElementById('btn-view-edit').style.display = isAuthor ? '' : 'none';
+          document.getElementById('btn-view-delete').style.display = (isAuthor || IS_PARTY_OWNER || IS_ADMIN) ? '' : 'none';
             
             const title = card.getAttribute('data-title');
             const img = safeImageUrl(card.getAttribute('data-img'));
@@ -641,12 +693,18 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
             document.getElementById('v-content').textContent = content || '';
             document.getElementById('v-img').src = img;
 
-            const dlBtn = document.getElementById('v-download');
+          const dlBtn = document.getElementById('v-download');
+          const rawImg = card.getAttribute('data-img') || '';
+          if (rawImg.startsWith('/uploads/')) {
+            // 저장본은 webp 라서, 서버에서 올린 사람의 원래 형식(jpg/png)으로 바꿔 받는다
+            dlBtn.href = '/api/files/download?url=' + encodeURIComponent(rawImg);
+            dlBtn.setAttribute('download', '');   // 파일명은 서버가 정해준다
+          } else {
             dlBtn.href = img || '#';
-            
             let filename = img.substring(img.lastIndexOf('/')+1);
             if(!filename || filename.length < 3) filename = 'photo.jpg';
             dlBtn.setAttribute('download', filename);
+          }
 
             vModal.style.display = 'flex';
             
@@ -665,6 +723,20 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
         vModal.style.display = 'none'; 
         currentViewPostId = null;
     });
+
+  // [8] 사진 수정·삭제
+  document.getElementById('btn-view-edit')?.addEventListener('click', () => {
+    if (!currentViewCard) return;
+    vModal.style.display = 'none';
+    openEditModal(currentViewCard);
+  });
+  document.getElementById('btn-view-delete')?.addEventListener('click', async () => {
+    if (!currentViewPostId) return;
+    if (!confirm('이 사진을 삭제할까요? 달린 댓글도 함께 지워집니다.')) return;
+    const res = await window.api.del(`/api/posts/${currentViewPostId}`);
+    if (res.success) location.reload();
+    else alert(res.message || MSG_ERROR);
+  });
 
     document.querySelectorAll('.modal-overlay').forEach(modal => {
         modal.addEventListener('click', (e) => {
