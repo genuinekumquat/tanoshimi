@@ -706,7 +706,16 @@
     connectRealtime();
     
     document.getElementById('btn-submit')?.addEventListener('click', async () => {
-        if (!confirm('제출하시겠습니까?')) return;
+        // 파티방 "일정 픽스 투표" 결과를 보여 주고 확정 - 투표와 제출이 다른 화면이라 이어 준다.
+        // 투표 결과가 제출을 막지는 않는다(의견 모으기용). 조회 실패 시 예전 문구로.
+        let msg = '제출하시겠습니까?';
+        try {
+            const t = await window.api.get(`/api/planner/${SCHEDULE_ID}/vote/tally`);
+            if (t.success && t.data) {
+                msg = `현재 파티 투표: 👍 찬성 ${t.data.agree} · 👎 반대 ${t.data.disagree}\n이 일정으로 확정할까요? 제출하면 되돌릴 수 없어요.`;
+            }
+        } catch (e) { /* 예전 문구 그대로 */ }
+        if (!confirm(msg)) return;
         const r = await window.api.post(`/api/planner/${SCHEDULE_ID}/submit`, {});
         alert(r.message);
         if (r.success) location.reload();
