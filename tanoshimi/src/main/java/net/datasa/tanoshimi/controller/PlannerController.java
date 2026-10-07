@@ -44,6 +44,8 @@ public class PlannerController {
     private final RouteOptimizationService routeOptimizationService;
     private final SimpMessagingTemplate messagingTemplate;
     private final GeminiClient geminiClient;
+    // 제출 버튼 옆 "투표 찬성 n · 반대 n" 표시용 (파티방 투표와 계획표 확정을 화면에서 이어 준다)
+    private final TripScheduleVoteService voteService;
 
     /** planner/route-map 구간별 임베드 지도용 - 비어있으면 임베드 없이 외부 링크만 보인다. */
     @org.springframework.beans.factory.annotation.Value("${app.maps.embed-api-key:}")
@@ -81,6 +83,7 @@ public class PlannerController {
         model.addAttribute("items", plannerService.getItems(schedule));
         model.addAttribute("isPartyOwner", isOwner);
         model.addAttribute("isLockHolder", isLockHolder);
+        model.addAttribute("voteTally", voteService.tally(schedule));
         model.addAttribute("lockedByUserId", effectiveLockHolder != null ? effectiveLockHolder.getId() : null);
         model.addAttribute("lockedByName", effectiveLockHolder != null ? effectiveLockHolder.getName() : null);
         // [방장 전용 메뉴] 편집권을 넘길 수 있는 대상(방장 본인 제외) 목록

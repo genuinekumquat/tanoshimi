@@ -210,9 +210,13 @@
          찬성 [[${voteTally != null ? voteTally.agree : 0}]] · 반대 [[${voteTally != null ? voteTally.disagree : 0}]]
       </p>
       <div class="vote-btns">
-        <button class="btn-agree" id="btn-vote-agree">👍 찬성 (일정 확정)</button>
+        <button class="btn-agree" id="btn-vote-agree">👍 찬성</button>
         <button class="btn-disagree" id="btn-vote-disagree">👎 반대</button>
       </div>
+      <!-- 투표는 의견 모으기용이고 확정은 계획표의 "계획표 제출하기"로 한다 - 예전엔 버튼이
+           "찬성 (일정 확정)"이라 누르면 확정되는 것처럼 보였다. 결과는 계획표 제출 버튼 옆에도 보인다. -->
+      <p style="font-size:12px; color:var(--ink-soft); margin:12px 0 0; line-height:1.5;">의견을 모은 뒤 계획표에서 제출하면 일정이 확정돼요.</p>
+      <a th:href="@{'/planner/' + ${scheduleId}}" style="display:inline-block; margin-top:6px; font-size:12.5px; font-weight:700; color:var(--forest); text-decoration:none;">계획표에서 확정하기 →</a>
     </div>
 
     <!-- 파티 채팅방 -->
