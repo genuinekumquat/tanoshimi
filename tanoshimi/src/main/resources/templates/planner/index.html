@@ -333,6 +333,14 @@
           <button type="button" class="btn btn-outline btn-sm" id="btn-remove-day" th:if="${isLockHolder}">- 일수</button>
           <button class="btn btn-primary btn-sm" id="btn-add" th:text="#{planner.add.blank}">일정추가</button>
           <button class="btn btn-ghost btn-sm" id="btn-clear">전체 비우기</button>
+          <!-- 파티방 "일정 픽스 투표" 결과 - 제출(확정) 전에 파티원 의견을 보고 결정하도록 같이 보여준다.
+               투표는 의견 모으기용이라 결과가 제출을 막지는 않는다(향후 계획). -->
+          <a th:if="${schedule.status.name() == 'draft' and voteTally != null}" id="vote-tally-chip"
+             th:href="${schedule.party != null} ? @{/party-board/{id}/room(id=${schedule.party.id})} : '#'"
+             title="파티방에서 투표하기"
+             style="font-size:12.5px; font-weight:700; color:var(--forest-deep); background:var(--parchment); border:1px solid var(--line); border-radius:999px; padding:5px 11px; text-decoration:none; white-space:nowrap;">
+            ⛳ <span>투표</span> 👍 <span th:text="${voteTally.agree}">0</span> · 👎 <span th:text="${voteTally.disagree}">0</span>
+          </a>
           <button type="button" id="btn-submit" class="btn btn-primary btn-sm" th:if="${schedule.status.name() == 'draft'}" th:text="#{planner.submit}" th:attr="data-schedule-id=${schedule.id}">계획표 제출하기</button>
           <a class="btn btn-outline btn-sm" th:if="${schedule.status.name() == 'confirmed'}" target="_blank" th:href="@{/planner/{id}/report(id=${schedule.id})}">플랜 PDF로 인쇄하기</a>
           <a class="btn btn-outline btn-sm" th:if="${schedule.status.name() == 'confirmed'}" target="_blank" th:href="@{/planner/{id}/route-map(id=${schedule.id})}">지도로 보기</a>
