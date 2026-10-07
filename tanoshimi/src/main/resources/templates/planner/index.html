@@ -523,6 +523,10 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
 })();
 </script>
 
+<!-- 타미 Live2D 캐릭터만 띄운다. 대화는 옆 패널 타미 탭에서 하므로 위젯 채팅창/버튼은 숨김. -->
+<style>#companion-chat-panel, #companion-chat-open { display: none !important; }</style>
+<div th:replace="~{fragments/layout :: companion}"></div>
+
 <script th:src="@{/js/planner.js?v=102}" defer></script>
 <script th:src="@{/js/planner-owner.js}" defer></script>
 <footer th:replace="~{fragments/layout :: footer}"></footer>
