@@ -44,6 +44,7 @@ public class PlannerController {
     private final RouteOptimizationService routeOptimizationService;
     private final SimpMessagingTemplate messagingTemplate;
     private final GeminiClient geminiClient;
+    private final ChatService chatService;
 
     /** planner/route-map 구간별 임베드 지도용 - 비어있으면 임베드 없이 외부 링크만 보인다. */
     @org.springframework.beans.factory.annotation.Value("${app.maps.embed-api-key:}")
@@ -86,6 +87,13 @@ public class PlannerController {
         // [방장 전용 메뉴] 편집권을 넘길 수 있는 대상(방장 본인 제외) 목록
         if (isOwner) {
             model.addAttribute("partyMembers", partyService.otherMembers(schedule.getParty(), principal.getId()));
+        }
+        // 옆 패널 "팀 채팅" 탭 - 파티 채팅방과 같은 방을 쓴다.
+        if (schedule.getParty() != null) {
+            partyService.chatRoomOf(schedule.getParty()).ifPresent(room -> {
+                model.addAttribute("roomId", room.getId());
+                model.addAttribute("chatHistory", chatService.history(room));
+            });
         }
         model.addAttribute("aiCreditRemaining", principal == null ? 0
                 : aiCreditService.remaining(userRepository.findById(principal.getId()).orElse(null)));

@@ -15,7 +15,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @ConditionalOnProperty(name = "app.translation.provider", havingValue = "mock", matchIfMissing = true)
 public class GoogleTranslationClient implements TranslationClient {
 
-    private final WebClient webClient = WebClient.builder().baseUrl("https://translate.googleapis.com").build();
+    private final WebClient webClient = WebClients.builder().baseUrl("https://translate.googleapis.com").build();
 
     @Override
     public String translate(String text, PreferredLang from, PreferredLang to) {

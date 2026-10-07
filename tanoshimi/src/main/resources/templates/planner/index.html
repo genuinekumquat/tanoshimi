@@ -165,7 +165,17 @@
   .ai-head .nm{ font-family:var(--font-display); font-size:15px; }
   .ai-head .st{ font-size:11px; opacity:.85; }
   .ai-body{ flex:1; overflow:auto; padding:14px; background:var(--parchment); display:flex; flex-direction:column; gap:10px; }
-  .msg{ max-width:88%; padding:9px 13px; border-radius:14px; font-size:13px; }
+  .msg{ max-width:88%; padding:9px 13px; border-radius:14px; font-size:13px; white-space:pre-wrap; word-break:break-word; }
+  .msg .who{ display:block; font-size:10.5px; font-weight:700; color:var(--ink-soft); margin-bottom:2px; }
+  .msg.me .who{ color:rgba(255,255,255,.75); }
+  .msg .tr{ font-size:10px; margin-left:6px; padding:1px 5px; border:1px solid var(--line); background:var(--parchment); color:var(--ink); border-radius:6px; cursor:pointer; }
+  .chat-tabs{ display:flex; background:var(--forest); }
+  .chat-tabs button{ flex:1; padding:11px 0; border:none; background:none; color:rgba(255,255,255,.65); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; border-bottom:3px solid transparent; }
+  .chat-tabs button.on{ color:#fff; border-bottom-color:var(--gold); }
+  .chat-tabs .badge{ display:inline-block; min-width:16px; margin-left:4px; padding:0 4px; border-radius:999px; background:var(--sash); color:#fff; font-size:10px; }
+  .chat-tabs .badge[hidden]{ display:none; }
+  .tab-pane{ flex:1; min-height:0; display:flex; flex-direction:column; }
+  .tab-pane[hidden]{ display:none; }
   .msg.bot{ background:var(--card); align-self:flex-start; border-bottom-left-radius:4px; border:1px solid var(--line); }
   .msg.me{ background:var(--forest); color:#fff; align-self:flex-end; border-bottom-right-radius:4px; }
   .msg.sys{ align-self:center; background:none; color:var(--ink-soft); font-size:11px; text-align:center; }
@@ -360,6 +370,12 @@
 
     <!-- ================= AI 패널 ================= -->
     <aside class="ai card">
+      <div class="chat-tabs" role="tablist">
+        <button type="button" role="tab" data-tab="tami" class="on">🐶 타미</button>
+        <button type="button" role="tab" data-tab="team">👥 팀 채팅<span class="badge" id="team-badge" hidden>0</span></button>
+      </div>
+
+      <div class="tab-pane" data-pane="tami">
       <div class="ai-head">
         <svg width="22" height="22" viewBox="0 0 54 54" aria-hidden="true">
           <circle cx="27" cy="27" r="20" fill="none" stroke="#fff" stroke-width="3"/>
@@ -383,6 +399,18 @@
         <input id="ai-text" type="text" placeholder="우리 인생사진 건지기 좋은 곳 원해!" autocomplete="off">
         <button class="ai-send" id="ai-send" aria-label="보내기">></button>
       </div>
+      </div>
+
+      <!-- 팀 채팅 - 파티 방(/party-board/{id}/room)과 같은 채팅방 -->
+      <div class="tab-pane" data-pane="team" hidden>
+        <div class="ai-body" id="team-chat">
+          <div class="msg sys" th:if="${roomId == null}">오픈된 채팅방이 없습니다.</div>
+        </div>
+        <div class="ai-input" th:if="${roomId != null}">
+          <input id="team-text" type="text" placeholder="팀원에게 메시지 보내기" autocomplete="off">
+          <button class="ai-send" id="team-send" aria-label="보내기">></button>
+        </div>
+      </div>
     </aside>
 
   </div>
@@ -400,12 +428,96 @@ const SCHEDULE_STATUS = /*[[${schedule.status}]]*/ 'draft';
 const TRIP_START_DATE = /*[[${schedule.party != null ? #temporals.format(schedule.party.departureDate, 'yyyy-MM-dd') : null}]]*/ null;
 const IS_PARTY_OWNER = /*[[${isPartyOwner}]]*/ false;
 const IS_LOCK_HOLDER = /*[[${isLockHolder}]]*/ false;
+const ROOM_ID = /*[[${roomId}]]*/ null;
+const MY_NAME = /*[[${#authentication.principal.displayName}]]*/ '나';
+const UI_LANG = /*[[${#locale.language}]]*/ 'ko';
+const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/ [];
 /*]]>*/
 </script>
 
-<script th:src="@{/js/planner.js?v=101}" defer></script>
+<script>
+(function () {
+    // [1] 타미 / 팀 채팅 탭
+    const tabs = document.querySelectorAll('.chat-tabs button');
+    const badge = document.getElementById('team-badge');
+    let current = 'tami', unread = 0;
+    window.showChatTab = function (name) {
+        current = name;
+        tabs.forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+        document.querySelectorAll('.tab-pane').forEach(p => p.hidden = p.dataset.pane !== name);
+        if (name === 'team') {
+            unread = 0; badge.hidden = true;
+            const box = document.getElementById('team-chat');
+            box.scrollTop = box.scrollHeight;
+        }
+    };
+    tabs.forEach(b => b.addEventListener('click', () => window.showChatTab(b.dataset.tab)));
+
+    // [2] 팀 채팅 - party/room.html 과 같은 소켓 주소/번역 API
+    if (!ROOM_ID) return;
+    const box = document.getElementById('team-chat');
+
+    function append(msg) {
+        const div = document.createElement('div');
+        if (msg.type === 'SYSTEM') {
+            div.className = 'msg sys';
+            div.textContent = msg.content;
+        } else {
+            div.className = 'msg ' + (msg.senderName === MY_NAME ? 'me' : 'bot');
+            const who = document.createElement('span');
+            who.className = 'who';
+            who.textContent = msg.senderName;
+            const text = document.createElement('span');
+            text.textContent = msg.content;
+            const tr = document.createElement('button');
+            tr.type = 'button'; tr.className = 'tr'; tr.textContent = '번역';
+            let translated = null;
+            tr.addEventListener('click', async () => {
+                if (tr.textContent === '원문') { text.textContent = msg.content; tr.textContent = '번역'; return; }
+                tr.disabled = true;
+                try {
+                    if (translated === null) {
+                        const res = await window.api.post('/api/chat/translate', { text: msg.content, targetLang: UI_LANG === 'ja' ? 'JA' : 'KO' });
+                        if (res.success && res.data) translated = res.data;
+                    }
+                    if (translated !== null) { text.textContent = translated; tr.textContent = '원문'; }
+                } finally { tr.disabled = false; }
+            });
+            div.append(who, text, tr);
+        }
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    if (Array.isArray(INITIAL_CHAT_HISTORY)) INITIAL_CHAT_HISTORY.forEach(append);
+
+    let connected = false;
+    const stomp = Stomp.over(new SockJS('/ws'));
+    stomp.debug = null;
+    stomp.connect({}, () => {
+        connected = true;
+        stomp.subscribe(`/topic/chat/${ROOM_ID}`, m => {
+            try { append(JSON.parse(m.body)); } catch (e) { return; }
+            if (current !== 'team') { badge.textContent = ++unread; badge.hidden = false; }
+        });
+    }, err => console.error('Team chat connection error:', err));
+
+    const inp = document.getElementById('team-text');
+    function send() {
+        const v = inp.value.trim();
+        if (!v) return;
+        if (!connected) { alert('채팅 서버 접속을 기다려주세요.'); return; }
+        stomp.send(`/app/chat.send/${ROOM_ID}`, {}, JSON.stringify({ content: v }));
+        inp.value = '';
+    }
+    document.getElementById('team-send').addEventListener('click', send);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) send(); });
+})();
+</script>
+
+<script th:src="@{/js/planner.js?v=102}" defer></script>
 <script th:src="@{/js/planner-owner.js}" defer></script>
 <footer th:replace="~{fragments/layout :: footer}"></footer>
-<div th:replace="~{fragments/layout :: companion}"></div>
+
 </body>
 </html>

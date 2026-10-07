@@ -18,7 +18,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @ConditionalOnProperty(name = "app.companion.provider", havingValue = "gemini")
 public class RealGeminiClient implements GeminiClient {
     
-    private final WebClient webClient = WebClient.builder()
+    private final WebClient webClient = WebClients.builder()
             .baseUrl("https://generativelanguage.googleapis.com")
             .build();
     
