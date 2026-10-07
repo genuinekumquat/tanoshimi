@@ -30,7 +30,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @ConditionalOnProperty(name = "app.companion.provider", havingValue = "anthropic")
 public class AnthropicChatClient implements CompanionChatClient {
 
-    private final WebClient webClient = WebClient.builder()
+    private final WebClient webClient = WebClients.builder()
             .baseUrl("https://api.anthropic.com")
             .defaultHeader("anthropic-version", "2023-06-01")
             .build();

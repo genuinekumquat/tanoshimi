@@ -19,7 +19,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DeepLTranslationClient implements TranslationClient {
 
-    private final WebClient webClient = WebClient.builder().baseUrl("https://api-free.deepl.com/v2").build();
+    private final WebClient webClient = WebClients.builder().baseUrl("https://api-free.deepl.com/v2").build();
 
     @Value("${app.translation.api-key}")
     private String apiKey;

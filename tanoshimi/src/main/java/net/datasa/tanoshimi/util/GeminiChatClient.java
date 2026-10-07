@@ -39,7 +39,7 @@ public class GeminiChatClient implements CompanionChatClient {
     private static final String FALLBACK_REPLY =
             "크릉... 타미가 지금 잠깐 딴 데 정신이 팔렸나 봐 멍. 잠시 후에 다시 불러줄래 멍? 🐾";
 
-    private final WebClient webClient = WebClient.builder()
+    private final WebClient webClient = WebClients.builder()
             .baseUrl("https://generativelanguage.googleapis.com")
             .build();
 

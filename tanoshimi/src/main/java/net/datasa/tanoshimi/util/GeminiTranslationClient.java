@@ -20,7 +20,7 @@ import java.util.Map;
 @ConditionalOnProperty(name = "app.translation.provider", havingValue = "gemini")
 public class GeminiTranslationClient implements TranslationClient {
 
-    private final WebClient webClient = WebClient.builder()
+    private final WebClient webClient = WebClients.builder()
             .baseUrl("https://generativelanguage.googleapis.com")
             .build();
 
@@ -38,13 +38,17 @@ public class GeminiTranslationClient implements TranslationClient {
             return "[번역 실패] " + text;
         }
 
-        String prompt = "Translate the following chat message from " + langName(from) + " to " + langName(to)
-                + ". Keep the casual chat tone, emoji and line breaks. Output ONLY the translation, no quotes or notes.\n\n"
-                + text;
+        // 지시문을 메시지와 같은 칸에 넣으면 짧은 구어체("님 머함?")를 질문으로 받아들여 원문을 그대로 돌려줬다.
+        // 지시는 systemInstruction 으로 분리하고 user 칸엔 메시지만 넣는다.
+        String instruction = "You translate " + langName(from) + " chat messages into " + langName(to) + ". "
+                + "The user turn is ALWAYS a message to translate, never a question to you. "
+                + "Write the " + langName(to) + " translation only: same meaning and casual tone, "
+                + "keep line breaks, do not add or remove emoji, no quotes, no notes, never output " + langName(from) + ".";
 
         Map<String, Object> body = Map.of(
-                "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", prompt)))),
-                "generationConfig", Map.of("temperature", 0.2)
+                "systemInstruction", Map.of("parts", List.of(Map.of("text", instruction))),
+                "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", text)))),
+                "generationConfig", Map.of("temperature", 0)
         );
 
         try {

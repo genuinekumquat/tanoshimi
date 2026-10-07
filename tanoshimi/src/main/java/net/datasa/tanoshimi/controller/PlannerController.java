@@ -44,6 +44,7 @@ public class PlannerController {
     private final RouteOptimizationService routeOptimizationService;
     private final SimpMessagingTemplate messagingTemplate;
     private final GeminiClient geminiClient;
+    private final ChatService chatService;
     // 제출 버튼 옆 "투표 찬성 n · 반대 n" 표시용 (파티방 투표와 계획표 확정을 화면에서 이어 준다)
     private final TripScheduleVoteService voteService;
 
@@ -89,6 +90,13 @@ public class PlannerController {
         // [방장 전용 메뉴] 편집권을 넘길 수 있는 대상(방장 본인 제외) 목록
         if (isOwner) {
             model.addAttribute("partyMembers", partyService.otherMembers(schedule.getParty(), principal.getId()));
+        }
+        // 옆 패널 "팀 채팅" 탭 - 파티 채팅방과 같은 방을 쓴다.
+        if (schedule.getParty() != null) {
+            partyService.chatRoomOf(schedule.getParty()).ifPresent(room -> {
+                model.addAttribute("roomId", room.getId());
+                model.addAttribute("chatHistory", chatService.history(room));
+            });
         }
         model.addAttribute("aiCreditRemaining", principal == null ? 0
                 : aiCreditService.remaining(userRepository.findById(principal.getId()).orElse(null)));

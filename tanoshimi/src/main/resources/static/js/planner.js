@@ -729,42 +729,26 @@
         btn.textContent = '검증 중...';
         btn.disabled = true;
 
-        const vBubble = document.getElementById('companion-speech-bubble');
+        // 결과는 옆 패널의 타미 탭에 남긴다(예전 💬 대화하기 위젯은 제거됨).
+        window.showChatTab?.('tami');
+        const tag = `[AI 검증 · ${mode}] `;
+        const wait = bubble(`${mode} 기준으로 일정을 검증하고 있어요...`, 'sys');
 
         try {
-            if (vBubble) {
-                if (window.companionTimeout) clearTimeout(window.companionTimeout);
-                vBubble.innerText = `${mode} 기준으로 일정을 검증하고 있어요...`;
-                vBubble.style.display = 'block';
-            }
             const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/ai-validate?mode=${encodeURIComponent(mode)}`, {});
+            wait?.remove();
             if (res.success) {
                 if (res.data.applied > 0) {
                     res.data.briefing += `\n\n✅ 추천 일정 ${res.data.applied}개를 계획표에 반영하고 'AI 추천 반영'으로 저장했어요.`;
                 }
-                // [TNSM-70] 말풍선은 몇 초 뒤 사라지고 기록이 안 남아서 가독성이 떨어진다는
-                // 피드백 반영 - 타미 채팅 기록(💬 대화하기 패널, 로컬스토리지 저장)에도 남긴다.
-                if (window.companionAddBotMessage) {
-                    window.companionAddBotMessage(`[AI 검증 · ${mode}] ` + res.data.briefing);
-                } else if (vBubble) {
-                    vBubble.innerText = res.data.briefing;
-                    if (window.companionTimeout) clearTimeout(window.companionTimeout);
-                }
+                bubble(tag + res.data.briefing, 'bot');
                 await reload();
             } else {
-                const failMsg = '검증에 실패했습니다. ' + (res.message || '');
-                if (window.companionAddBotMessage) {
-                    window.companionAddBotMessage(`[AI 검증 · ${mode}] ` + failMsg);
-                } else if (vBubble) {
-                    vBubble.innerText = failMsg;
-                }
+                bubble(tag + '검증에 실패했습니다. ' + (res.message || ''), 'bot');
             }
         } catch (e) {
-            if (window.companionAddBotMessage) {
-                window.companionAddBotMessage(`[AI 검증 · ${mode}] 오류가 발생했습니다.`);
-            } else if (vBubble) {
-                vBubble.innerText = '오류가 발생했습니다.';
-            }
+            wait?.remove();
+            bubble(tag + '오류가 발생했습니다.', 'bot');
         } finally {
             btn.textContent = oldText;
             btn.disabled = false;
