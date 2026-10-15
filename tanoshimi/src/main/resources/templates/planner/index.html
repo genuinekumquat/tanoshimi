@@ -434,6 +434,14 @@ const DURATION_NIGHTS = /*[[${tour != null ? tour.durationNights : (schedule.par
 const SCHEDULE_DAYS = /*[[${schedule.durationDays != null ? schedule.durationDays : (schedule.party != null ? schedule.party.durationDays : (tour != null ? tour.durationNights + 1 : 3))}]]*/ 3;
 const SCHEDULE_STATUS = /*[[${schedule.status}]]*/ 'draft';
 const TRIP_START_DATE = /*[[${schedule.party != null ? #temporals.format(schedule.party.departureDate, 'yyyy-MM-dd') : null}]]*/ null;
+// 날씨 경고 모달 문구 - 화면 언어(KO/JA)를 따른다.
+const WEATHER_I18N = {
+  title:   /*[[#{weather.modal.title}]]*/ '날씨 확인',
+  alt:     /*[[#{weather.modal.alt}]]*/ '실내 대체 장소',
+  unit:    /*[[#{weather.modal.unit}]]*/ '분',
+  proceed: /*[[#{weather.modal.proceed}]]*/ '그래도 추가',
+  cancel:  /*[[#{weather.modal.cancel}]]*/ '취소'
+};
 const IS_PARTY_OWNER = /*[[${isPartyOwner}]]*/ false;
 const IS_LOCK_HOLDER = /*[[${isLockHolder}]]*/ false;
 const ROOM_ID = /*[[${roomId}]]*/ null;
@@ -527,7 +535,7 @@ const INITIAL_CHAT_HISTORY = /*[[${chatHistory != null ? chatHistory : '[]'}]]*/
 <style>#companion-chat-panel, #companion-chat-open { display: none !important; }</style>
 <div th:replace="~{fragments/layout :: companion}"></div>
 
-<script th:src="@{/js/planner.js?v=102}" defer></script>
+<script th:src="@{/js/planner.js?v=103}" defer></script>
 <script th:src="@{/js/planner-owner.js}" defer></script>
 <footer th:replace="~{fragments/layout :: footer}"></footer>
 

@@ -14,6 +14,9 @@ import net.datasa.tanoshimi.exception.ErrorCode;
 import net.datasa.tanoshimi.repository.ActivityRepository;
 import net.datasa.tanoshimi.repository.TourRepository;
 import net.datasa.tanoshimi.util.WeatherClient;
+import net.datasa.tanoshimi.domain.dto.WeatherAlternative;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +42,7 @@ public class WeatherAdvisorService {
 	private final WeatherClient weatherClient;
 	private final TourRepository tourRepository;
 	private final ActivityRepository activityRepository;
+	private final MessageSource messageSource;   // ← 추가
 	
 	// ----------------------------------------------------------------
 	// PlannerController 의 AI 추천 경로에서 사용
@@ -86,8 +90,11 @@ public class WeatherAdvisorService {
 	// [TNSM-72] AI가 구글검색으로 새로 찾아준 장소(DB에 없음, activityId=null)용 날씨체크.
 	// ChatbotActivityService.recommend() 프롬프트가 kind=custom 항목에 latitude/longitude/
 	// venueType을 같이 돌려주도록 해서, DB 조회 없이 좌표로 바로 날씨를 확인한다.
+	// [수정] 예전엔 DB 밖 장소는 대체 장소를 하나도 주지 않았다. 지역명이 없으니
+	// 좌표 기준으로 가까운(반경 NEARBY_KM) 실내 장소를 찾아서 같이 내려준다.
 	// ----------------------------------------------------------------
 	
+	@Transactional(readOnly = true)
 	public WeatherAdviceResponse checkCoordsWeather(double latitude, double longitude, String venueTypeStr, LocalDate date) {
 		VenueType vType;
 		try {
@@ -97,23 +104,13 @@ public class WeatherAdvisorService {
 		}
 		
 		WeatherResult weather = weatherClient.getForecast(latitude, longitude, date);
-		boolean isBadWeather = !weather.isGood();
 		
-		if (isBadWeather && vType == VenueType.outdoor) {
-			return WeatherAdviceResponse.builder()
-					.recommendable(false)
-					.weatherCondition(weather.condition())
-					.message(String.format("선택하신 날짜에 '%s' 예보가 있습니다. 야외 장소인데 그대로 진행하시겠어요?", weather.condition()))
-					.alternatives(null)
-					.build();
+		if (!weather.isGood() && vType == VenueType.outdoor) {
+			List<WeatherAlternative> alternatives = indoorAlternatives(
+					activityRepository.findByStatus(ActiveStatus.active), latitude, longitude, null, true);
+			return badWeather(weather, alternatives);
 		}
-		
-		return WeatherAdviceResponse.builder()
-				.recommendable(true)
-				.weatherCondition(weather.condition())
-				.message("일정에 추가하기 좋은 조건입니다!")
-				.alternatives(null)
-				.build();
+		return goodWeather(weather);
 	}
 	
 	// ----------------------------------------------------------------
@@ -125,55 +122,111 @@ public class WeatherAdvisorService {
 		ActivityEntity activity = activityRepository.findById(activityId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.ACTIVITY_NOT_FOUND));
 		
-		// [TNSM-72 디버그용 임시 로그] 실제 DB에 저장된 좌표/타입을 눈으로 확인하기 위함 - 확인 끝나면 지워도 됨
-		log.info("[날씨체크 디버그] id={}, title={}, venueType={}, lat={}, lon={}, date={}",
-				activity.getId(), activity.getTitle(), activity.getVenueType(),
-				activity.getLatitude(), activity.getLongitude(), date);
-		
-		String region = activity.getRegion();
-		
 		// VenueType null 방어 - TODO: 지금은 임시로 mixed 처리(경고 없이 통과됨).
 		// ActivitySearchService로 방금 검색해서 아직 판정 안 된 장소가 여기 걸릴 수 있음.
-		// 나중에 ChatbotActivityService의 판정 로직을 여기서도 호출해서
-		// null이면 그때그때 판정부터 하고 진행하도록 개선 필요.
-		VenueType vType = activity.getVenueType();
-		if (vType == null) {
-			vType = VenueType.mixed;
-		}
+		VenueType vType = activity.getVenueType() != null ? activity.getVenueType() : VenueType.mixed;
 		
 		if (activity.getLatitude() == null || activity.getLongitude() == null) {
 			// 좌표 없는 액티비티는 날씨 조회 생략, 항상 통과
 			return WeatherAdviceResponse.builder()
 					.recommendable(true)
-					.weatherCondition("정보 없음")
-					.message("이 장소는 날씨 정보를 제공하지 않아요. 그대로 추가할 수 있어요.")
+					.weatherCondition(msg("weather.cond.unknown"))
+					.message(msg("weather.advice.noinfo"))
 					.alternatives(null)
 					.build();
 		}
 		
-		WeatherResult weather = weatherClient.getForecast(
-				activity.getLatitude().doubleValue(), activity.getLongitude().doubleValue(), date);
-		boolean isBadWeather = !weather.isGood();
+		double lat = activity.getLatitude().doubleValue();
+		double lon = activity.getLongitude().doubleValue();
+		WeatherResult weather = weatherClient.getForecast(lat, lon, date);
 		
-		if (isBadWeather && vType == VenueType.outdoor) {
-			List<ActivityEntity> alternatives = activityRepository.findByRegionAndStatus(region, ActiveStatus.active).stream()
-					.filter(a -> a.getVenueType() == VenueType.indoor || a.getVenueType() == VenueType.mixed)
-					.limit(3)
-					.toList();
-			
-			return WeatherAdviceResponse.builder()
-					.recommendable(false)
-					.weatherCondition(weather.condition())
-					.message(String.format("선택하신 날짜에 '%s' 예보가 있습니다. 야외 활동 대신 이런 실내 명소는 어떠세요?", weather.condition()))
-					.alternatives(alternatives)
-					.build();
+		if (!weather.isGood() && vType == VenueType.outdoor) {
+			List<WeatherAlternative> alternatives = indoorAlternatives(
+					activityRepository.findByRegionAndStatus(activity.getRegion(), ActiveStatus.active),
+					lat, lon, activity.getId(), false);
+			return badWeather(weather, alternatives);
 		}
-		
+		return goodWeather(weather);
+	}
+	
+	// ----------------------------------------------------------------
+	// 공통 헬퍼
+	// ----------------------------------------------------------------
+	
+	/** 대체 장소를 찾는 반경(km). 같은 지역 안이면 거리 제한 없이 가까운 순으로만 정렬한다. */
+	static final double NEARBY_KM = 30.0;
+	static final int MAX_ALTERNATIVES = 3;
+	
+	/**
+	 * 실내(indoor) 장소를 우선, 그다음 혼합(mixed)을 가까운 순으로 최대 3개.
+	 * [수정] 예전엔 정렬 없이 DB 순서대로 3개를 잘라서, 멀리 있는 곳이 먼저 나오기도 했다.
+	 */
+	List<WeatherAlternative> indoorAlternatives(List<ActivityEntity> candidates, double lat, double lon,
+												Long excludeId, boolean limitByDistance) {
+		return candidates.stream()
+				.filter(a -> excludeId == null || !excludeId.equals(a.getId()))
+				.filter(a -> a.getVenueType() == VenueType.indoor || a.getVenueType() == VenueType.mixed)
+				.filter(a -> a.getLatitude() != null && a.getLongitude() != null)
+				.filter(a -> !limitByDistance || distanceKm(lat, lon, a) <= NEARBY_KM)
+				.sorted(Comparator
+						.comparing((ActivityEntity a) -> a.getVenueType() == VenueType.indoor ? 0 : 1)
+						.thenComparingDouble(a -> distanceKm(lat, lon, a)))
+				.limit(MAX_ALTERNATIVES)
+				.map(WeatherAlternative::from)
+				.toList();
+	}
+	
+	/** 두 좌표 사이 거리(km) - 하버사인 공식 */
+	private static double distanceKm(double lat, double lon, ActivityEntity a) {
+		double lat2 = a.getLatitude().doubleValue();
+		double lon2 = a.getLongitude().doubleValue();
+		double dLat = Math.toRadians(lat2 - lat);
+		double dLon = Math.toRadians(lon2 - lon);
+		double h = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+				+ Math.cos(Math.toRadians(lat)) * Math.cos(Math.toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+		return 6371.0 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+	}
+	
+	private WeatherAdviceResponse badWeather(WeatherResult weather, List<WeatherAlternative> alternatives) {
+		String cond = conditionLabel(weather.condition());
+		String key = alternatives.isEmpty() ? "weather.advice.bad" : "weather.advice.bad.alt";
+		return WeatherAdviceResponse.builder()
+				.recommendable(false)
+				.weatherCondition(cond)
+				.message(msg(key, cond))
+				.alternatives(alternatives)
+				.build();
+	}
+	
+	private WeatherAdviceResponse goodWeather(WeatherResult weather) {
 		return WeatherAdviceResponse.builder()
 				.recommendable(true)
-				.weatherCondition(weather.condition())
-				.message("일정에 추가하기 좋은 조건입니다!")
+				.weatherCondition(conditionLabel(weather.condition()))
+				.message(msg("weather.advice.good"))
 				.alternatives(null)
 				.build();
+	}
+	
+	/**
+	 * 날씨 클라이언트는 "비", "맑음" 같은 한국어 코드를 돌려준다. 화면 언어에 맞게 바꿔서 보여준다.
+	 * [수정] 예전엔 일본어 화면에서도 경고 문구가 한국어로 고정돼 있었다.
+	 * 목록에 없는 값(실제 API의 상세 설명 등)은 그대로 둔다.
+	 */
+	String conditionLabel(String condition) {
+		if (condition == null) return msg("weather.cond.unknown");
+		String code = switch (condition) {
+			case "맑음" -> "clear";
+			case "흐림" -> "cloudy";
+			case "비" -> "rain";
+			case "눈" -> "snow";
+			case "폭염" -> "heat";
+			case "한파" -> "cold";
+			default -> null;
+		};
+		return code == null ? condition : msg("weather.cond." + code);
+	}
+	
+	private String msg(String key, Object... args) {
+		return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
 	}
 }
