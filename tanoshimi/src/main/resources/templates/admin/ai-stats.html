@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(#{admin.tab.ai} + ' | Admin')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main class="wrap">
+
+    <div style="margin-bottom: 20px; display:flex; gap: 10px;">
+        <a href="/admin" class="btn" style="background:#fff; border:1px solid #dfe4ec;" th:text="#{admin.tab.users}">회원 관리</a>
+        <a href="/admin/parties" class="btn" style="background:#fff; border:1px solid #dfe4ec;" th:text="#{admin.tab.parties}">파티 게시글 관리</a>
+        <a href="/admin/banners" class="btn" style="background:#fff; border:1px solid #dfe4ec;" th:text="#{admin.tab.banners}">광고 배너 관리</a>
+        <a href="/admin/reports" class="btn" style="background:#fff; border:1px solid #dfe4ec;" th:text="#{admin.tab.reports}">신고 처리</a>
+        <a href="/admin/ai" class="btn btn-primary" th:text="#{admin.tab.ai}">AI 통계</a>
+    </div>
+
+    <h1 style="font-size:22px; margin:0 0 4px;" th:text="#{admin.ai.title}">오늘의 AI 호출 통계</h1>
+    <p style="font-size:13px; color:var(--ink-soft); margin:0 0 20px;" th:text="#{admin.ai.desc}">설명</p>
+
+    <!-- 요약: 전체 호출 수 / 성공률 -->
+    <div style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:220px; background:#1B2A41; color:#fff; border-radius:14px; padding:22px 24px;">
+            <div style="font-size:13px; opacity:.8;" th:text="#{admin.ai.total}">오늘 전체 호출</div>
+            <div style="font-size:40px; font-weight:800;"><span th:text="${total}">0</span><span style="font-size:18px;" th:text="' ' + #{admin.ai.times}"> 회</span></div>
+        </div>
+        <div style="flex:1; min-width:220px; background:#fff; border:1px solid #dfe4ec; border-top:6px solid #C8462E; border-radius:14px; padding:22px 24px;">
+            <div style="font-size:13px; color:var(--ink-soft);" th:text="#{admin.ai.rate}">성공률</div>
+            <div style="font-size:40px; font-weight:800; color:#C8462E;"><span th:text="${successRate}">0</span><span style="font-size:18px;"> %</span></div>
+        </div>
+    </div>
+
+    <!-- 결과 5분류 -->
+    <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:12px;">
+        <div style="background:#fff; border:1px solid #dfe4ec; border-radius:12px; padding:16px;">
+            <div style="font-size:12px; color:#2e7d32; font-weight:700;" th:text="#{admin.ai.success}">✅ 성공</div>
+            <div style="font-size:28px; font-weight:800;" th:text="${stats['SUCCESS']}">0</div>
+            <div style="font-size:11px; color:var(--ink-soft);" th:text="#{admin.ai.success.desc}">정상 응답</div>
+        </div>
+        <div style="background:#fff; border:1px solid #dfe4ec; border-radius:12px; padding:16px;">
+            <div style="font-size:12px; color:#b26a00; font-weight:700;" th:text="#{admin.ai.nokey}">🔑 키 미설정</div>
+            <div style="font-size:28px; font-weight:800;" th:text="${stats['NO_API_KEY']}">0</div>
+            <div style="font-size:11px; color:var(--ink-soft);" th:text="#{admin.ai.nokey.desc}">API 키가 비어 있음</div>
+        </div>
+        <div style="background:#fff; border:1px solid #dfe4ec; border-radius:12px; padding:16px;">
+            <div style="font-size:12px; color:#b26a00; font-weight:700;" th:text="#{admin.ai.empty}">📭 빈 응답</div>
+            <div style="font-size:28px; font-weight:800;" th:text="${stats['EMPTY_RESPONSE']}">0</div>
+            <div style="font-size:11px; color:var(--ink-soft);" th:text="#{admin.ai.empty.desc}">안전 필터 등으로 내용 없음</div>
+        </div>
+        <div style="background:#fff; border:1px solid #dfe4ec; border-radius:12px; padding:16px;">
+            <div style="font-size:12px; color:#c62828; font-weight:700;" th:text="#{admin.ai.limit}">⏱ 호출 제한</div>
+            <div style="font-size:28px; font-weight:800;" th:text="${stats['RATE_LIMITED']}">0</div>
+            <div style="font-size:11px; color:var(--ink-soft);" th:text="#{admin.ai.limit.desc}">429 Too Many Requests</div>
+        </div>
+        <div style="background:#fff; border:1px solid #dfe4ec; border-radius:12px; padding:16px;">
+            <div style="font-size:12px; color:#c62828; font-weight:700;" th:text="#{admin.ai.other}">⚠ 기타 오류</div>
+            <div style="font-size:28px; font-weight:800;" th:text="${stats['OTHER_ERROR']}">0</div>
+            <div style="font-size:11px; color:var(--ink-soft);" th:text="#{admin.ai.other.desc}">네트워크·키 만료 등</div>
+        </div>
+    </div>
+
+    <p style="font-size:12px; color:var(--ink-soft); margin-top:14px;">
+        <span th:text="#{admin.ai.raw}">원본 데이터(JSON)</span>: <a href="/admin/ai-stats" target="_blank">/admin/ai-stats</a>
+    </p>
+
+</main>
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>
