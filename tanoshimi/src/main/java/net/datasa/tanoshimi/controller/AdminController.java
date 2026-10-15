@@ -53,6 +53,20 @@ public class AdminController {
         return aiCallStatsService.today();
     }
     
+    // AI 호출 통계 화면 - 위 JSON(/admin/ai-stats)과 같은 값을 카드로 보여준다.
+    @GetMapping("/ai")
+    public String aiStatsPage(Model model) {
+        java.util.Map<String, Integer> stats = aiCallStatsService.today();
+        int total = stats.getOrDefault("TOTAL", 0);
+        int success = stats.getOrDefault("SUCCESS", 0);
+        model.addAttribute("stats", stats);
+        model.addAttribute("total", total);
+        // 성공률(%) - 호출이 0번이면 0으로 둔다
+        model.addAttribute("successRate", total == 0 ? 0 : Math.round(success * 100.0 / total));
+        model.addAttribute("pendingReportCount", adminService.pendingReportCount());
+        return "admin/ai-stats";
+    }
+    
     @PostMapping("/users/{id}/suspend")
     public String suspend(@PathVariable Long id, @RequestParam int duration, @AuthenticationPrincipal CustomUserDetails admin) {
         adminService.suspendUser(id, duration, admin.getId());
