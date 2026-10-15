@@ -1,6 +1,6 @@
 # 🗄️ ERD & 테이블 설계서
 
-원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) (2026-08-22 통합본, 이후 v18~v24 내용 반영) + `migration_v16_*` ~ `migration_v25_*`. 문서 기준일 2026-10-05.
+원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) (2026-08-22 통합본, 이후 v18~v24 내용 반영) + `migration_v16_*` ~ `migration_v26_*`. 문서 기준일 2026-10-15 (PR #114까지).
 DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 스키마 운영: `schema.sql` 단일 원본 + 번호 마이그레이션. JPA `ddl-auto: update`는 보조.
 > v21에서 결제·예약 3테이블(`reservations`, `reservation_payments`, `trip_schedule_payments`)과 `trip_schedules.reservation_id`를 **제거 완료**. 아래 목록·ERD는 제거 후 기준.
@@ -18,7 +18,7 @@ DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 | 6 | `parties` | 파티 | 번개모임 |
 | 7 | `party_members` | 파티 | 승인된 파티원 = 전용 페이지 접근권 |
 | 8 | `party_applications` | 파티 | 참가 신청(방장 승인) |
-| 9 | `trip_schedules` | 플래너 | 파티당 1개. v16: `locked_by_user_id`, `last_saved_at`. v21: `reservation_id` 제거 |
+| 9 | `trip_schedules` | 플래너 | 파티당 1개. v16: `locked_by_user_id`, `last_saved_at`. v21: `reservation_id` 제거. `duration_days`는 JPA로 추가 |
 | 10 | `trip_schedule_items` | 플래너 | 일정 블록(분 단위). v16: `is_fixed` |
 | 11 | `trip_schedule_votes` | 플래너 | 계획표 찬반 투표 |
 | 11-1 | `my_trips` | 마이페이지 | v19 신규. "내 여행" — 칭호·히트맵 집계의 단일 근거 |
@@ -27,7 +27,7 @@ DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 | 14 | `chat_rooms` / `chat_room_members` / `chat_messages` | 커뮤니티 | 파티 채팅 + DM 공용 |
 | 15 | `notifications` | 알림 | 인앱 알림 |
 | 16 | `reports` | 신고 | post/party/user 다형 신고 |
-| 17 | `trip_schedule_snapshots` | 플래너 | v16 신규. 저장 시점 JSON 스냅샷(롤백 소스) |
+| 17 | `trip_schedule_snapshots` | 플래너 | v16 신규. 저장 시점 JSON 스냅샷(롤백 소스). v25 `ai_valid`, v26 `ai_apply` |
 | 18 | `manner_temp_logs` | 마이페이지 | v16 신규. 매너온도 가감 이력 |
 | 19 | `ai_credit_usage` | AI | v16 신규. 사용자별 일일 AI 크레딧 |
 | 20 | `user_profile_theme` | 마이페이지 | v16 신규. 프로필 배경 테마 |
@@ -43,7 +43,11 @@ DB: MySQL 8, `utf8mb4 / utf8mb4_unicode_ci`, 엔진 InnoDB.
 엔티티(`@Table`)는 있으나 `schema.sql` 본문에 없는 것 — 후속 마이그레이션/`ddl-auto`로 생성:
 `banners`, `support` / `support_comment`, `recommendation`, `tour_reviews`, `file_meta`
 
-> `persistent_logins`는 반대로 엔티티가 없어 `ddl-auto`로 안 생긴다 — `schema.sql`(또는 기존 DB는 v22)로 반드시 만들어야 하고, 없으면 로그아웃 시 500.
+> `persistent_logins`는 반대로 엔티티가 없어 `ddl-auto`로 안 생긴다. 2026-10부터는 앱 시작 시 `SecurityConfig`가 `CREATE TABLE IF NOT EXISTS`로 만들어 준다(예전엔 없으면 로그아웃 시 500).
+>
+> **엔티티에만 있고 `schema.sql`에는 없는 컬럼** (`ddl-auto: update`가 추가, 2026-10-15 로컬 DB와 비교해 확인):
+> `users.suspended_until`(정지 해제 시각), `parties.blinded` / `posts.blinded`(신고 처리로 숨김, 기본 false), `post_comments.parent_id`(대댓글 부모),
+> `trip_schedules.duration_days`(여행 일수 — NULL이면 파티 `duration_days` → 패키지 `duration_nights + 1` → 3 순으로 대신 씀), `trip_schedule_items.color`(블록 색, VARCHAR(20)).
 
 ### ✅ 결제/예약 제거 완료 (`migration_v21_remove_reservation_payment.sql`)
 
@@ -234,6 +238,7 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 | `status` | ENUM(`draft`,`submitted`,`confirmed`) | `finalizeSchedule()`로 제출→확정, 이후 자유편집 잠금 |
 | `locked_by_user_id` | BIGINT NULL | **v16**. 현재 편집권 보유자. NULL=전원 읽기전용 |
 | `last_saved_at` | DATETIME NULL | **v16**. 마지막 저장(자동/수동) 시각 |
+| `duration_days` | INT NULL | 여행 일수(계획표에서 ±1 조정, `PATCH /api/planner/{id}/days`). JPA `ddl-auto`로 추가되는 컬럼 |
 | `submitted_at` / `confirmed_at` | DATETIME NULL | |
 
 ### 4.10 `trip_schedule_items` — 일정 블록
@@ -248,6 +253,7 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 | `is_fixed` | BOOLEAN | **v16**. true=고정(LOCK, 동선 최적화 제외) |
 | `activity_id` | BIGINT NULL | `source=activity`일 때만. FK `activities` |
 | `title` / `memo` | VARCHAR | |
+| `color` | VARCHAR(20) NULL | 직접 추가 블록 색(JPA로 추가되는 컬럼) |
 | `price_krw` / `price_jpy` | INT | 추가 시점 가격 **스냅샷**(activities 실시간 참조 안 함) |
 | `added_by` | BIGINT | FK `users` |
 
@@ -261,13 +267,13 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 |---|---|---|
 | `schedule_id` | BIGINT | FK |
 | `snapshot_data` | JSON | 저장 시점 전체 `trip_schedule_items` 스냅샷 |
-| `trigger_type` | ENUM(`auto`,`manual`,`ai_valid`) | 자동(20분 주기) / 수동 / AI 검증 직전 임시저장. `ai_valid` 는 v25에서 추가 — 이전 `schema.sql` 로 만든 DB 는 `migration_v25_snapshot_trigger_ai_valid.sql` 을 실행해야 AI 검증 시 저장 실패(`Data truncated`)가 안 난다 |
+| `trigger_type` | ENUM(`auto`,`manual`,`ai_valid`,`ai_apply`) | 자동(20분 주기) / 수동 / AI 검증 직전 임시저장(v25) / AI 추천 반영 직후 저장(v26). 예전 `schema.sql`로 만든 DB는 `migration_v26_snapshot_trigger_ai_apply.sql`(v25 내용 포함)을 실행해야 AI 검증·반영 시 저장 실패(`Data truncated`)가 안 난다 |
 | `created_by` | BIGINT | FK `users` |
 | 인덱스 | `idx_snapshot_schedule(schedule_id, created_at)` | |
 
 ### 4.12 `posts` / `post_likes` / `post_comments`
 
-- `posts`: `user_id`, `party_id`(NULL 가능), `trip_id`(**v19**, NULL 가능, FK `my_trips`), `title`, `content` TEXT, `region`, `thumbnail_url`, `like_count`(비정규화 카운트).
+- `posts`: `user_id`, `party_id`(NULL 가능), `trip_id`(**v19**, NULL 가능, FK `my_trips`), `title`, `content` TEXT, `region`, `thumbnail_url`(`/uploads/…`·`http(s)`·시드 자리표시자 `ph1~`만 허용 — `ThumbnailUrlPolicy`), `like_count`(비정규화 카운트). `party_id`가 있는 글은 파티방 "추억 사진첩"에 표시.
 - `post_likes`: `uk_like_post_user(post_id,user_id)`.
 - `post_comments`: `content` VARCHAR(300).
 
@@ -283,7 +289,7 @@ v17: 카탈로그를 8카테고리(여행횟수 T / 국내지역 R / 광역시 M
 
 ### 4.15 `notifications`
 
-`user_id`, `type` VARCHAR(30)(`party_approved`, `new_follower`, `new_comment` 등. `trip_reminder`는 v21에서 발행 주체 삭제됨), `title`, `message`, `link_url`, `is_read`. `idx_notif_user(user_id, is_read, created_at)`.
+`user_id`, `type` VARCHAR(30)(`party_approved`, `new_follower`, `new_comment`, `new_dm`(같은 방의 안 읽은 알림이 있으면 새로 만들지 않음) 등. `trip_reminder`는 v21에서 발행 주체 삭제됨), `title`, `message`, `link_url`, `is_read`. `idx_notif_user(user_id, is_read, created_at)`.
 
 ### 4.16 `reports`
 
@@ -371,5 +377,6 @@ Spring Security `JdbcTokenRepositoryImpl` 표준 스키마: `username`(= `users.
 | `migration_v23_title_equip.sql` | `user_titles.equipped` (대표 칭호). 신규 DB는 `schema.sql`에 포함 |
 | `migration_v24_recommendation_likes.sql` | `recommendation_likes`. 신규 DB는 `schema.sql`에 포함 |
 | `migration_v25_snapshot_trigger_ai_valid.sql` | `trip_schedule_snapshots.trigger_type` 에 `ai_valid` 추가. 신규 DB는 `schema.sql`에 포함 |
+| `migration_v26_snapshot_trigger_ai_apply.sql` | `trigger_type` 에 `ai_apply` 추가(v25 내용 포함, 여러 번 실행해도 안전). 신규 DB는 `schema.sql`에 포함 |
 
 > 실행 순서는 [`db/README.md`](../src/main/resources/db/README.md) "처음 로컬 DB 세팅하는 순서"가 원본.

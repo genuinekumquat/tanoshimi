@@ -12,12 +12,23 @@
 | [05. 시연 가이드](./05-시연-가이드.md) | 데모 계정·비밀번호, 시연 PC 준비, 동시 접속(채팅) 방법, 시연 직전 체크리스트 |
 | [06. 시연 대본](./06-시연-대본.md) | 발표 중 화면을 누르는 순서와 멘트(약 8분), 리허설 후 초기화 SQL |
 
+### 제출 양식본 (프로젝트 샘플 26.08.18 양식, 2026-10-15 md 기준)
+
+| 파일 | 내용 |
+|---|---|
+| [01_프로젝트_기획서.docx](./01_프로젝트_기획서.docx) | 01 md를 기획서 양식(1~10장)으로 |
+| [02_요구사항정의서.xlsx](./02_요구사항정의서.xlsx) | 기능 89건 · 비기능 13건, MoSCoW·담당·관련 화면 ID |
+| [03_화면설계서.docx](./03_화면설계서.docx) | 화면 흐름도·전이표, 화면 목록, URL·Controller 목록(화면 51 · API 75), 핵심 화면 6개 상세 + 실제 화면 캡처 |
+| [04_ERD_테이블정의서.xlsx](./04_ERD_테이블정의서.xlsx) | 테이블 37개(schema.sql 31 + JPA 전용 6) 컬럼 정의, ERD 그림, SQL·더미 데이터 파일 목록 |
+| [images/erd.png](./images/erd.png) | ERD (04 md의 mermaid를 영역 3개로 나눠 렌더링) |
+| [images/screens/](./images/screens/) | 화면 캡처 (S-xx = 03 화면 ID, 데모 계정으로 로컬 실행) |
+
 ## 문서 작성 기준
 
-- 2026-10-05 시점의 `main`(e5b2eae, PR #81까지) 소스 기준. 진행 중 기능은 각 문서에 표기.
-- 스키마 원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) + `migration_v16_*` ~ `migration_v25_*`.
+- 01~04는 2026-10-15 시점의 `main`(PR #114까지) 소스 기준. 진행 중 기능은 각 문서에 표기.
+- 스키마 원본: [`src/main/resources/db/schema.sql`](../src/main/resources/db/schema.sql) + `migration_v16_*` ~ `migration_v26_*`.
 - DB 세팅 순서 원본: [`src/main/resources/db/README.md`](../src/main/resources/db/README.md).
-- `*.docx` / `*.xlsx` 는 2026-09-09 제출본이라 md 문서보다 오래됐다. 최신 내용은 md 기준.
+- `01_프로젝트_기획서.docx` · `02_요구사항정의서.xlsx` · `03_화면설계서.docx` · `04_ERD_테이블정의서.xlsx` 는 제출 양식(프로젝트 샘플 26.08.18)으로 옮긴 제출본. 2026-10-15 md 기준으로 다시 만들었다.
 - 라우팅 원본: `src/main/java/net/datasa/tanoshimi/controller/`.
 - 이 문서와 코드가 다르면 **코드가 정답**입니다. 문서 갱신 PR 환영.
 
@@ -35,7 +46,7 @@ mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migrati
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v19_my_trips.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v19_temporary_password.sql
 mysql -u scit -p --default-character-set=utf8mb4 < src/main/resources/db/migration_v20_usernames.sql
-#   v21(결제·예약 제거)·v22(자동 로그인)·v23(칭호 장착)·v24(추천 좋아요)·v25(스냅샷 ai_valid)는 갱신된 schema.sql 에
+#   v21(결제·예약 제거)·v22(자동 로그인)·v23(칭호 장착)·v24(추천 좋아요)·v25/v26(스냅샷 ai_valid·ai_apply)는 갱신된 schema.sql 에
 #   이미 들어 있어 새 DB 는 불필요. 예전 DB 에만 한 번 실행.
 #   시연용 데모 데이터(유자차 마이페이지·마감 임박 파티·관광지 사진)는 05-시연-가이드.md 2-1 참고.
 
