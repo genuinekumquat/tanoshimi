@@ -14,6 +14,7 @@
       <span th:if="${pendingReportCount != null and pendingReportCount > 0}" th:text="${pendingReportCount}"
             style="position:absolute; top:-8px; right:-8px; background:var(--danger); color:#fff; border-radius:999px; font-size:10px; padding:1px 6px; font-weight:700;"></span>
     </a>
+    <a href="/admin/ai" class="btn" style="background:#fff; border:1px solid #dfe4ec;" th:text="#{admin.tab.ai}">AI 통계</a>
   </div>
 
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">

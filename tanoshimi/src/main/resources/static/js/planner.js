@@ -1,87 +1,86 @@
+function showEditModal(initialTitle, initialMemo, initialColor, callback) {
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0'; overlay.style.left = '0';
+    overlay.style.width = '100vw'; overlay.style.height = '100vh';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.zIndex = '99999';
 
-    function showEditModal(initialTitle, initialMemo, initialColor, callback) {
-        const overlay = document.createElement('div');
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0'; overlay.style.left = '0';
-        overlay.style.width = '100vw'; overlay.style.height = '100vh';
-        overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        overlay.style.display = 'flex';
-        overlay.style.justifyContent = 'center';
-        overlay.style.alignItems = 'center';
-        overlay.style.zIndex = '99999';
-        
-        const modal = document.createElement('div');
-        modal.style.background = '#fff';
-        modal.style.padding = '24px';
-        modal.style.borderRadius = '12px';
-        modal.style.width = '320px';
-        modal.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
-        
-        const titleEl = document.createElement('h3');
-        titleEl.textContent = '일정 정보 입력';
-        titleEl.style.marginTop = '0';
-        titleEl.style.marginBottom = '16px';
-        
-        const tLabel = document.createElement('label');
-        tLabel.textContent = '제목';
-        tLabel.style.display = 'block'; tLabel.style.fontSize = '12px';
-        const tInput = document.createElement('input');
-        tInput.type = 'text'; tInput.value = initialTitle || '';
-        tInput.style.width = '100%'; tInput.style.marginBottom = '12px';
-        tInput.style.padding = '8px'; tInput.style.boxSizing = 'border-box';
-        
-        const mLabel = document.createElement('label');
-        mLabel.textContent = '내용 (메모)';
-        mLabel.style.display = 'block'; mLabel.style.fontSize = '12px';
-        const mInput = document.createElement('textarea');
-        mInput.value = initialMemo || '';
-        mInput.style.width = '100%'; mInput.style.marginBottom = '12px';
-        mInput.style.height = '60px';
-        mInput.style.padding = '8px'; mInput.style.boxSizing = 'border-box';
-        
-        const cLabel = document.createElement('label');
-        cLabel.textContent = '글자색';
-        cLabel.style.display = 'block'; cLabel.style.fontSize = '12px';
-        const cInput = document.createElement('input');
-        cInput.type = 'color'; cInput.value = initialColor || '#4b6b4a';
-        cInput.style.width = '100%'; cInput.style.marginBottom = '20px';
-        cInput.style.height = '36px';
-        
-        const btnDiv = document.createElement('div');
-        btnDiv.style.display = 'flex'; btnDiv.style.justifyContent = 'flex-end'; btnDiv.style.gap = '8px';
-        
-        const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = '취소';
-        cancelBtn.style.padding = '6px 12px';
-        cancelBtn.onclick = () => document.body.removeChild(overlay);
-        
-        const okBtn = document.createElement('button');
-        okBtn.textContent = '확인';
-        okBtn.style.padding = '6px 12px';
-        okBtn.style.background = 'var(--forest)';
-        okBtn.style.color = '#fff';
-        okBtn.style.border = 'none';
-        okBtn.style.borderRadius = '4px';
-        okBtn.onclick = () => {
-            document.body.removeChild(overlay);
-            callback(tInput.value.trim(), mInput.value.trim(), cInput.value);
-        };
-        
-        btnDiv.appendChild(cancelBtn);
-        btnDiv.appendChild(okBtn);
-        
-        modal.appendChild(titleEl);
-        modal.appendChild(tLabel);
-        modal.appendChild(tInput);
-        modal.appendChild(mLabel);
-        modal.appendChild(mInput);
-        modal.appendChild(cLabel);
-        modal.appendChild(cInput);
-        modal.appendChild(btnDiv);
-        
-        overlay.appendChild(modal);
-        document.body.appendChild(overlay);
-    }
+    const modal = document.createElement('div');
+    modal.style.background = '#fff';
+    modal.style.padding = '24px';
+    modal.style.borderRadius = '12px';
+    modal.style.width = '320px';
+    modal.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+
+    const titleEl = document.createElement('h3');
+    titleEl.textContent = '일정 정보 입력';
+    titleEl.style.marginTop = '0';
+    titleEl.style.marginBottom = '16px';
+
+    const tLabel = document.createElement('label');
+    tLabel.textContent = '제목';
+    tLabel.style.display = 'block'; tLabel.style.fontSize = '12px';
+    const tInput = document.createElement('input');
+    tInput.type = 'text'; tInput.value = initialTitle || '';
+    tInput.style.width = '100%'; tInput.style.marginBottom = '12px';
+    tInput.style.padding = '8px'; tInput.style.boxSizing = 'border-box';
+
+    const mLabel = document.createElement('label');
+    mLabel.textContent = '내용 (메모)';
+    mLabel.style.display = 'block'; mLabel.style.fontSize = '12px';
+    const mInput = document.createElement('textarea');
+    mInput.value = initialMemo || '';
+    mInput.style.width = '100%'; mInput.style.marginBottom = '12px';
+    mInput.style.height = '60px';
+    mInput.style.padding = '8px'; mInput.style.boxSizing = 'border-box';
+
+    const cLabel = document.createElement('label');
+    cLabel.textContent = '글자색';
+    cLabel.style.display = 'block'; cLabel.style.fontSize = '12px';
+    const cInput = document.createElement('input');
+    cInput.type = 'color'; cInput.value = initialColor || '#4b6b4a';
+    cInput.style.width = '100%'; cInput.style.marginBottom = '20px';
+    cInput.style.height = '36px';
+
+    const btnDiv = document.createElement('div');
+    btnDiv.style.display = 'flex'; btnDiv.style.justifyContent = 'flex-end'; btnDiv.style.gap = '8px';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = '취소';
+    cancelBtn.style.padding = '6px 12px';
+    cancelBtn.onclick = () => document.body.removeChild(overlay);
+
+    const okBtn = document.createElement('button');
+    okBtn.textContent = '확인';
+    okBtn.style.padding = '6px 12px';
+    okBtn.style.background = 'var(--forest)';
+    okBtn.style.color = '#fff';
+    okBtn.style.border = 'none';
+    okBtn.style.borderRadius = '4px';
+    okBtn.onclick = () => {
+        document.body.removeChild(overlay);
+        callback(tInput.value.trim(), mInput.value.trim(), cInput.value);
+    };
+
+    btnDiv.appendChild(cancelBtn);
+    btnDiv.appendChild(okBtn);
+
+    modal.appendChild(titleEl);
+    modal.appendChild(tLabel);
+    modal.appendChild(tInput);
+    modal.appendChild(mLabel);
+    modal.appendChild(mInput);
+    modal.appendChild(cLabel);
+    modal.appendChild(cInput);
+    modal.appendChild(btnDiv);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+}
 (function () {
     const SLOT_MIN = 30;         // 30 min slots
     const SLOT_H = 50;           // px per slot
@@ -93,7 +92,7 @@
     let DAY_COUNT = typeof SCHEDULE_DAYS !== 'undefined' ? SCHEDULE_DAYS : (typeof DURATION_NIGHTS !== 'undefined' ? DURATION_NIGHTS + 1 : 4);
 
 
-        let DAYS = [];
+    let DAYS = [];
     function buildDays() {
         DAYS = Array.from({length: Math.max(DAY_COUNT, 1)}, (_, i) => ({
             key: 'd' + (i + 1),
@@ -118,7 +117,7 @@
 
     function buildGrid() {
         if (!gridHead || !gridBody) return;
-        
+
         // head
         gridHead.innerHTML = '<div class="corner"></div>' + DAYS.map(d => `
           <div class="day-head">
@@ -139,28 +138,28 @@
         });
 
         gridHead.querySelectorAll('.opt-route').forEach(btn =>
-          btn.addEventListener('click', async () => {
-              if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) {
-                  alert('편집권이 있어야 동선을 최적화할 수 있어요.');
-                  return;
-              }
-              const day = parseInt(btn.dataset.day.replace('d', ''), 10) || 1;
-              if (!confirm(`${day}일차 일정을 좌표 기준으로 재배치할까요? AI 크레딧이 1회 차감됩니다.`)) return;
-              btn.disabled = true;
-              try {
-                  const result = await window.api.post(`/api/planner/${SCHEDULE_ID}/optimize-route?dayIndex=${day}`, {});
-                  if (result.success) {
-                      alert(result.message);
-                      await reload();
-                  } else {
-                      alert(result.message || '동선 최적화에 실패했습니다.');
-                  }
-              } finally {
-                  btn.disabled = false;
-              }
-          })
+            btn.addEventListener('click', async () => {
+                if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) {
+                    alert('편집권이 있어야 동선을 최적화할 수 있어요.');
+                    return;
+                }
+                const day = parseInt(btn.dataset.day.replace('d', ''), 10) || 1;
+                if (!confirm(`${day}일차 일정을 좌표 기준으로 재배치할까요? AI 크레딧이 1회 차감됩니다.`)) return;
+                btn.disabled = true;
+                try {
+                    const result = await window.api.post(`/api/planner/${SCHEDULE_ID}/optimize-route?dayIndex=${day}`, {});
+                    if (result.success) {
+                        alert(result.message);
+                        await reload();
+                    } else {
+                        alert(result.message || '동선 최적화에 실패했습니다.');
+                    }
+                } finally {
+                    btn.disabled = false;
+                }
+            })
         );
-        
+
         // Set CSS grid dynamically
         gridHead.style.display = 'grid';
         gridHead.style.gridTemplateColumns = `56px repeat(${DAY_COUNT}, minmax(140px, 1fr))`;
@@ -187,7 +186,7 @@
             col.addEventListener('dragover', e => e.preventDefault());
             col.addEventListener('drop', onDropToColumn);
         });
-        
+
         // Sync top scrollbar dummy width
         const mainScroll = document.getElementById('main-scroll-wrapper');
         const topDummy = document.getElementById('top-scroll-dummy');
@@ -198,16 +197,16 @@
             }, 0);
         }
     }
-    
+
     // Add scroll sync event listeners
     document.addEventListener('DOMContentLoaded', () => {
         const topScroll = document.getElementById('top-scroll-wrapper');
         const mainScroll = document.getElementById('main-scroll-wrapper');
-        
+
         if (topScroll && mainScroll) {
             let isSyncingLeftScroll = false;
             let isSyncingRightScroll = false;
-            
+
             topScroll.addEventListener('scroll', function(e) {
                 if (!isSyncingLeftScroll) {
                     isSyncingRightScroll = true;
@@ -215,7 +214,7 @@
                 }
                 isSyncingLeftScroll = false;
             });
-            
+
             mainScroll.addEventListener('scroll', function(e) {
                 if (!isSyncingRightScroll) {
                     isSyncingLeftScroll = true;
@@ -291,7 +290,7 @@
                 const grip = el.querySelector('.grip');
                 if (grip) grip.addEventListener('pointerdown', (e) => startResize(e, item, el, startSlot, lenSlot));
             }
-            
+
             // Allow edit for blocks
             if (item.source !== 'package_default' && (typeof IS_LOCK_HOLDER === 'undefined' || IS_LOCK_HOLDER)) {
                 el.addEventListener('dblclick', async (e) => {
@@ -377,15 +376,17 @@
         const col = e.currentTarget;
         col.classList.remove('over');
         const day = parseInt(col.dataset.day.replace('d', ''), 10);
-        
+
         let data;
         try { data = JSON.parse(e.dataTransfer.getData('text/plain')); } catch(_) { return; }
-        
+
         const rawSlot = Math.round((e.clientY - col.getBoundingClientRect().top) / SLOT_H);
         const startMinute = START_HOUR * 60 + Math.max(0, rawSlot) * SLOT_MIN;
 
         if (data.kind === 'recommend' || data.kind === 'custom') {
-            if (!(await confirmWeatherOk({ activityId: data.activityId, latitude: data.latitude, longitude: data.longitude, venueType: data.venueType }, day))) return;
+            const chosen = await weatherDecision({ activityId: data.activityId, latitude: data.latitude, longitude: data.longitude, venueType: data.venueType, title: data.title, durationMin: data.durationMin }, day);
+            if (!chosen) return;
+            data = { ...data, ...chosen };
             const parsedDuration = parseInt(data.durationMin, 10);
             const finalDuration = (!isNaN(parsedDuration) && parsedDuration > 0) ? parsedDuration : 60;
             const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
@@ -452,20 +453,34 @@
     // [TNSM-72] 추천 목록은 날씨와 상관없이 전부 보여주고, 실제로 일정에 추가하는 순간에만
     // 날씨를 확인해서 안 좋으면 "그래도 추가하시겠어요?" 라고 물어본다.
     // "며칠차"에 넣는지에 따라 그 날짜(출발일 + dayIndex-1)의 날씨를 확인한다.
+    // [수정] 예전엔 toISOString()으로 날짜를 만들었는데, 이건 UTC 기준이라 한국 시간 00:00 이
+    // 전날 15:00 으로 바뀌어 "하루 전" 날씨를 확인하고 있었다(4일차 → 3일차 날씨).
+    // 로컬 날짜 그대로 yyyy-MM-dd 를 만든다.
+    function toLocalYmd(d) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     function dateForDay(dayIndex) {
         if (typeof TRIP_START_DATE === 'undefined' || !TRIP_START_DATE) {
-            return new Date().toISOString().slice(0, 10);
+            return toLocalYmd(new Date());
         }
         const d = new Date(TRIP_START_DATE + 'T00:00:00');
         d.setDate(d.getDate() + (Math.max(1, dayIndex || 1) - 1));
-        return d.toISOString().slice(0, 10);
+        return toLocalYmd(d);
     }
 
-    async function confirmWeatherOk(target, dayIndex) {
-        if (!target) return true;
+    /**
+     * 일정에 넣기 전 날씨 확인.
+     * 반환값: 넣을 대상(원래 장소 그대로 또는 사용자가 고른 실내 대체 장소) / 취소하면 null.
+     * [수정] 예전엔 브라우저 confirm 으로 한국어 문구만 띄우고, 서버가 보내준 실내 대체 장소
+     * (alternatives)는 화면에 표시하지 않았다. 이제 모달에 대체 장소 카드를 보여주고
+     * 누르면 그 장소로 바꿔서 넣는다.
+     */
+    async function weatherDecision(target, dayIndex) {
+        if (!target) return target;
         const activityId = target.activityId;
         const lat = target.latitude, lon = target.longitude;
-        if (!activityId && (lat == null || lon == null)) return true;
+        if (!activityId && (lat == null || lon == null)) return target;
         try {
             const targetDate = dateForDay(dayIndex);
             const url = activityId
@@ -473,12 +488,104 @@
                 : `/api/weather/check-coords?lat=${lat}&lon=${lon}&venueType=${encodeURIComponent(target.venueType || '')}&date=${encodeURIComponent(targetDate)}`;
             const res = await window.api.get(url);
             if (res.success && res.data && res.data.recommendable === false) {
-                return confirm(`${res.data.message}\n\n그래도 추가하시겠어요?`);
+                return await showWeatherModal(res.data, target);
             }
         } catch (e) {
             // 날씨 체크가 실패해도 추가 자체를 막지는 않는다.
         }
-        return true;
+        return target;
+    }
+
+    function weatherText(key, fallback) {
+        return (typeof WEATHER_I18N !== 'undefined' && WEATHER_I18N[key]) ? WEATHER_I18N[key] : fallback;
+    }
+
+    function showWeatherModal(advice, original) {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'weather-modal-overlay';
+            Object.assign(overlay.style, {
+                position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.45)', display: 'flex',
+                justifyContent: 'center', alignItems: 'center', zIndex: '99999'
+            });
+
+            const modal = document.createElement('div');
+            modal.className = 'weather-modal';
+            Object.assign(modal.style, {
+                background: '#fff', borderRadius: '14px', width: '360px', maxWidth: '92vw',
+                padding: '22px 22px 18px', boxShadow: '0 12px 40px rgba(0,0,0,0.25)', borderTop: '6px solid #C8462E'
+            });
+
+            const close = (value) => { overlay.remove(); resolve(value); };
+
+            const title = document.createElement('h3');
+            title.textContent = '☔ ' + weatherText('title', '날씨 확인');
+            Object.assign(title.style, { margin: '0 0 8px', fontSize: '17px' });
+
+            const msg = document.createElement('p');
+            msg.textContent = advice.message || '';
+            Object.assign(msg.style, { margin: '0 0 14px', fontSize: '14px', lineHeight: '1.6', color: '#333' });
+
+            modal.append(title, msg);
+
+            const alts = Array.isArray(advice.alternatives) ? advice.alternatives : [];
+            if (alts.length) {
+                const label = document.createElement('div');
+                label.textContent = weatherText('alt', '실내 대체 장소');
+                Object.assign(label.style, { fontSize: '12px', fontWeight: '700', color: '#C8462E', marginBottom: '6px' });
+                modal.appendChild(label);
+
+                alts.forEach(alt => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'weather-alt';
+                    Object.assign(btn.style, {
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%',
+                        padding: '10px 12px', marginBottom: '6px', border: '1px solid #ddd', borderRadius: '10px',
+                        background: '#FCFBF8', cursor: 'pointer', fontSize: '14px', textAlign: 'left'
+                    });
+                    const name = document.createElement('span');
+                    name.textContent = '🏠 ' + alt.title;
+                    const dur = document.createElement('span');
+                    dur.textContent = (alt.durationMin || 60) + weatherText('unit', '분');
+                    Object.assign(dur.style, { fontSize: '12px', color: '#888', marginLeft: '8px', whiteSpace: 'nowrap' });
+                    btn.append(name, dur);
+                    btn.onmouseenter = () => { btn.style.borderColor = '#C8462E'; };
+                    btn.onmouseleave = () => { btn.style.borderColor = '#ddd'; };
+                    btn.onclick = () => close({
+                        kind: 'recommend',
+                        activityId: alt.activityId,
+                        title: alt.title,
+                        durationMin: alt.durationMin,
+                        latitude: alt.latitude,
+                        longitude: alt.longitude,
+                        venueType: alt.venueType
+                    });
+                    modal.appendChild(btn);
+                });
+            }
+
+            const btnRow = document.createElement('div');
+            Object.assign(btnRow.style, { display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' });
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.textContent = weatherText('cancel', '취소');
+            Object.assign(cancelBtn.style, { padding: '7px 14px', border: '1px solid #ccc', borderRadius: '8px', background: '#fff', cursor: 'pointer' });
+            cancelBtn.onclick = () => close(null);
+
+            const proceedBtn = document.createElement('button');
+            proceedBtn.type = 'button';
+            proceedBtn.textContent = weatherText('proceed', '그래도 추가');
+            Object.assign(proceedBtn.style, { padding: '7px 14px', border: 'none', borderRadius: '8px', background: '#1B2A41', color: '#fff', cursor: 'pointer' });
+            proceedBtn.onclick = () => close(original);
+
+            btnRow.append(cancelBtn, proceedBtn);
+            modal.appendChild(btnRow);
+            overlay.appendChild(modal);
+            overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
+            document.body.appendChild(overlay);
+        });
     }
 
     function recCards(list) {
@@ -514,14 +621,16 @@
             });
             card.querySelector('.put').addEventListener('click', async () => {
                 if (!canEditNow()) return;
-                if (!(await confirmWeatherOk({ activityId: item.activityId, latitude: item.latitude, longitude: item.longitude, venueType: item.venueType }, 1))) return;
-                const finalDuration = (!isNaN(parseInt(item.durationMin)) && parseInt(item.durationMin) > 0) ? parseInt(item.durationMin) : 60;
-                  const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
-                      dayIndex: 1, startMinute: nextFreeStart(1, finalDuration), durationMinute: finalDuration,
-                      activityId: item.activityId || null, title: item.title || '새 일정', memo: item.description || null
-                  });
-                  if(!res.success && res.message) { alert(res.message); } else { await reload(); }
-              });
+                const chosen = await weatherDecision({ activityId: item.activityId, latitude: item.latitude, longitude: item.longitude, venueType: item.venueType, title: item.title, durationMin: item.durationMin }, 1);
+                if (!chosen) return;
+                const pick = { ...item, ...chosen };
+                const finalDuration = (!isNaN(parseInt(pick.durationMin)) && parseInt(pick.durationMin) > 0) ? parseInt(pick.durationMin) : 60;
+                const res = await window.api.post(`/api/planner/${SCHEDULE_ID}/items`, {
+                    dayIndex: 1, startMinute: nextFreeStart(1, finalDuration), durationMinute: finalDuration,
+                    activityId: pick.activityId || null, title: pick.title || '새 일정', memo: item.description || null
+                });
+                if(!res.success && res.message) { alert(res.message); } else { await reload(); }
+            });
             wrap.appendChild(card);
         });
         chat.appendChild(wrap);
@@ -553,7 +662,7 @@
             }
             const result = await window.api.get(`/api/planner/${SCHEDULE_ID}/recommend?` + qs.toString());
             typing.remove();
-            
+
             if (!result.success) {
                 bubble('오류: ' + (result.message || '알 수 없는 서버 에러'), 'bot');
             } else if (result.data && result.data.length > 0) {
@@ -623,8 +732,8 @@
         });
     }
 
-    
-    
+
+
     document.getElementById('btn-add-day')?.addEventListener('click', async () => {
         if (typeof IS_LOCK_HOLDER !== 'undefined' && !IS_LOCK_HOLDER) return;
         DAY_COUNT++;
@@ -685,7 +794,7 @@
         }
     });
 
-        const ctc = document.getElementById('custom-text-color');
+    const ctc = document.getElementById('custom-text-color');
     if (ctc) {
         ctc.value = localStorage.getItem('custom-text-color') || '#4b6b4a';
         document.documentElement.style.setProperty('--custom-text-color', ctc.value);
@@ -704,7 +813,7 @@
     buildGrid();
     reload();
     connectRealtime();
-    
+
     document.getElementById('btn-submit')?.addEventListener('click', async () => {
         // 파티방 "일정 픽스 투표" 결과를 보여 주고 확정 - 투표와 제출이 다른 화면이라 이어 준다.
         // 투표 결과가 제출을 막지는 않는다(의견 모으기용). 조회 실패 시 예전 문구로.
