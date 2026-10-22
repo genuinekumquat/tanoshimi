@@ -1,5 +1,7 @@
 # 타노시미 (tanoshimi)
 
+**한국어** | [日本語](README.ja.md)
+
 > 한일교류 여행 파티 매칭 + 실시간 협업 일정 계획 + AI 여행 추천 서비스
 > 日韓交流旅行のパーティーマッチング + リアルタイム共同プランニング + AI旅行おすすめサービス
 
@@ -85,6 +87,7 @@ cp src/main/resources/application-local.yml.example src/main/resources/applicati
 ```
 tanoshimi/                      # 저장소 루트
 ├── README.md                   # (이 파일)
+├── README.ja.md                # 일본어판 README
 ├── docs/                       # 개발 산출물 문서
 └── tanoshimi/                  # Spring Boot 애플리케이션
     ├── build.gradle
