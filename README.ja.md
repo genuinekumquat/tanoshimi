@@ -40,7 +40,7 @@
 | DB | MySQL 8（`utf8mb4`）、`schema.sql` を唯一の原本とし番号付きマイグレーションで管理、Hibernate `ddl-auto: update` で補助 |
 | リアルタイム | STOMP over WebSocket — エンドポイント `/ws`、ブローカー `/topic`、アプリprefix `/app` |
 | ファイル/画像 | Apache Tika（ファイル形式の検証）、metadata-extractor（EXIF GPS）、webp-imageio、AWS S3 / Rekognition SDK |
-| 外部連携 | SMS（Aligo）・天気（KMA/OpenWeather）・翻訳（Papago/DeepL）・AI（Anthropic/Gemini）— **すべて `mock` がデフォルト**、キーは `application-local.yml` に設定 |
+| 外部連携 | 天気（KMA/OpenWeather）・翻訳（Papago/DeepL）・AI（Anthropic/Gemini）— **すべて `mock` がデフォルト**、キーは `application-local.yml` に設定 |
 | テスト | JUnit 5、`spring-security-test`、H2（テスト実行時） |
 
 ## クイックスタート
@@ -127,7 +127,7 @@ tanoshimi/                      # リポジトリルート
 | 役割 | 担当 |
 |---|---|
 | チームリーダー / 統合・QA | アーキテクチャ、ブランチ戦略、統合・QA、AIルート最適化、マナー温度、通報/管理者機能の一部 |
-| 認証 | 会員登録・ログイン・ソーシャルログイン・SMS/メール認証、共通例外処理 |
+| 認証 | 会員登録・ログイン・ソーシャルログイン・メール認証、共通例外処理 |
 | プランナー | 共同計画表（編集権・自動保存・スナップショット・投票）、AIレポート、AIコンパニオンキャラクター |
 | AI推薦・チャットボット | venue_type判定、天気に応じた再推薦、アクティビティ履歴ベースの推薦、AIクレジット |
 | コミュニティ | 掲示板・コメント・フォロー・チャット・DM・ユーザーブロック |
