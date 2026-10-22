@@ -41,7 +41,7 @@
 | DB | MySQL 8 (`utf8mb4`), `schema.sql` 단일 원본 + 번호 마이그레이션, Hibernate `ddl-auto: update` 보조 |
 | 실시간 | STOMP over WebSocket — 엔드포인트 `/ws`, 브로커 `/topic`, 앱 prefix `/app` |
 | 파일/이미지 | Apache Tika(타입 검증), metadata-extractor(EXIF GPS), webp-imageio, AWS S3 / Rekognition SDK |
-| 외부 연동 | SMS(알리고) · 날씨(KMA/OpenWeather) · 번역(Papago/DeepL) · AI(Anthropic/Gemini) — **전부 `mock` 기본**, 키는 `application-local.yml` |
+| 외부 연동 | 날씨(KMA/OpenWeather) · 번역(Papago/DeepL) · AI(Anthropic/Gemini) — **전부 `mock` 기본**, 키는 `application-local.yml` |
 | 테스트 | JUnit 5, `spring-security-test`, H2(test runtime) |
 
 ## 빠른 시작
@@ -126,7 +126,7 @@ tanoshimi/                      # 저장소 루트
 | 역할 | 담당 |
 |---|---|
 | 팀장 / 통합·QA | 아키텍처, 브랜치 전략, 통합·QA, AI 동선 최적화, 매너온도, 신고/관리자 일부 |
-| 인증 | 회원가입·로그인·소셜·SMS/이메일 인증, 공통 예외처리 |
+| 인증 | 회원가입·로그인·소셜·이메일 인증, 공통 예외처리 |
 | 플래너 | 협업 계획표(편집권·자동저장·스냅샷·투표), AI 리포트, AI 컴패니언 캐릭터 |
 | AI 추천·챗봇 | venue_type 판정, 날씨 재추천, 활동 이력 추천, AI 크레딧 |
 | 커뮤니티 | 게시판·댓글·팔로우·채팅·DM·유저 차단 |
